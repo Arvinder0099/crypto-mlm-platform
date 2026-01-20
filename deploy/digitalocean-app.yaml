@@ -1,0 +1,70 @@
+spec:
+  name: crypto-mlm-platform
+  region: nyc
+  
+  # Database
+  databases:
+    - engine: MONGODB
+      name: crypto-mlm-db
+      num_nodes: 1
+      size: db-s-1vcpu-1gb
+      version: "6"
+
+  # Backend Service
+  services:
+    - name: backend
+      dockerfile_path: server/Dockerfile
+      source_dir: /
+      github:
+        branch: main
+        deploy_on_push: true
+        repo: YOUR_GITHUB_USERNAME/crypto-mlm-platform
+      http_port: 3040
+      instance_count: 1
+      instance_size_slug: basic-xxs
+      routes:
+        - path: /api
+      envs:
+        - key: NODE_ENV
+          value: production
+        - key: PORT
+          value: "3040"
+        - key: MONGODB_URI
+          scope: RUN_TIME
+          value: ${crypto-mlm-db.DATABASE_URL}
+        - key: JWT_SECRET
+          scope: RUN_TIME
+          type: SECRET
+        - key: SMTP_HOST
+          scope: RUN_TIME
+          value: smtp.gmail.com
+        - key: SMTP_PORT
+          scope: RUN_TIME
+          value: "587"
+        - key: SMTP_USER
+          scope: RUN_TIME
+          type: SECRET
+        - key: SMTP_PASS
+          scope: RUN_TIME
+          type: SECRET
+        - key: MSG91_API_KEY
+          scope: RUN_TIME
+          type: SECRET
+
+  # Frontend Static Site
+  static_sites:
+    - name: frontend
+      dockerfile_path: client/Dockerfile
+      source_dir: /
+      github:
+        branch: main
+        deploy_on_push: true
+        repo: YOUR_GITHUB_USERNAME/crypto-mlm-platform
+      routes:
+        - path: /
+      envs:
+        - key: REACT_APP_API_URL
+          scope: BUILD_TIME
+          value: ${backend.PUBLIC_URL}
+      build_command: npm run build
+      output_dir: build

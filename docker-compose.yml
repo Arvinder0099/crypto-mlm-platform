@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: crypto-mlm-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=crypto-mlm
+    networks:
+      - crypto-mlm-network
+
+  # Backend API Server
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: crypto-mlm-backend
+    restart: always
+    ports:
+      - "3040:3040"
+    depends_on:
+      - mongodb
+    environment:
+      - NODE_ENV=production
+      - PORT=3040
+      - MONGODB_URI=mongodb://mongodb:27017/crypto-mlm
+      - JWT_SECRET=${JWT_SECRET}
+      - EMAIL_PROVIDER=smtp
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMS_PROVIDER=msg91
+      - MSG91_API_KEY=${MSG91_API_KEY}
+    networks:
+      - crypto-mlm-network
+
+  # Frontend React App
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:3040}
+    container_name: crypto-mlm-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - crypto-mlm-network
+
+networks:
+  crypto-mlm-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

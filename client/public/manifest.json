@@ -1,0 +1,9 @@
+{
+  "short_name": "CryptoMLM",
+  "name": "Crypto MLM Platform",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "description": "Multi-Level Marketing Platform for Cryptocurrency"
+}

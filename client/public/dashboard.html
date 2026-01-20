@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Crypto MLM Platform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+        }
+        .header button {
+            padding: 10px 20px;
+            background: #764ba2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .header button:hover { background: #653b81; }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .card h3 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+        }
+        .card .label {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .user-info {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .user-info h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .info-row {
+            display: flex;
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-label {
+            font-weight: 600;
+            width: 150px;
+            color: #666;
+        }
+        .info-value {
+            color: #333;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge.admin {
+            background: #ffd700;
+            color: #333;
+        }
+        .badge.user {
+            background: #667eea;
+            color: white;
+        }
+        .badge.active {
+            background: #10b981;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Crypto MLM Dashboard</h1>
+            <button onclick="logout()">Logout</button>
+        </div>
+
+        <div class="cards">
+            <div class="card">
+                <h3>Total Balance</h3>
+                <div class="value">$<span id="balance">0</span></div>
+                <div class="label">Available funds</div>
+            </div>
+            <div class="card">
+                <h3>Total Invested</h3>
+                <div class="value">$<span id="invested">0</span></div>
+                <div class="label">Investment amount</div>
+            </div>
+            <div class="card">
+                <h3>Total Earned</h3>
+                <div class="value">$<span id="earned">0</span></div>
+                <div class="label">Commission earnings</div>
+            </div>
+            <div class="card">
+                <h3>Referral Code</h3>
+                <div class="value" style="font-size: 20px;"><span id="refCode">-</span></div>
+                <div class="label">Share with others</div>
+            </div>
+        </div>
+
+        <div class="user-info">
+            <h2>Account Information</h2>
+            <div class="info-row">
+                <div class="info-label">User ID:</div>
+                <div class="info-value"><strong id="userId">-</strong></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Full Name:</div>
+                <div class="info-value" id="fullName">-</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div class="info-value" id="email">-</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Role:</div>
+                <div class="info-value"><span class="badge" id="roleBadge">-</span></div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Status:</div>
+                <div class="info-value"><span class="badge active" id="statusBadge">-</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if user is logged in
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        if (!token || !user.id) {
+            window.location.href = '/login.html';
+        }
+
+        // Display user data
+        document.getElementById('balance').textContent = user.balance || 0;
+        document.getElementById('invested').textContent = user.totalInvested || 0;
+        document.getElementById('earned').textContent = user.totalEarned || 0;
+        document.getElementById('refCode').textContent = user.referralCode || '-';
+        document.getElementById('userId').textContent = user.userId || user.id;
+        document.getElementById('fullName').textContent = `${user.firstName || ''} ${user.lastName || ''}`.trim() || '-';
+        document.getElementById('email').textContent = user.email || '-';
+        
+        const roleBadge = document.getElementById('roleBadge');
+        roleBadge.textContent = (user.role || 'user').toUpperCase();
+        roleBadge.className = `badge ${user.role || 'user'}`;
+        
+        document.getElementById('statusBadge').textContent = 'ACTIVE';
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+</html>
