@@ -1,0 +1,374 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║         🚀 DEMO MODEL QUICK REFERENCE - COMMAND CHEAT SHEET 🚀           ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ SETUP & INITIALIZATION                                                     │
+└────────────────────────────────────────────────────────────────────────────┘
+
+1. SEED DEMO DATA (Creates 6 investment plans + settings)
+   ─────────────────────────────────────────────────────
+   cd server
+   node scripts/seed-demo-data.js
+   
+   Output:
+   ✅ Created 6 investment plans
+   ✅ Created admin settings
+   📋 Plans displayed with full details
+
+2. START BACKEND SERVER
+   ──────────────────────
+   npm run dev              # Development with auto-reload (nodemon)
+   node server.js           # Production mode
+   node server-complete.js  # Alternative complete version
+   
+   Expected console output:
+   ✅ MongoDB Connected
+   🚀 Server running on http://localhost:5000
+
+3. START FRONTEND
+   ───────────────
+   cd ../client
+   npm start
+   
+   Opens: http://localhost:3000
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ API TESTING WITH CURL EXAMPLES                                             │
+└────────────────────────────────────────────────────────────────────────────┘
+
+REGISTER NEW USER (Gets 1000 USDT automatic demo balance)
+─────────────────────────────────────────────────────────
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john@example.com",
+    "password": "password123",
+    "phone": "+1234567890",
+    "country": "USA"
+  }'
+
+Response includes:
+- token: JWT token for authentication
+- balance: 1000 USDT (default demo balance)
+- referralCode: Auto-generated code
+
+LOGIN
+─────
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john@example.com",
+    "password": "password123"
+  }'
+
+Response includes:
+- token: JWT token
+- balance: 1000 USDT
+
+GET INVESTMENT PLANS
+────────────────────
+curl -X GET http://localhost:5000/api/plans
+
+Returns all 6 plans with:
+├─ 🚀 STARTER PACK
+├─ 💼 ESSENTIAL PLAN
+├─ 🥉 BRONZE TIER
+├─ 🥈 SILVER TIER
+├─ 🥇 GOLD TIER
+└─ 💎 PLATINUM ELITE
+
+PURCHASE INVESTMENT PLAN
+────────────────────────
+curl -X POST http://localhost:5000/api/investments \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "planId": "PLAN_OBJECT_ID",
+    "amount": 2000
+  }'
+
+Response includes:
+- Investment created with status: "active"
+- Earnings start hourly
+
+REQUEST WITHDRAWAL
+──────────────────
+curl -X POST http://localhost:5000/api/withdrawals \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 100,
+    "walletAddress": "1A1z7agoat4yNMLUP3NCjYsRaGjB5XLwm7"
+  }'
+
+Response includes:
+- Status: "pending"
+- Amount: 100 USDT
+- Fee: 2% (2 USDT)
+
+ADMIN APPROVE WITHDRAWAL
+────────────────────────
+curl -X POST http://localhost:5000/api/withdrawals/WITHDRAWAL_ID/approve \
+  -H "Authorization: Bearer ADMIN_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transactionHash": "0x123abc..."
+  }'
+
+Response includes:
+- Status: "approved" → "completed"
+- Net amount: 98 USDT (after 2% fee)
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ TESTING WORKFLOW                                                           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+COMPLETE DEMO TEST SEQUENCE
+───────────────────────────
+
+1. Seed database
+   $ cd server
+   $ node scripts/seed-demo-data.js
+   ✅ All plans created
+
+2. Start backend
+   $ npm run dev
+   ✅ Server running on :5000
+
+3. Register user
+   $ curl -X POST http://localhost:5000/api/auth/register \
+     -H "Content-Type: application/json" \
+     -d '{
+       "firstName": "Demo",
+       "lastName": "User",
+       "email": "demo@test.com",
+       "password": "test123"
+     }'
+   ✅ User created with 1000 USDT
+
+4. Login to get token
+   $ curl -X POST http://localhost:5000/api/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email": "demo@test.com", "password": "test123"}'
+   
+   Save TOKEN from response
+
+5. Get plans
+   $ curl -X GET http://localhost:5000/api/plans
+   ✅ Shows all 6 investment plans
+
+6. Purchase Gold Plan ($2000)
+   $ curl -X POST http://localhost:5000/api/investments \
+     -H "Authorization: Bearer TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"planId": "PLAN_ID", "amount": 2000}'
+   ✅ Investment created
+
+7. Wait 1 hour for earnings (or manually trigger cron)
+   ⏰ Cron runs at :00 minutes every hour
+   ✅ Daily earning: 200 USDT calculated & credited
+
+8. Request withdrawal
+   $ curl -X POST http://localhost:5000/api/withdrawals \
+     -H "Authorization: Bearer TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"amount": 100, "walletAddress": "..."}'
+   ✅ Withdrawal requested
+
+9. Admin approves
+   $ curl -X POST http://localhost:5000/api/withdrawals/ID/approve \
+     -H "Authorization: Bearer ADMIN_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"transactionHash": "0x123..."}'
+   ✅ Withdrawal completed
+
+10. Check dashboard
+    $ curl -X GET http://localhost:5000/api/user/dashboard \
+      -H "Authorization: Bearer TOKEN"
+    ✅ Shows updated balance, earnings, transactions
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ CONFIGURATION FILES                                                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+CHANGE DEFAULT DEMO BALANCE
+───────────────────────────
+File: server/models/User.js, line 27
+
+FROM: balance: { type: Number, default: 0, min: 0 },
+TO:   balance: { type: Number, default: 5000, min: 0 },
+
+Then restart server:
+$ npm run dev
+
+MODIFY COMMISSION RATES
+───────────────────────
+File: server/models/AdminSettings.js, lines 11-20
+
+directCommissionRate: 10        # Direct referral %
+levelCommissionRates:
+  level1: 5                      # First level %
+  level2: 3                      # Second level %
+  level3: 2                      # Third level %
+  level4: 1                      # Fourth level %
+  level5: 0.5                    # Fifth level %
+
+Then restart server and re-run seed:
+$ node scripts/seed-demo-data.js
+
+CHANGE WITHDRAWAL SETTINGS
+──────────────────────────
+File: server/models/AdminSettings.js, lines 21-24
+
+minWithdrawal: 50              # Minimum withdrawal
+maxWithdrawal: 50000           # Maximum withdrawal
+withdrawalFeePercent: 2        # Fee percentage
+withdrawalApprovalRequired: true  # Require admin approval
+
+ADD NEW INVESTMENT PLAN
+───────────────────────
+File: server/scripts/seed-demo-data.js
+
+Add to demoPlans array:
+{
+  name: 'YOUR PLAN NAME',
+  investment: 1000,
+  dailyEarn: 2.5,
+  duration: 365,
+  totalReturn: 9125,
+  roi: 912.5,
+  minInvestment: 1000,
+  maxInvestment: 4999,
+  description: 'Your description',
+  icon: '🎯',
+  badge: 'YOUR BADGE'
+}
+
+Then re-seed:
+$ node scripts/seed-demo-data.js
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ MONGODB COMMANDS                                                           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+START MONGODB (Windows)
+───────────────────────
+# In PowerShell as Administrator:
+mongod --dbpath C:\data\db
+
+# Or if installed as service:
+Get-Service MongoDB | Start-Service
+
+CONNECT TO MONGODB
+──────────────────
+mongo
+use crypto-mlm
+
+# View collections:
+show collections
+
+# Check plans:
+db.plans.find()
+
+# Check users:
+db.users.find()
+
+# Check investments:
+db.investments.find()
+
+RESET DATABASE (Clear all data)
+───────────────────────────────
+mongo
+use crypto-mlm
+db.dropDatabase()
+
+# Then re-seed:
+exit
+node scripts/seed-demo-data.js
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ TROUBLESHOOTING                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+ERROR: "MongoDB Connection Error"
+─────────────────────────────────
+✓ Check MongoDB is running:
+  mongod --version
+  
+✓ Check .env file has MONGODB_URI:
+  MONGODB_URI=mongodb://localhost:27017/crypto-mlm
+  
+✓ For MongoDB Atlas (cloud):
+  MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/crypto-mlm
+
+ERROR: "No investment plans found"
+──────────────────────────────────
+✓ Run seed script:
+  cd server
+  node scripts/seed-demo-data.js
+
+ERROR: "User balance is 0 after registration"
+─────────────────────────────────────────────
+✓ Check User.js model has default: 1000
+✓ Check using latest server.js or server-complete.js
+✓ Verify database seeding completed
+
+ERROR: "Earnings not calculating"
+─────────────────────────────────
+✓ Investment status must be "active"
+✓ Check server console for cron job logs
+✓ Wait for :00 minutes of the hour
+✓ Verify MongoDB connection is active
+
+ERROR: "API returns 401 Unauthorized"
+─────────────────────────────────────
+✓ Check JWT token is included:
+  -H "Authorization: Bearer YOUR_TOKEN"
+✓ Check token format (Bearer + space + token)
+✓ Verify token hasn't expired (7 days)
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ FILES CREATED/MODIFIED                                                     │
+└────────────────────────────────────────────────────────────────────────────┘
+
+✅ server/models/User.js
+   └─ Default balance: 1000 USDT
+
+✅ server/models/AdminSettings.js
+   └─ Realistic commission rates & fees
+
+✅ server/server.js
+   ├─ Registration gives 1000 USDT
+   └─ Enhanced plans with descriptions
+
+✅ server/server-complete.js
+   └─ Updated with 1000 USDT default
+
+✅ server/scripts/seed-demo-data.js (NEW)
+   └─ Complete database seeding script
+
+✅ DEMO_MODEL_README.md (NEW)
+   └─ Comprehensive setup & customization guide
+
+✅ DEMO_MODEL_SUMMARY.txt (NEW)
+   └─ Quick visual reference with examples
+
+✅ DEMO_MODEL_COMMANDS.txt (THIS FILE)
+   └─ Command reference & API examples
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Need more help?
+1. Check DEMO_MODEL_README.md for detailed setup
+2. Check SYSTEM_ARCHITECTURE.md for technical flow
+3. Check PRODUCTION_SETUP.md for API documentation
+4. Check server console logs for errors
+
+Happy testing! 🎉
+
+═══════════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,137 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║              ❌ "FAILED TO FETCH" ERROR - QUICK FIX              ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+🎯 WHAT THIS ERROR MEANS:
+═══════════════════════════════════════════════════════════════════
+
+The frontend (React app) cannot connect to the backend (API server).
+
+This means: THE BACKEND SERVER IS NOT RUNNING!
+
+
+✅ INSTANT FIX (Run This):
+═══════════════════════════════════════════════════════════════════
+
+.\fix-failed-to-fetch.ps1
+
+This script will:
+  ✓ Check if backend is running
+  ✓ Check if frontend is running
+  ✓ Test the API connection
+  ✓ Tell you exactly what to do
+
+
+🔧 MANUAL FIX (3 Steps):
+═══════════════════════════════════════════════════════════════════
+
+STEP 1: Check if servers are running
+   .\check-servers.ps1
+
+STEP 2: If backend is NOT running, start it:
+   Open PowerShell window #1:
+   cd scripts/server
+   npm start
+   
+   (Keep this window open!)
+
+STEP 3: If frontend is NOT running, start it:
+   Open PowerShell window #2:
+   cd client
+   npm start
+   
+   (Keep this window open!)
+
+
+⚡ EASIEST FIX (Automated):
+═══════════════════════════════════════════════════════════════════
+
+.\start-clean.ps1
+
+This will:
+  ✓ Kill any old processes
+  ✓ Start backend server
+  ✓ Start frontend app
+  ✓ Open both in new windows
+
+
+🔍 HOW TO VERIFY IT'S FIXED:
+═══════════════════════════════════════════════════════════════════
+
+1. Open browser to: http://localhost:8080/api/health
+   Should show: {"success":true}
+
+2. Open browser to: http://localhost:3049
+   Should show: Login page
+
+3. Login with:
+   Email: admin@test.com
+   Password: admin123
+
+
+⚠️ STILL NOT WORKING?
+═══════════════════════════════════════════════════════════════════
+
+Try these in order:
+
+1. Clear browser cache:
+   Ctrl + Shift + Delete → Clear cached files
+
+2. Hard refresh:
+   Ctrl + F5
+
+3. Close ALL PowerShell windows and start over:
+   .\start-clean.ps1
+
+4. Complete reset:
+   See TROUBLESHOOTING.md for full reset instructions
+
+
+💡 REMEMBER:
+═══════════════════════════════════════════════════════════════════
+
+• Backend MUST run on port 8080
+• Frontend MUST run on port 3049
+• Both MUST be running at the same time
+• Keep both terminal windows open
+• Don't close the terminal windows!
+
+
+📝 COMMON MISTAKES:
+═══════════════════════════════════════════════════════════════════
+
+❌ Only starting frontend (not backend)
+✅ Start BOTH servers
+
+❌ Closing the terminal windows
+✅ Keep both windows open
+
+❌ Using wrong URL (localhost:8080)
+✅ Use localhost:3049 for the app
+
+❌ Waiting only 5 seconds
+✅ Wait 30-60 seconds for servers to start
+
+
+🎯 QUICK CHECKLIST:
+═══════════════════════════════════════════════════════════════════
+
+□ Backend running? (Check: http://localhost:8080/api/health)
+□ Frontend running? (Check: http://localhost:3049)
+□ Both terminal windows still open?
+□ Waited at least 30 seconds?
+□ Browser cache cleared?
+□ Using correct URL (localhost:3049)?
+
+
+═══════════════════════════════════════════════════════════════════
+
+For more help, see:
+  • TROUBLESHOOTING.md (detailed guide)
+  • START_HERE.md (setup guide)
+  • Run: .\check-servers.ps1 (check status)
+
+═══════════════════════════════════════════════════════════════════
