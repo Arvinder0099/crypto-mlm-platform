@@ -156,6 +156,28 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// Check Referral Code
+app.get('/api/auth/check-referral/:code', async (req, res) => {
+  try {
+    const { code } = req.params;
+    const referrer = await User.findOne({ referralCode: code });
+    
+    if (referrer) {
+      res.json({
+        valid: true,
+        referrer: {
+          name: `${referrer.firstName} ${referrer.lastName}`,
+          referralCode: referrer.referralCode,
+        },
+      });
+    } else {
+      res.json({ valid: false });
+    }
+  } catch (error) {
+    res.status(500).json({ valid: false, error: error.message });
+  }
+});
+
 // Login
 app.post('/api/auth/login', async (req, res) => {
   try {
