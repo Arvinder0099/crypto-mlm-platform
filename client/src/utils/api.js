@@ -1,5 +1,5 @@
 const API_BASE = process.env.REACT_APP_API_URL || '';
-const USE_PROXY = true;
+const USE_PROXY = process.env.NODE_ENV === 'development'; // Only use proxy in development
 function resolveUrl(url) {
   if (typeof url !== 'string') return url;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
