@@ -2,6 +2,9 @@
   "name": "crypto-mlm-platform-client",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "@capacitor/android": "^7.4.4",
     "@emotion/react": "^11.14.0",
