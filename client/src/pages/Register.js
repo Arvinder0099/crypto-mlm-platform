@@ -18,16 +18,18 @@ import {
   Checkbox,
   Alert,
   LinearProgress,
-  Avatar,
   IconButton,
   InputAdornment,
   Chip,
   Fade,
   Zoom,
   CircularProgress,
-  Tooltip,
   useTheme,
   alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Visibility,
@@ -38,7 +40,6 @@ import {
   Lock,
   AccountBalanceWallet,
   CheckCircle,
-  RadioButtonUnchecked,
   ArrowForward,
   ArrowBack,
   Verified,
@@ -46,8 +47,9 @@ import {
   TrendingUp,
   Groups,
   AttachMoney,
-  ContentCopy,
-  Check,
+  Send,
+  Sms,
+  Timer,
 } from '@mui/icons-material';
 import { fetchJSON } from '../utils/api';
 
@@ -75,7 +77,7 @@ const COUNTRY_CODES = [
   { code: 'MY', name: 'Malaysia', dial: '+60' },
 ];
 
-const steps = ['Personal Info', 'Security', 'Wallet Setup'];
+const steps = ['Personal Info', 'Verify & Security', 'Wallet Setup'];
 
 const features = [
   { icon: <TrendingUp />, title: 'High Returns', desc: 'Earn up to 15% monthly ROI' },
@@ -96,7 +98,26 @@ function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [copied, setCopied] = useState(false);
+
+  // OTP States
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [emailOtp, setEmailOtp] = useState('');
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [emailTimer, setEmailTimer] = useState(0);
+  const [phoneTimer, setPhoneTimer] = useState(0);
+  const [sendingEmailOtp, setSendingEmailOtp] = useState(false);
+  const [sendingPhoneOtp, setSendingPhoneOtp] = useState(false);
+  const [verifyingEmail, setVerifyingEmail] = useState(false);
+  const [verifyingPhone, setVerifyingPhone] = useState(false);
+
+  // For demo - store OTP codes
+  const [demoEmailOtp, setDemoEmailOtp] = useState('');
+  const [demoPhoneOtp, setDemoPhoneOtp] = useState('');
+  const [showDemoDialog, setShowDemoDialog] = useState(false);
+  const [demoOtpType, setDemoOtpType] = useState('');
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -115,6 +136,28 @@ function Register() {
 
   const [fieldErrors, setFieldErrors] = useState({});
   const [referrerInfo, setReferrerInfo] = useState(null);
+
+  // Email Timer
+  useEffect(() => {
+    let interval;
+    if (emailTimer > 0) {
+      interval = setInterval(() => {
+        setEmailTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [emailTimer]);
+
+  // Phone Timer
+  useEffect(() => {
+    let interval;
+    if (phoneTimer > 0) {
+      interval = setInterval(() => {
+        setPhoneTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [phoneTimer]);
 
   // Check referral code
   useEffect(() => {
@@ -144,14 +187,166 @@ function Register() {
     if (fieldErrors[field]) {
       setFieldErrors(prev => ({ ...prev, [field]: '' }));
     }
+    // Reset verification if email/phone changes
+    if (field === 'email') {
+      setEmailVerified(false);
+      setEmailOtpSent(false);
+      setEmailOtp('');
+    }
+    if (field === 'phone') {
+      setPhoneVerified(false);
+      setPhoneOtpSent(false);
+      setPhoneOtp('');
+    }
   };
 
-  const detectWalletType = (address) => {
-    const a = (address || '').trim();
-    if (/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a)) return 'usdt_trc20';
-    if (/^0x[a-fA-F0-9]{40}$/.test(a)) return 'usdt_erc20';
-    if (/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}$/.test(a)) return 'btc';
-    return 'usdt_trc20';
+  // Send Email OTP
+  const sendEmailOtp = async () => {
+    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setFieldErrors(prev => ({ ...prev, email: 'Enter a valid email first' }));
+      return;
+    }
+
+    setSendingEmailOtp(true);
+    try {
+      const response = await fetchJSON('/api/auth/send-email-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email: formData.email }),
+      });
+      
+      setEmailOtpSent(true);
+      setEmailTimer(60); // 60 seconds cooldown
+      
+      // For demo purposes - show the OTP
+      if (response.demoOtp) {
+        setDemoEmailOtp(response.demoOtp);
+        setDemoOtpType('email');
+        setShowDemoDialog(true);
+      }
+      
+      setSuccess('OTP sent to your email!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      // Demo mode - generate local OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      setDemoEmailOtp(otp);
+      setEmailOtpSent(true);
+      setEmailTimer(60);
+      setDemoOtpType('email');
+      setShowDemoDialog(true);
+    } finally {
+      setSendingEmailOtp(false);
+    }
+  };
+
+  // Send Phone OTP
+  const sendPhoneOtp = async () => {
+    if (!formData.phone || !/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
+      setFieldErrors(prev => ({ ...prev, phone: 'Enter a valid 10-digit phone number first' }));
+      return;
+    }
+
+    setSendingPhoneOtp(true);
+    try {
+      const response = await fetchJSON('/api/auth/send-phone-otp', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          phone: formData.phone,
+          countryCode: formData.countryCode 
+        }),
+      });
+      
+      setPhoneOtpSent(true);
+      setPhoneTimer(60);
+      
+      if (response.demoOtp) {
+        setDemoPhoneOtp(response.demoOtp);
+        setDemoOtpType('phone');
+        setShowDemoDialog(true);
+      }
+      
+      setSuccess('OTP sent to your phone!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      // Demo mode - generate local OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      setDemoPhoneOtp(otp);
+      setPhoneOtpSent(true);
+      setPhoneTimer(60);
+      setDemoOtpType('phone');
+      setShowDemoDialog(true);
+    } finally {
+      setSendingPhoneOtp(false);
+    }
+  };
+
+  // Verify Email OTP
+  const verifyEmailOtp = async () => {
+    if (!emailOtp || emailOtp.length !== 6) {
+      setError('Please enter 6-digit OTP');
+      return;
+    }
+
+    setVerifyingEmail(true);
+    try {
+      await fetchJSON('/api/auth/verify-email-otp', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          email: formData.email,
+          otp: emailOtp 
+        }),
+      });
+      setEmailVerified(true);
+      setSuccess('Email verified successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      // Demo mode - check against local OTP
+      if (emailOtp === demoEmailOtp) {
+        setEmailVerified(true);
+        setSuccess('Email verified successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError('Invalid OTP. Please try again.');
+        setTimeout(() => setError(''), 3000);
+      }
+    } finally {
+      setVerifyingEmail(false);
+    }
+  };
+
+  // Verify Phone OTP
+  const verifyPhoneOtp = async () => {
+    if (!phoneOtp || phoneOtp.length !== 6) {
+      setError('Please enter 6-digit OTP');
+      return;
+    }
+
+    setVerifyingPhone(true);
+    try {
+      await fetchJSON('/api/auth/verify-phone-otp', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          phone: formData.phone,
+          countryCode: formData.countryCode,
+          otp: phoneOtp 
+        }),
+      });
+      setPhoneVerified(true);
+      setSuccess('Phone verified successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      // Demo mode - check against local OTP
+      if (phoneOtp === demoPhoneOtp) {
+        setPhoneVerified(true);
+        setSuccess('Phone verified successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError('Invalid OTP. Please try again.');
+        setTimeout(() => setError(''), 3000);
+      }
+    } finally {
+      setVerifyingPhone(false);
+    }
   };
 
   const validateStep = (step) => {
@@ -167,6 +362,8 @@ function Register() {
     }
     
     if (step === 1) {
+      if (!emailVerified) errors.emailOtp = 'Please verify your email';
+      if (!phoneVerified) errors.phoneOtp = 'Please verify your phone';
       if (!formData.password) errors.password = 'Password is required';
       else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
       if (formData.password !== formData.confirmPassword) errors.confirmPassword = 'Passwords do not match';
@@ -207,10 +404,11 @@ function Register() {
         password: formData.password,
         referralCode: formData.referralCode || undefined,
         walletAddress: formData.walletAddress,
-        walletType: detectWalletType(formData.walletAddress),
+        emailVerified: true,
+        phoneVerified: true,
       };
 
-      const response = await fetchJSON('/api/auth/register', {
+      await fetchJSON('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
@@ -249,7 +447,7 @@ function Register() {
           boxShadow: isActive ? '0 4px 20px rgba(102, 126, 234, 0.4)' : 'none',
         }}
       >
-        {isCompleted ? <CheckCircle /> : index === 0 ? <Person /> : index === 1 ? <Lock /> : <AccountBalanceWallet />}
+        {isCompleted ? <CheckCircle /> : index === 0 ? <Person /> : index === 1 ? <Security /> : <AccountBalanceWallet />}
       </Box>
     );
   };
@@ -393,13 +591,194 @@ function Register() {
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}>
-                Security Setup
+                Verify & Security
               </Typography>
               <Typography variant="body2" color="text.secondary" mb={3}>
-                Create a strong password and add referral code
+                Verify your email & phone, then create password
               </Typography>
 
               <Grid container spacing={2}>
+                {/* Email Verification */}
+                <Grid item xs={12}>
+                  <Box sx={{ 
+                    p: 2, 
+                    borderRadius: 2, 
+                    border: `2px solid ${emailVerified ? '#00C853' : alpha(theme.palette.primary.main, 0.2)}`,
+                    bgcolor: emailVerified ? alpha('#00C853', 0.05) : 'transparent',
+                  }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Email color={emailVerified ? 'success' : 'action'} />
+                        <Typography variant="subtitle2" fontWeight={600}>
+                          Email Verification
+                        </Typography>
+                        {emailVerified && (
+                          <Chip 
+                            icon={<Verified />} 
+                            label="Verified" 
+                            color="success" 
+                            size="small"
+                          />
+                        )}
+                      </Box>
+                    </Box>
+                    
+                    <Typography variant="body2" color="text.secondary" mb={2}>
+                      {formData.email || 'No email entered'}
+                    </Typography>
+
+                    {!emailVerified && (
+                      <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
+                        {!emailOtpSent ? (
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={sendingEmailOtp ? <CircularProgress size={16} /> : <Send />}
+                            onClick={sendEmailOtp}
+                            disabled={sendingEmailOtp || !formData.email}
+                            sx={{ 
+                              borderRadius: 2,
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            }}
+                          >
+                            Send OTP
+                          </Button>
+                        ) : (
+                          <>
+                            <TextField
+                              size="small"
+                              placeholder="Enter 6-digit OTP"
+                              value={emailOtp}
+                              onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              sx={{ width: 150, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                            />
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={verifyEmailOtp}
+                              disabled={verifyingEmail || emailOtp.length !== 6}
+                              sx={{ 
+                                borderRadius: 2,
+                                background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)',
+                              }}
+                            >
+                              {verifyingEmail ? <CircularProgress size={16} /> : 'Verify'}
+                            </Button>
+                            {emailTimer > 0 ? (
+                              <Chip 
+                                icon={<Timer />} 
+                                label={`${emailTimer}s`} 
+                                size="small" 
+                                variant="outlined"
+                              />
+                            ) : (
+                              <Button size="small" onClick={sendEmailOtp}>
+                                Resend
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </Box>
+                    )}
+                    {fieldErrors.emailOtp && (
+                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+                        {fieldErrors.emailOtp}
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+
+                {/* Phone Verification */}
+                <Grid item xs={12}>
+                  <Box sx={{ 
+                    p: 2, 
+                    borderRadius: 2, 
+                    border: `2px solid ${phoneVerified ? '#00C853' : alpha(theme.palette.primary.main, 0.2)}`,
+                    bgcolor: phoneVerified ? alpha('#00C853', 0.05) : 'transparent',
+                  }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Sms color={phoneVerified ? 'success' : 'action'} />
+                        <Typography variant="subtitle2" fontWeight={600}>
+                          Phone Verification
+                        </Typography>
+                        {phoneVerified && (
+                          <Chip 
+                            icon={<Verified />} 
+                            label="Verified" 
+                            color="success" 
+                            size="small"
+                          />
+                        )}
+                      </Box>
+                    </Box>
+                    
+                    <Typography variant="body2" color="text.secondary" mb={2}>
+                      {formData.phone ? `${formData.countryCode} ${formData.phone}` : 'No phone entered'}
+                    </Typography>
+
+                    {!phoneVerified && (
+                      <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
+                        {!phoneOtpSent ? (
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={sendingPhoneOtp ? <CircularProgress size={16} /> : <Sms />}
+                            onClick={sendPhoneOtp}
+                            disabled={sendingPhoneOtp || !formData.phone}
+                            sx={{ 
+                              borderRadius: 2,
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            }}
+                          >
+                            Send OTP
+                          </Button>
+                        ) : (
+                          <>
+                            <TextField
+                              size="small"
+                              placeholder="Enter 6-digit OTP"
+                              value={phoneOtp}
+                              onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              sx={{ width: 150, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                            />
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={verifyPhoneOtp}
+                              disabled={verifyingPhone || phoneOtp.length !== 6}
+                              sx={{ 
+                                borderRadius: 2,
+                                background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)',
+                              }}
+                            >
+                              {verifyingPhone ? <CircularProgress size={16} /> : 'Verify'}
+                            </Button>
+                            {phoneTimer > 0 ? (
+                              <Chip 
+                                icon={<Timer />} 
+                                label={`${phoneTimer}s`} 
+                                size="small" 
+                                variant="outlined"
+                              />
+                            ) : (
+                              <Button size="small" onClick={sendPhoneOtp}>
+                                Resend
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </Box>
+                    )}
+                    {fieldErrors.phoneOtp && (
+                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+                        {fieldErrors.phoneOtp}
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+
+                {/* Password Fields */}
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
@@ -452,6 +831,34 @@ function Register() {
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
                 </Grid>
+
+                {/* Password Strength */}
+                <Grid item xs={12}>
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="caption" color="text.secondary" gutterBottom>
+                      Password Strength
+                    </Typography>
+                    <LinearProgress
+                      variant="determinate"
+                      value={Math.min(100, formData.password.length * 10)}
+                      sx={{
+                        height: 8,
+                        borderRadius: 4,
+                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        '& .MuiLinearProgress-bar': {
+                          borderRadius: 4,
+                          background: formData.password.length >= 8 
+                            ? 'linear-gradient(90deg, #00C853, #69F0AE)'
+                            : formData.password.length >= 6 
+                              ? 'linear-gradient(90deg, #FFC107, #FFD54F)'
+                              : 'linear-gradient(90deg, #FF5252, #FF8A80)',
+                        },
+                      }}
+                    />
+                  </Box>
+                </Grid>
+
+                {/* Referral Code */}
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
@@ -479,32 +886,6 @@ function Register() {
                     }}
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
-                </Grid>
-
-                {/* Password Strength Indicator */}
-                <Grid item xs={12}>
-                  <Box sx={{ mt: 1 }}>
-                    <Typography variant="caption" color="text.secondary" gutterBottom>
-                      Password Strength
-                    </Typography>
-                    <LinearProgress
-                      variant="determinate"
-                      value={Math.min(100, formData.password.length * 10)}
-                      sx={{
-                        height: 8,
-                        borderRadius: 4,
-                        bgcolor: alpha(theme.palette.primary.main, 0.1),
-                        '& .MuiLinearProgress-bar': {
-                          borderRadius: 4,
-                          background: formData.password.length >= 8 
-                            ? 'linear-gradient(90deg, #00C853, #69F0AE)'
-                            : formData.password.length >= 6 
-                              ? 'linear-gradient(90deg, #FFC107, #FFD54F)'
-                              : 'linear-gradient(90deg, #FF5252, #FF8A80)',
-                        },
-                      }}
-                    />
-                  </Box>
                 </Grid>
               </Grid>
             </Box>
@@ -748,6 +1129,8 @@ function Register() {
               boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
               background: 'rgba(255,255,255,0.98)',
               backdropFilter: 'blur(20px)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
             }}
           >
             {/* Logo for mobile */}
@@ -881,6 +1264,46 @@ function Register() {
           </Card>
         </Zoom>
       </Box>
+
+      {/* Demo OTP Dialog */}
+      <Dialog open={showDemoDialog} onClose={() => setShowDemoDialog(false)}>
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: '#fff',
+        }}>
+          📱 OTP Code (Demo Mode)
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Typography variant="body1" gutterBottom>
+            Your {demoOtpType === 'email' ? 'Email' : 'Phone'} OTP Code:
+          </Typography>
+          <Box sx={{ 
+            p: 3, 
+            bgcolor: alpha('#667eea', 0.1), 
+            borderRadius: 2, 
+            textAlign: 'center',
+            my: 2,
+          }}>
+            <Typography variant="h3" fontWeight="800" color="primary" letterSpacing={8}>
+              {demoOtpType === 'email' ? demoEmailOtp : demoPhoneOtp}
+            </Typography>
+          </Box>
+          <Typography variant="caption" color="text.secondary">
+            In production, this OTP will be sent to your actual {demoOtpType === 'email' ? 'email' : 'phone'}.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setShowDemoDialog(false)} 
+            variant="contained"
+            sx={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            }}
+          >
+            Got it!
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

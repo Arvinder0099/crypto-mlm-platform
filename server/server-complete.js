@@ -408,6 +408,178 @@ app.get('/api/auth/check-referral/:code', async (req, res) => {
   }
 });
 
+// Temporary storage for pre-registration OTP codes
+const preRegEmailOtps = new Map();
+const preRegPhoneOtps = new Map();
+
+// Send Email OTP (Pre-Registration)
+app.post('/api/auth/send-email-otp', rateLimiters.otp, async (req, res) => {
+  try {
+    const { email } = req.body;
+    console.log('📧 Send pre-registration email OTP:', { email });
+    
+    if (!email || !validators.email(email)) {
+      return res.status(400).json({ success: false, message: 'Valid email is required' });
+    }
+    
+    // Check if email already registered
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'Email already registered. Please login.' });
+    }
+    
+    // Generate OTP
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    preRegEmailOtps.set(email.toLowerCase(), {
+      otp,
+      expires: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    });
+    
+    // Auto-cleanup after 10 minutes
+    setTimeout(() => preRegEmailOtps.delete(email.toLowerCase()), 10 * 60 * 1000);
+    
+    console.log(`📧 Pre-registration email OTP for ${email}: ${otp}`);
+    
+    // Try to send email
+    try {
+      await emailService.sendOTP(email, { otp, expiresIn: '10', purpose: 'registration' });
+      console.log(`✅ OTP email sent to ${email}`);
+    } catch (emailErr) {
+      console.error(`⚠️  Email sending failed:`, emailErr.message);
+    }
+    
+    // For demo mode, return OTP in response
+    const isDemoMode = process.env.DEMO_MODE === 'true' || !process.env.SMTP_HOST;
+    res.json({ 
+      success: true, 
+      message: 'OTP sent to your email',
+      demoOtp: isDemoMode ? otp : undefined,
+    });
+  } catch (error) {
+    console.error('❌ Send email OTP error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+  }
+});
+
+// Verify Email OTP (Pre-Registration)
+app.post('/api/auth/verify-email-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    console.log('📧 Verify pre-registration email OTP:', { email, otp: otp ? '******' : 'missing' });
+    
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+    }
+    
+    const stored = preRegEmailOtps.get(email.toLowerCase());
+    
+    if (!stored) {
+      return res.status(400).json({ success: false, message: 'OTP expired or not found. Please request a new one.' });
+    }
+    
+    if (stored.expires < new Date()) {
+      preRegEmailOtps.delete(email.toLowerCase());
+      return res.status(400).json({ success: false, message: 'OTP expired. Please request a new one.' });
+    }
+    
+    if (stored.otp !== otp) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+    }
+    
+    // OTP verified - remove from storage
+    preRegEmailOtps.delete(email.toLowerCase());
+    console.log(`✅ Email OTP verified for ${email}`);
+    
+    res.json({ success: true, message: 'Email verified successfully' });
+  } catch (error) {
+    console.error('❌ Verify email OTP error:', error);
+    res.status(500).json({ success: false, message: 'Verification failed' });
+  }
+});
+
+// Send Phone OTP (Pre-Registration)
+app.post('/api/auth/send-phone-otp', rateLimiters.otp, async (req, res) => {
+  try {
+    const { phone, countryCode } = req.body;
+    console.log('📱 Send pre-registration phone OTP:', { phone, countryCode });
+    
+    if (!phone) {
+      return res.status(400).json({ success: false, message: 'Phone number is required' });
+    }
+    
+    const fullPhone = `${countryCode || '+91'}${phone}`.replace(/\s+/g, '');
+    
+    // Generate OTP
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    preRegPhoneOtps.set(fullPhone, {
+      otp,
+      expires: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    });
+    
+    // Auto-cleanup after 10 minutes
+    setTimeout(() => preRegPhoneOtps.delete(fullPhone), 10 * 60 * 1000);
+    
+    console.log(`📱 Pre-registration phone OTP for ${fullPhone}: ${otp}`);
+    
+    // Try to send SMS
+    try {
+      const smsService = SMSServiceFactory.getService();
+      await smsService.sendOTP(fullPhone, otp, 'CryptoMLM');
+      console.log(`✅ OTP SMS sent to ${fullPhone}`);
+    } catch (smsErr) {
+      console.error(`⚠️  SMS sending failed:`, smsErr.message);
+    }
+    
+    // For demo mode, return OTP in response
+    const isDemoMode = process.env.DEMO_MODE === 'true' || !process.env.SMS_API_KEY;
+    res.json({ 
+      success: true, 
+      message: 'OTP sent to your phone',
+      demoOtp: isDemoMode ? otp : undefined,
+    });
+  } catch (error) {
+    console.error('❌ Send phone OTP error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+  }
+});
+
+// Verify Phone OTP (Pre-Registration)
+app.post('/api/auth/verify-phone-otp', async (req, res) => {
+  try {
+    const { phone, countryCode, otp } = req.body;
+    console.log('📱 Verify pre-registration phone OTP:', { phone, otp: otp ? '******' : 'missing' });
+    
+    if (!phone || !otp) {
+      return res.status(400).json({ success: false, message: 'Phone and OTP are required' });
+    }
+    
+    const fullPhone = `${countryCode || '+91'}${phone}`.replace(/\s+/g, '');
+    const stored = preRegPhoneOtps.get(fullPhone);
+    
+    if (!stored) {
+      return res.status(400).json({ success: false, message: 'OTP expired or not found. Please request a new one.' });
+    }
+    
+    if (stored.expires < new Date()) {
+      preRegPhoneOtps.delete(fullPhone);
+      return res.status(400).json({ success: false, message: 'OTP expired. Please request a new one.' });
+    }
+    
+    if (stored.otp !== otp) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
+    }
+    
+    // OTP verified - remove from storage
+    preRegPhoneOtps.delete(fullPhone);
+    console.log(`✅ Phone OTP verified for ${fullPhone}`);
+    
+    res.json({ success: true, message: 'Phone verified successfully' });
+  } catch (error) {
+    console.error('❌ Verify phone OTP error:', error);
+    res.status(500).json({ success: false, message: 'Verification failed' });
+  }
+});
+
 app.post('/api/auth/login', rateLimiters.auth, async (req, res) => {
   try {
     const { email, password } = req.body;
