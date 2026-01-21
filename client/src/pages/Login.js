@@ -14,6 +14,7 @@ import {
   Card,
   CardContent,
   Chip,
+  keyframes,
 } from '@mui/material';
 import { 
   Visibility, 
@@ -23,10 +24,224 @@ import {
   TrendingUp,
   Groups,
   CheckCircle,
+  CurrencyBitcoin,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchJSON } from '../utils/api';
+
+// Keyframe animations
+const float = keyframes`
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-20px) rotate(5deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(-10px) rotate(-5deg); }
+`;
+
+const spin = keyframes`
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
+`;
+
+const pulse = keyframes`
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 1; }
+`;
+
+const glow = keyframes`
+  0%, 100% { box-shadow: 0 0 20px rgba(247, 147, 26, 0.5); }
+  50% { box-shadow: 0 0 40px rgba(247, 147, 26, 0.8), 0 0 60px rgba(247, 147, 26, 0.4); }
+`;
+
+const rise = keyframes`
+  0% { transform: translateY(100vh) scale(0); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(-100px) scale(1); opacity: 0; }
+`;
+
+const shimmer = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
+
+// Crypto coin SVG component
+const CryptoCoin = ({ type, size = 60, delay = 0, duration = 8, left, top }) => {
+  const coins = {
+    bitcoin: {
+      bg: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+      icon: '₿',
+      shadow: 'rgba(247, 147, 26, 0.5)',
+    },
+    ethereum: {
+      bg: 'linear-gradient(135deg, #627EEA 0%, #8B9FEF 100%)',
+      icon: 'Ξ',
+      shadow: 'rgba(98, 126, 234, 0.5)',
+    },
+    usdt: {
+      bg: 'linear-gradient(135deg, #26A17B 0%, #4ECDC4 100%)',
+      icon: '₮',
+      shadow: 'rgba(38, 161, 123, 0.5)',
+    },
+    bnb: {
+      bg: 'linear-gradient(135deg, #F3BA2F 0%, #FFD93D 100%)',
+      icon: 'B',
+      shadow: 'rgba(243, 186, 47, 0.5)',
+    },
+  };
+
+  const coin = coins[type] || coins.bitcoin;
+
+  return (
+    <Box
+      sx={{
+        position: 'absolute',
+        left: left,
+        top: top,
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: coin.bg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: `0 10px 30px ${coin.shadow}`,
+        animation: `${float} ${duration}s ease-in-out infinite, ${glow} 3s ease-in-out infinite`,
+        animationDelay: `${delay}s`,
+        zIndex: 1,
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          inset: 3,
+          borderRadius: '50%',
+          border: '2px solid rgba(255,255,255,0.3)',
+        },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          top: '10%',
+          left: '20%',
+          width: '30%',
+          height: '20%',
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.6) 0%, transparent 100%)',
+          borderRadius: '50%',
+          transform: 'rotate(-30deg)',
+        },
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: size * 0.45,
+          fontWeight: 900,
+          color: 'white',
+          textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+          fontFamily: 'monospace',
+        }}
+      >
+        {coin.icon}
+      </Typography>
+    </Box>
+  );
+};
+
+// 3D Spinning Bitcoin
+const SpinningBitcoin = ({ size = 120 }) => (
+  <Box
+    sx={{
+      width: size,
+      height: size,
+      perspective: 1000,
+      margin: '0 auto',
+    }}
+  >
+    <Box
+      sx={{
+        width: '100%',
+        height: '100%',
+        borderRadius: '50%',
+        background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 50%, #F7931A 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        animation: `${spin} 4s linear infinite`,
+        transformStyle: 'preserve-3d',
+        boxShadow: '0 20px 60px rgba(247, 147, 26, 0.6), inset 0 -5px 20px rgba(0,0,0,0.2)',
+        position: 'relative',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          inset: 6,
+          borderRadius: '50%',
+          border: '4px solid rgba(255,255,255,0.4)',
+        },
+      }}
+    >
+      <CurrencyBitcoin sx={{ fontSize: size * 0.5, color: 'white', filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))' }} />
+    </Box>
+  </Box>
+);
+
+// Animated chart lines
+const AnimatedChart = () => (
+  <Box sx={{ width: '100%', height: 80, position: 'relative', overflow: 'hidden', mt: 2, mb: 2 }}>
+    <svg width="100%" height="100%" viewBox="0 0 400 80">
+      <defs>
+        <linearGradient id="chartGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#00C853" />
+          <stop offset="50%" stopColor="#69F0AE" />
+          <stop offset="100%" stopColor="#00C853" />
+        </linearGradient>
+        <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="rgba(0,200,83,0.4)" />
+          <stop offset="100%" stopColor="rgba(0,200,83,0)" />
+        </linearGradient>
+      </defs>
+      
+      {/* Area fill */}
+      <path
+        d="M0,60 Q50,50 100,40 T200,30 T300,20 T400,10 L400,80 L0,80 Z"
+        fill="url(#areaGradient)"
+      >
+        <animate
+          attributeName="d"
+          values="
+            M0,60 Q50,50 100,40 T200,30 T300,20 T400,10 L400,80 L0,80 Z;
+            M0,50 Q50,60 100,35 T200,45 T300,25 T400,15 L400,80 L0,80 Z;
+            M0,60 Q50,50 100,40 T200,30 T300,20 T400,10 L400,80 L0,80 Z"
+          dur="4s"
+          repeatCount="indefinite"
+        />
+      </path>
+      
+      {/* Line */}
+      <path
+        d="M0,60 Q50,50 100,40 T200,30 T300,20 T400,10"
+        fill="none"
+        stroke="url(#chartGradient)"
+        strokeWidth="3"
+        strokeLinecap="round"
+      >
+        <animate
+          attributeName="d"
+          values="
+            M0,60 Q50,50 100,40 T200,30 T300,20 T400,10;
+            M0,50 Q50,60 100,35 T200,45 T300,25 T400,15;
+            M0,60 Q50,50 100,40 T200,30 T300,20 T400,10"
+          dur="4s"
+          repeatCount="indefinite"
+        />
+      </path>
+      
+      {/* Moving dot */}
+      <circle r="6" fill="#00C853" filter="drop-shadow(0 0 8px #00C853)">
+        <animateMotion
+          path="M0,60 Q50,50 100,40 T200,30 T300,20 T400,10"
+          dur="4s"
+          repeatCount="indefinite"
+        />
+      </circle>
+    </svg>
+  </Box>
+);
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -46,11 +261,12 @@ const Login = () => {
 
   // Generate floating particles effect
   useEffect(() => {
-    const newParticles = Array.from({ length: 20 }, (_, i) => ({
+    const newParticles = Array.from({ length: 30 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
       delay: Math.random() * 5,
-      duration: 10 + Math.random() * 10,
+      duration: 10 + Math.random() * 15,
+      size: 2 + Math.random() * 4,
     }));
     setParticles(newParticles);
   }, []);
@@ -159,7 +375,7 @@ const Login = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)',
         position: 'relative',
         overflow: 'hidden',
         display: 'flex',
@@ -167,123 +383,161 @@ const Login = () => {
         justifyContent: 'center',
       }}
     >
-      {/* Animated Background Particles */}
+      {/* Animated gradient overlay */}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(circle at 20% 50%, rgba(247, 147, 26, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(98, 126, 234, 0.15) 0%, transparent 50%)',
+          animation: `${pulse} 8s ease-in-out infinite`,
+        }}
+      />
+
+      {/* Floating Crypto Coins */}
+      <CryptoCoin type="bitcoin" size={70} left="5%" top="15%" delay={0} duration={8} />
+      <CryptoCoin type="ethereum" size={50} left="85%" top="20%" delay={1} duration={10} />
+      <CryptoCoin type="usdt" size={45} left="10%" top="70%" delay={2} duration={9} />
+      <CryptoCoin type="bnb" size={55} left="80%" top="65%" delay={1.5} duration={11} />
+      <CryptoCoin type="bitcoin" size={35} left="25%" top="85%" delay={0.5} duration={7} />
+      <CryptoCoin type="ethereum" size={40} left="70%" top="10%" delay={2.5} duration={12} />
+
+      {/* Rising particles */}
       {particles.map((particle) => (
         <Box
           key={particle.id}
           sx={{
             position: 'absolute',
-            width: 3,
-            height: 3,
+            width: particle.size,
+            height: particle.size,
             borderRadius: '50%',
-            bgcolor: 'rgba(255, 255, 255, 0.5)',
+            background: 'linear-gradient(135deg, rgba(247,147,26,0.8) 0%, rgba(255,255,255,0.8) 100%)',
             left: `${particle.left}%`,
-            animation: `float ${particle.duration}s ease-in-out infinite`,
+            bottom: 0,
+            animation: `${rise} ${particle.duration}s ease-in-out infinite`,
             animationDelay: `${particle.delay}s`,
-            '@keyframes float': {
-              '0%, 100%': {
-                transform: 'translateY(100vh) scale(0)',
-                opacity: 0,
-              },
-              '50%': {
-                opacity: 1,
-              },
-              '100%': {
-                transform: 'translateY(-100px) scale(1)',
-              },
-            },
           }}
         />
       ))}
 
-      <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3, md: 0 } }}>
-        {/* Mobile Header - only shown on small screens */}
+      {/* Grid pattern overlay */}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: `
+            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)
+          `,
+          backgroundSize: '50px 50px',
+          pointerEvents: 'none',
+        }}
+      />
+
+      <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3, md: 0 }, position: 'relative', zIndex: 2 }}>
+        {/* Mobile Header */}
         <Box sx={{ display: { xs: 'block', md: 'none' }, textAlign: 'center', mb: 3 }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: 'white', textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <SpinningBitcoin size={80} />
+          </Box>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: 'white', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
             Crypto MLM Platform
           </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', mt: 1 }}>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 1 }}>
             Start Your Journey to Financial Freedom
           </Typography>
         </Box>
         
         <Grid container spacing={{ xs: 2, sm: 3, md: 4 }} alignItems="center">
-          {/* Left Side - Features */}
+          {/* Left Side - Features with 3D Bitcoin */}
           <Grid item xs={12} md={6} sx={{ display: { xs: 'none', md: 'block' } }}>
             <Box sx={{ color: 'white', pr: 4 }}>
-              <Typography variant="h2" sx={{ fontWeight: 800, mb: 2, textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
-                Crypto MLM Platform
+              {/* 3D Spinning Bitcoin */}
+              <Box sx={{ mb: 4 }}>
+                <SpinningBitcoin size={140} />
+              </Box>
+
+              <Typography 
+                variant="h2" 
+                sx={{ 
+                  fontWeight: 900, 
+                  mb: 2, 
+                  textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+                  background: 'linear-gradient(135deg, #fff 0%, #F7931A 50%, #fff 100%)',
+                  backgroundSize: '200% auto',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  animation: `${shimmer} 3s linear infinite`,
+                }}
+              >
+                Crypto MLM
               </Typography>
-              <Typography variant="h6" sx={{ mb: 4, opacity: 0.95 }}>
+              <Typography variant="h6" sx={{ mb: 3, opacity: 0.9 }}>
                 Start Your Journey to Financial Freedom
               </Typography>
 
+              {/* Animated Chart */}
+              <AnimatedChart />
+
               <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Card sx={{ bgcolor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.3)' }}>
-                    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box sx={{ bgcolor: 'rgba(255,255,255,0.3)', p: 1.5, borderRadius: 2 }}>
-                        <TrendingUp sx={{ fontSize: 32, color: 'white' }} />
-                      </Box>
-                      <Box>
-                        <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>Daily ROI</Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
-                          Earn up to 320% returns on your investments
-                        </Typography>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Card sx={{ bgcolor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.3)' }}>
-                    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box sx={{ bgcolor: 'rgba(255,255,255,0.3)', p: 1.5, borderRadius: 2 }}>
-                        <Groups sx={{ fontSize: 32, color: 'white' }} />
-                      </Box>
-                      <Box>
-                        <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>Team Building</Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
-                          Build your network and earn passive income
-                        </Typography>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Card sx={{ bgcolor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.3)' }}>
-                    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box sx={{ bgcolor: 'rgba(255,255,255,0.3)', p: 1.5, borderRadius: 2 }}>
-                        <Security sx={{ fontSize: 32, color: 'white' }} />
-                      </Box>
-                      <Box>
-                        <Typography variant="h6" sx={{ color: 'white', fontWeight: 700 }}>Secure Platform</Typography>
-                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
-                          Bank-level security with 2FA authentication
-                        </Typography>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
+                {[
+                  { icon: <TrendingUp />, title: 'Daily ROI', desc: 'Earn up to 320% returns' },
+                  { icon: <Groups />, title: 'Team Building', desc: 'Build network & earn passive income' },
+                  { icon: <Security />, title: 'Secure Platform', desc: 'Bank-level security with 2FA' },
+                ].map((feature, index) => (
+                  <Grid item xs={12} key={index}>
+                    <Card 
+                      sx={{ 
+                        bgcolor: 'rgba(255,255,255,0.1)', 
+                        backdropFilter: 'blur(10px)', 
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateX(10px)',
+                          bgcolor: 'rgba(255,255,255,0.15)',
+                          borderColor: 'rgba(247,147,26,0.5)',
+                        },
+                      }}
+                    >
+                      <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
+                        <Box 
+                          sx={{ 
+                            bgcolor: 'rgba(247,147,26,0.3)', 
+                            p: 1.5, 
+                            borderRadius: 2,
+                            animation: `${pulse} 2s ease-in-out infinite`,
+                            animationDelay: `${index * 0.3}s`,
+                          }}
+                        >
+                          {React.cloneElement(feature.icon, { sx: { fontSize: 28, color: '#F7931A' } })}
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ color: 'white', fontWeight: 700 }}>
+                            {feature.title}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                            {feature.desc}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
               </Grid>
 
-              <Box sx={{ mt: 4, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Chip 
-                  icon={<CheckCircle />} 
-                  label="6 Investment Plans" 
-                  sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 600 }}
-                />
-                <Chip 
-                  icon={<CheckCircle />} 
-                  label="Real-time Tracking" 
-                  sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 600 }}
-                />
-                <Chip 
-                  icon={<CheckCircle />} 
-                  label="24/7 Support" 
-                  sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 600 }}
-                />
+              <Box sx={{ mt: 3, display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                {['6 Investment Plans', 'Real-time Tracking', '24/7 Support'].map((label, i) => (
+                  <Chip 
+                    key={i}
+                    icon={<CheckCircle sx={{ color: '#00C853 !important' }} />} 
+                    label={label} 
+                    sx={{ 
+                      bgcolor: 'rgba(0,200,83,0.15)', 
+                      color: '#69F0AE', 
+                      fontWeight: 600,
+                      border: '1px solid rgba(0,200,83,0.3)',
+                    }}
+                  />
+                ))}
               </Box>
             </Box>
           </Grid>
@@ -293,44 +547,52 @@ const Login = () => {
             <Paper 
               elevation={24} 
               sx={{ 
-                p: { xs: 2, sm: 3, md: 4 }, 
-                borderRadius: { xs: 2, sm: 3, md: 4 },
+                p: { xs: 3, sm: 4 }, 
+                borderRadius: 4,
                 backdropFilter: 'blur(20px)',
                 bgcolor: 'rgba(255, 255, 255, 0.95)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(247,147,26,0.1)',
                 mx: { xs: 1, sm: 0 },
+                border: '1px solid rgba(255,255,255,0.2)',
               }}
             >
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <Box
                   sx={{
-                    width: { xs: 48, sm: 64 },
-                    height: { xs: 48, sm: 64 },
+                    width: 72,
+                    height: 72,
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     mb: 2,
-                    boxShadow: '0 4px 20px rgba(102, 126, 234, 0.5)',
+                    boxShadow: '0 10px 30px rgba(247, 147, 26, 0.4)',
+                    animation: `${glow} 2s ease-in-out infinite`,
                   }}
                 >
-                  <LoginIcon sx={{ fontSize: { xs: 24, sm: 32 }, color: 'white' }} />
+                  <CurrencyBitcoin sx={{ fontSize: 40, color: 'white' }} />
                 </Box>
                 
                 <Typography 
                   component="h1" 
                   variant="h4" 
-                  sx={{ fontWeight: 700, mb: 1, color: '#1a237e', fontSize: { xs: '1.5rem', sm: '2.125rem' } }}
+                  sx={{ 
+                    fontWeight: 800, 
+                    mb: 1, 
+                    background: 'linear-gradient(135deg, #302b63 0%, #F7931A 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
                 >
                   Welcome Back
                 </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: { xs: 2, sm: 3 }, textAlign: 'center' }}>
-                  Sign in to continue your journey
+                <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+                  Sign in to access your crypto portfolio
                 </Typography>
 
                 {error && (
-                  <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+                  <Alert severity="error" sx={{ width: '100%', mb: 2, borderRadius: 2 }}>
                     {error}
                   </Alert>
                 )}
@@ -349,9 +611,9 @@ const Login = () => {
                     onChange={handleChange}
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        '&:hover fieldset': {
-                          borderColor: '#667eea',
-                        },
+                        borderRadius: 2,
+                        '&:hover fieldset': { borderColor: '#F7931A' },
+                        '&.Mui-focused fieldset': { borderColor: '#F7931A' },
                       },
                     }}
                   />
@@ -370,11 +632,7 @@ const Login = () => {
                     InputProps={{
                       endAdornment: (
                         <InputAdornment position="end">
-                          <IconButton
-                            aria-label="toggle password visibility"
-                            onClick={() => setShowPassword(!showPassword)}
-                            edge="end"
-                          >
+                          <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
                             {showPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
                         </InputAdornment>
@@ -382,9 +640,9 @@ const Login = () => {
                     }}
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        '&:hover fieldset': {
-                          borderColor: '#667eea',
-                        },
+                        borderRadius: 2,
+                        '&:hover fieldset': { borderColor: '#F7931A' },
+                        '&.Mui-focused fieldset': { borderColor: '#F7931A' },
                       },
                     }}
                   />
@@ -399,49 +657,67 @@ const Login = () => {
                       py: 1.5,
                       fontSize: '1rem',
                       fontWeight: 700,
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                      borderRadius: 2,
+                      background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                      boxShadow: '0 4px 20px rgba(247, 147, 26, 0.4)',
                       '&:hover': {
-                        background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
-                        boxShadow: '0 6px 20px rgba(102, 126, 234, 0.6)',
+                        background: 'linear-gradient(135deg, #E8820A 0%, #F7931A 100%)',
+                        boxShadow: '0 6px 30px rgba(247, 147, 26, 0.6)',
                         transform: 'translateY(-2px)',
                       },
                       transition: 'all 0.3s',
                     }}
                     disabled={loading || twoFARequired}
                   >
-                    {loading ? 'Signing In...' : 'Sign In'}
+                    {loading ? 'Signing In...' : '🚀 Sign In'}
                   </Button>
 
-                  <Box sx={{ textAlign: 'center', mb: 3 }}>
+                  <Box sx={{ textAlign: 'center', mb: 2 }}>
                     <Link
                       component="button"
                       variant="body2"
                       onClick={() => navigate('/register')}
                       type="button"
                       sx={{ 
-                        color: '#667eea',
+                        color: '#F7931A',
                         fontWeight: 600,
                         textDecoration: 'none',
-                        '&:hover': {
-                          textDecoration: 'underline',
-                        },
+                        '&:hover': { textDecoration: 'underline' },
                       }}
                     >
                       Don't have an account? Sign Up
                     </Link>
                   </Box>
 
+                  {/* Trust badges */}
+                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 2, flexWrap: 'wrap' }}>
+                    {['🔒 SSL Secured', '⚡ Fast Payouts', '🛡️ 2FA Protected'].map((badge, i) => (
+                      <Typography 
+                        key={i} 
+                        variant="caption" 
+                        sx={{ 
+                          color: 'text.secondary',
+                          bgcolor: 'rgba(0,0,0,0.05)',
+                          px: 1.5,
+                          py: 0.5,
+                          borderRadius: 1,
+                        }}
+                      >
+                        {badge}
+                      </Typography>
+                    ))}
+                  </Box>
+
                   {twoFARequired && (
                     <Box sx={{ 
                       mt: 3, 
                       p: 3, 
-                      border: '2px solid #667eea',
+                      border: '2px solid #F7931A',
                       borderRadius: 2,
-                      bgcolor: 'rgba(102, 126, 234, 0.05)',
+                      bgcolor: 'rgba(247, 147, 26, 0.05)',
                     }}>
-                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#667eea', mb: 1 }}>
-                        Two-Factor Authentication
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#F7931A', mb: 1 }}>
+                        🔐 Two-Factor Authentication
                       </Typography>
                       <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
                         Enter the 6-digit code from your authenticator app
@@ -461,7 +737,7 @@ const Login = () => {
                         onClick={handleVerify2FA}
                         disabled={loading || !twoFAToken}
                         sx={{
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
                           fontWeight: 700,
                         }}
                       >
