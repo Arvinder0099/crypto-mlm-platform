@@ -30,6 +30,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Divider,
+  Paper,
+  keyframes,
 } from '@mui/material';
 import {
   Visibility,
@@ -50,8 +53,26 @@ import {
   Send,
   Sms,
   Timer,
+  CurrencyBitcoin,
 } from '@mui/icons-material';
 import { fetchJSON } from '../utils/api';
+
+// Animations
+const float = keyframes`
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-15px) rotate(3deg); }
+  75% { transform: translateY(-8px) rotate(-3deg); }
+`;
+
+const glow = keyframes`
+  0%, 100% { box-shadow: 0 0 20px rgba(247, 147, 26, 0.4); }
+  50% { box-shadow: 0 0 40px rgba(247, 147, 26, 0.7); }
+`;
+
+const pulse = keyframes`
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+`;
 
 // Country codes
 const COUNTRY_CODES = [
@@ -77,14 +98,7 @@ const COUNTRY_CODES = [
   { code: 'MY', name: 'Malaysia', dial: '+60' },
 ];
 
-const steps = ['Personal Info', 'Verify & Security', 'Wallet Setup'];
-
-const features = [
-  { icon: <TrendingUp />, title: 'High Returns', desc: 'Earn up to 15% monthly ROI' },
-  { icon: <Groups />, title: 'Team Bonus', desc: 'Up to 5 levels deep commissions' },
-  { icon: <AttachMoney />, title: 'Instant Payouts', desc: 'Withdraw anytime, anywhere' },
-  { icon: <Security />, title: '100% Secure', desc: 'Bank-grade security' },
-];
+const steps = ['Account Details', 'Security & Wallet'];
 
 function Register() {
   const theme = useTheme();
@@ -208,6 +222,7 @@ function Register() {
     }
 
     setSendingEmailOtp(true);
+    setError('');
     try {
       const response = await fetchJSON('/api/auth/send-email-otp', {
         method: 'POST',
@@ -215,16 +230,15 @@ function Register() {
       });
       
       setEmailOtpSent(true);
-      setEmailTimer(60); // 60 seconds cooldown
+      setEmailTimer(60);
       
-      // For demo purposes - show the OTP
       if (response.demoOtp) {
         setDemoEmailOtp(response.demoOtp);
         setDemoOtpType('email');
         setShowDemoDialog(true);
       }
       
-      setSuccess('OTP sent to your email!');
+      setSuccess('✅ OTP sent to your email!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       // Demo mode - generate local OTP
@@ -234,6 +248,8 @@ function Register() {
       setEmailTimer(60);
       setDemoOtpType('email');
       setShowDemoDialog(true);
+      setSuccess('✅ OTP sent! (Demo Mode)');
+      setTimeout(() => setSuccess(''), 3000);
     } finally {
       setSendingEmailOtp(false);
     }
@@ -241,12 +257,13 @@ function Register() {
 
   // Send Phone OTP
   const sendPhoneOtp = async () => {
-    if (!formData.phone || !/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) {
-      setFieldErrors(prev => ({ ...prev, phone: 'Enter a valid 10-digit phone number first' }));
+    if (!formData.phone || formData.phone.length < 10) {
+      setFieldErrors(prev => ({ ...prev, phone: 'Enter a valid phone number first' }));
       return;
     }
 
     setSendingPhoneOtp(true);
+    setError('');
     try {
       const response = await fetchJSON('/api/auth/send-phone-otp', {
         method: 'POST',
@@ -265,7 +282,7 @@ function Register() {
         setShowDemoDialog(true);
       }
       
-      setSuccess('OTP sent to your phone!');
+      setSuccess('✅ OTP sent to your phone!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       // Demo mode - generate local OTP
@@ -275,6 +292,8 @@ function Register() {
       setPhoneTimer(60);
       setDemoOtpType('phone');
       setShowDemoDialog(true);
+      setSuccess('✅ OTP sent! (Demo Mode)');
+      setTimeout(() => setSuccess(''), 3000);
     } finally {
       setSendingPhoneOtp(false);
     }
@@ -291,22 +310,19 @@ function Register() {
     try {
       await fetchJSON('/api/auth/verify-email-otp', {
         method: 'POST',
-        body: JSON.stringify({ 
-          email: formData.email,
-          otp: emailOtp 
-        }),
+        body: JSON.stringify({ email: formData.email, otp: emailOtp }),
       });
       setEmailVerified(true);
-      setSuccess('Email verified successfully!');
+      setSuccess('✅ Email verified successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       // Demo mode - check against local OTP
       if (emailOtp === demoEmailOtp) {
         setEmailVerified(true);
-        setSuccess('Email verified successfully!');
+        setSuccess('✅ Email verified successfully!');
         setTimeout(() => setSuccess(''), 3000);
       } else {
-        setError('Invalid OTP. Please try again.');
+        setError('❌ Invalid OTP. Please try again.');
         setTimeout(() => setError(''), 3000);
       }
     } finally {
@@ -332,16 +348,16 @@ function Register() {
         }),
       });
       setPhoneVerified(true);
-      setSuccess('Phone verified successfully!');
+      setSuccess('✅ Phone verified successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       // Demo mode - check against local OTP
       if (phoneOtp === demoPhoneOtp) {
         setPhoneVerified(true);
-        setSuccess('Phone verified successfully!');
+        setSuccess('✅ Phone verified successfully!');
         setTimeout(() => setSuccess(''), 3000);
       } else {
-        setError('Invalid OTP. Please try again.');
+        setError('❌ Invalid OTP. Please try again.');
         setTimeout(() => setError(''), 3000);
       }
     } finally {
@@ -358,18 +374,14 @@ function Register() {
       if (!formData.email.trim()) errors.email = 'Email is required';
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.email = 'Invalid email format';
       if (!formData.phone.trim()) errors.phone = 'Phone number is required';
-      else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) errors.phone = 'Enter 10 digit phone number';
+      if (!emailVerified) errors.emailOtp = 'Please verify your email with OTP';
+      if (!phoneVerified) errors.phoneOtp = 'Please verify your phone with OTP';
     }
     
     if (step === 1) {
-      if (!emailVerified) errors.emailOtp = 'Please verify your email';
-      if (!phoneVerified) errors.phoneOtp = 'Please verify your phone';
       if (!formData.password) errors.password = 'Password is required';
       else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
       if (formData.password !== formData.confirmPassword) errors.confirmPassword = 'Passwords do not match';
-    }
-    
-    if (step === 2) {
       if (!formData.walletAddress.trim()) errors.walletAddress = 'Wallet address is required';
       if (!formData.agreeTerms) errors.agreeTerms = 'You must agree to terms';
     }
@@ -389,7 +401,7 @@ function Register() {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(2)) return;
+    if (!validateStep(1)) return;
 
     setLoading(true);
     setError('');
@@ -413,7 +425,7 @@ function Register() {
         body: JSON.stringify(payload),
       });
 
-      setSuccess('Account created successfully! Redirecting to login...');
+      setSuccess('🎉 Account created successfully! Redirecting to login...');
       setTimeout(() => {
         navigate('/login');
       }, 2000);
@@ -424,33 +436,120 @@ function Register() {
     }
   };
 
-  const getStepIcon = (step, index) => {
-    const isCompleted = index < activeStep;
-    const isActive = index === activeStep;
-    
-    return (
-      <Box
-        sx={{
-          width: 40,
-          height: 40,
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: isCompleted 
-            ? 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)'
-            : isActive 
-              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-              : alpha(theme.palette.text.primary, 0.1),
-          color: isCompleted || isActive ? '#fff' : theme.palette.text.secondary,
-          transition: 'all 0.3s ease',
-          boxShadow: isActive ? '0 4px 20px rgba(102, 126, 234, 0.4)' : 'none',
-        }}
-      >
-        {isCompleted ? <CheckCircle /> : index === 0 ? <Person /> : index === 1 ? <Security /> : <AccountBalanceWallet />}
+  // OTP Verification Box Component
+  const OTPVerificationBox = ({ type, label, icon, verified, otpSent, otp, setOtp, timer, sending, verifying, onSendOtp, onVerifyOtp, fieldError }) => (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2,
+        borderRadius: 3,
+        border: `2px solid ${verified ? '#00C853' : '#F7931A'}`,
+        bgcolor: verified ? alpha('#00C853', 0.05) : alpha('#F7931A', 0.05),
+        transition: 'all 0.3s ease',
+      }}
+    >
+      <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
+        <Box display="flex" alignItems="center" gap={1}>
+          {icon}
+          <Typography variant="subtitle1" fontWeight={700} color={verified ? 'success.main' : 'warning.main'}>
+            {label} Verification
+          </Typography>
+        </Box>
+        {verified && (
+          <Chip 
+            icon={<Verified sx={{ fontSize: 16 }} />} 
+            label="VERIFIED" 
+            color="success" 
+            size="small"
+            sx={{ fontWeight: 700 }}
+          />
+        )}
       </Box>
-    );
-  };
+
+      {!verified && (
+        <Box>
+          {!otpSent ? (
+            <Button
+              variant="contained"
+              fullWidth
+              startIcon={sending ? <CircularProgress size={18} color="inherit" /> : <Send />}
+              onClick={onSendOtp}
+              disabled={sending}
+              sx={{
+                py: 1.2,
+                borderRadius: 2,
+                background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                fontWeight: 700,
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #E8820A 0%, #F7931A 100%)',
+                },
+              }}
+            >
+              {sending ? 'Sending...' : `Send ${type === 'email' ? 'Email' : 'SMS'} OTP`}
+            </Button>
+          ) : (
+            <Box>
+              <Box display="flex" gap={1} mb={1}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Enter 6-digit OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  inputProps={{ 
+                    maxLength: 6,
+                    style: { textAlign: 'center', letterSpacing: 8, fontWeight: 700, fontSize: 18 }
+                  }}
+                  sx={{ 
+                    '& .MuiOutlinedInput-root': { 
+                      borderRadius: 2,
+                      bgcolor: 'white',
+                    } 
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={onVerifyOtp}
+                  disabled={verifying || otp.length !== 6}
+                  sx={{
+                    minWidth: 100,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)',
+                    fontWeight: 700,
+                  }}
+                >
+                  {verifying ? <CircularProgress size={20} color="inherit" /> : 'Verify'}
+                </Button>
+              </Box>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Typography variant="caption" color="text.secondary">
+                  Didn't receive OTP?
+                </Typography>
+                {timer > 0 ? (
+                  <Chip 
+                    icon={<Timer sx={{ fontSize: 14 }} />} 
+                    label={`Resend in ${timer}s`} 
+                    size="small" 
+                    variant="outlined"
+                    sx={{ fontSize: 11 }}
+                  />
+                ) : (
+                  <Button size="small" onClick={onSendOtp} sx={{ fontWeight: 600 }}>
+                    Resend OTP
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          )}
+          {fieldError && (
+            <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+              ⚠️ {fieldError}
+            </Typography>
+          )}
+        </Box>
+      )}
+    </Paper>
+  );
 
   const renderStepContent = () => {
     switch (activeStep) {
@@ -458,18 +557,19 @@ function Register() {
         return (
           <Fade in timeout={500}>
             <Box>
-              <Typography variant="h5" fontWeight="700" gutterBottom sx={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              <Typography variant="h5" fontWeight="800" gutterBottom sx={{ 
+                background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}>
-                Personal Information
+                Create Your Account
               </Typography>
               <Typography variant="body2" color="text.secondary" mb={3}>
-                Let's start with your basic details
+                Enter your details and verify with OTP
               </Typography>
 
               <Grid container spacing={2}>
+                {/* Name Fields */}
                 <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
@@ -479,11 +579,7 @@ function Register() {
                     error={!!fieldErrors.firstName}
                     helperText={fieldErrors.firstName}
                     InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Person color="action" />
-                        </InputAdornment>
-                      ),
+                      startAdornment: <InputAdornment position="start"><Person color="action" /></InputAdornment>,
                     }}
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
@@ -497,15 +593,13 @@ function Register() {
                     error={!!fieldErrors.lastName}
                     helperText={fieldErrors.lastName}
                     InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Person color="action" />
-                        </InputAdornment>
-                      ),
+                      startAdornment: <InputAdornment position="start"><Person color="action" /></InputAdornment>,
                     }}
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
                 </Grid>
+
+                {/* Email Field */}
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
@@ -515,16 +609,39 @@ function Register() {
                     onChange={handleChange('email')}
                     error={!!fieldErrors.email}
                     helperText={fieldErrors.email}
+                    disabled={emailVerified}
                     InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Email color="action" />
+                      startAdornment: <InputAdornment position="start"><Email color="action" /></InputAdornment>,
+                      endAdornment: emailVerified && (
+                        <InputAdornment position="end">
+                          <CheckCircle color="success" />
                         </InputAdornment>
                       ),
                     }}
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
                 </Grid>
+
+                {/* EMAIL OTP VERIFICATION */}
+                <Grid item xs={12}>
+                  <OTPVerificationBox
+                    type="email"
+                    label="Email"
+                    icon={<Email sx={{ color: emailVerified ? '#00C853' : '#F7931A' }} />}
+                    verified={emailVerified}
+                    otpSent={emailOtpSent}
+                    otp={emailOtp}
+                    setOtp={setEmailOtp}
+                    timer={emailTimer}
+                    sending={sendingEmailOtp}
+                    verifying={verifyingEmail}
+                    onSendOtp={sendEmailOtp}
+                    onVerifyOtp={verifyEmailOtp}
+                    fieldError={fieldErrors.emailOtp}
+                  />
+                </Grid>
+
+                {/* Phone Fields */}
                 <Grid item xs={12} sm={4}>
                   <FormControl fullWidth>
                     <InputLabel>Code</InputLabel>
@@ -550,32 +667,62 @@ function Register() {
                     onChange={handleChange('phone')}
                     error={!!fieldErrors.phone}
                     helperText={fieldErrors.phone}
+                    disabled={phoneVerified}
                     InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Phone color="action" />
+                      startAdornment: <InputAdornment position="start"><Phone color="action" /></InputAdornment>,
+                      endAdornment: phoneVerified && (
+                        <InputAdornment position="end">
+                          <CheckCircle color="success" />
                         </InputAdornment>
                       ),
                     }}
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
                 </Grid>
+
+                {/* PHONE OTP VERIFICATION */}
                 <Grid item xs={12}>
-                  <FormControl fullWidth>
-                    <InputLabel>Country</InputLabel>
-                    <Select
-                      value={formData.country}
-                      label="Country"
-                      onChange={handleChange('country')}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      {COUNTRY_CODES.map((c) => (
-                        <MenuItem key={c.code} value={c.code}>
-                          {c.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <OTPVerificationBox
+                    type="phone"
+                    label="Phone"
+                    icon={<Sms sx={{ color: phoneVerified ? '#00C853' : '#F7931A' }} />}
+                    verified={phoneVerified}
+                    otpSent={phoneOtpSent}
+                    otp={phoneOtp}
+                    setOtp={setPhoneOtp}
+                    timer={phoneTimer}
+                    sending={sendingPhoneOtp}
+                    verifying={verifyingPhone}
+                    onSendOtp={sendPhoneOtp}
+                    onVerifyOtp={verifyPhoneOtp}
+                    fieldError={fieldErrors.phoneOtp}
+                  />
+                </Grid>
+
+                {/* Referral Code */}
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Referral Code (Optional)"
+                    value={formData.referralCode}
+                    onChange={handleChange('referralCode')}
+                    placeholder="Enter referral code if you have one"
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start"><Groups color="action" /></InputAdornment>,
+                      endAdornment: referrerInfo && (
+                        <InputAdornment position="end">
+                          <Chip
+                            icon={<Verified />}
+                            label={referrerInfo.name}
+                            color="success"
+                            size="small"
+                            sx={{ fontWeight: 600 }}
+                          />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  />
                 </Grid>
               </Grid>
             </Box>
@@ -586,198 +733,18 @@ function Register() {
         return (
           <Fade in timeout={500}>
             <Box>
-              <Typography variant="h5" fontWeight="700" gutterBottom sx={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              <Typography variant="h5" fontWeight="800" gutterBottom sx={{ 
+                background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}>
-                Verify & Security
+                Security & Wallet
               </Typography>
               <Typography variant="body2" color="text.secondary" mb={3}>
-                Verify your email & phone, then create password
+                Set your password and add wallet for withdrawals
               </Typography>
 
               <Grid container spacing={2}>
-                {/* Email Verification */}
-                <Grid item xs={12}>
-                  <Box sx={{ 
-                    p: 2, 
-                    borderRadius: 2, 
-                    border: `2px solid ${emailVerified ? '#00C853' : alpha(theme.palette.primary.main, 0.2)}`,
-                    bgcolor: emailVerified ? alpha('#00C853', 0.05) : 'transparent',
-                  }}>
-                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Email color={emailVerified ? 'success' : 'action'} />
-                        <Typography variant="subtitle2" fontWeight={600}>
-                          Email Verification
-                        </Typography>
-                        {emailVerified && (
-                          <Chip 
-                            icon={<Verified />} 
-                            label="Verified" 
-                            color="success" 
-                            size="small"
-                          />
-                        )}
-                      </Box>
-                    </Box>
-                    
-                    <Typography variant="body2" color="text.secondary" mb={2}>
-                      {formData.email || 'No email entered'}
-                    </Typography>
-
-                    {!emailVerified && (
-                      <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
-                        {!emailOtpSent ? (
-                          <Button
-                            variant="contained"
-                            size="small"
-                            startIcon={sendingEmailOtp ? <CircularProgress size={16} /> : <Send />}
-                            onClick={sendEmailOtp}
-                            disabled={sendingEmailOtp || !formData.email}
-                            sx={{ 
-                              borderRadius: 2,
-                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            }}
-                          >
-                            Send OTP
-                          </Button>
-                        ) : (
-                          <>
-                            <TextField
-                              size="small"
-                              placeholder="Enter 6-digit OTP"
-                              value={emailOtp}
-                              onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                              sx={{ width: 150, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                            />
-                            <Button
-                              variant="contained"
-                              size="small"
-                              onClick={verifyEmailOtp}
-                              disabled={verifyingEmail || emailOtp.length !== 6}
-                              sx={{ 
-                                borderRadius: 2,
-                                background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)',
-                              }}
-                            >
-                              {verifyingEmail ? <CircularProgress size={16} /> : 'Verify'}
-                            </Button>
-                            {emailTimer > 0 ? (
-                              <Chip 
-                                icon={<Timer />} 
-                                label={`${emailTimer}s`} 
-                                size="small" 
-                                variant="outlined"
-                              />
-                            ) : (
-                              <Button size="small" onClick={sendEmailOtp}>
-                                Resend
-                              </Button>
-                            )}
-                          </>
-                        )}
-                      </Box>
-                    )}
-                    {fieldErrors.emailOtp && (
-                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-                        {fieldErrors.emailOtp}
-                      </Typography>
-                    )}
-                  </Box>
-                </Grid>
-
-                {/* Phone Verification */}
-                <Grid item xs={12}>
-                  <Box sx={{ 
-                    p: 2, 
-                    borderRadius: 2, 
-                    border: `2px solid ${phoneVerified ? '#00C853' : alpha(theme.palette.primary.main, 0.2)}`,
-                    bgcolor: phoneVerified ? alpha('#00C853', 0.05) : 'transparent',
-                  }}>
-                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Sms color={phoneVerified ? 'success' : 'action'} />
-                        <Typography variant="subtitle2" fontWeight={600}>
-                          Phone Verification
-                        </Typography>
-                        {phoneVerified && (
-                          <Chip 
-                            icon={<Verified />} 
-                            label="Verified" 
-                            color="success" 
-                            size="small"
-                          />
-                        )}
-                      </Box>
-                    </Box>
-                    
-                    <Typography variant="body2" color="text.secondary" mb={2}>
-                      {formData.phone ? `${formData.countryCode} ${formData.phone}` : 'No phone entered'}
-                    </Typography>
-
-                    {!phoneVerified && (
-                      <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
-                        {!phoneOtpSent ? (
-                          <Button
-                            variant="contained"
-                            size="small"
-                            startIcon={sendingPhoneOtp ? <CircularProgress size={16} /> : <Sms />}
-                            onClick={sendPhoneOtp}
-                            disabled={sendingPhoneOtp || !formData.phone}
-                            sx={{ 
-                              borderRadius: 2,
-                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            }}
-                          >
-                            Send OTP
-                          </Button>
-                        ) : (
-                          <>
-                            <TextField
-                              size="small"
-                              placeholder="Enter 6-digit OTP"
-                              value={phoneOtp}
-                              onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                              sx={{ width: 150, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                            />
-                            <Button
-                              variant="contained"
-                              size="small"
-                              onClick={verifyPhoneOtp}
-                              disabled={verifyingPhone || phoneOtp.length !== 6}
-                              sx={{ 
-                                borderRadius: 2,
-                                background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)',
-                              }}
-                            >
-                              {verifyingPhone ? <CircularProgress size={16} /> : 'Verify'}
-                            </Button>
-                            {phoneTimer > 0 ? (
-                              <Chip 
-                                icon={<Timer />} 
-                                label={`${phoneTimer}s`} 
-                                size="small" 
-                                variant="outlined"
-                              />
-                            ) : (
-                              <Button size="small" onClick={sendPhoneOtp}>
-                                Resend
-                              </Button>
-                            )}
-                          </>
-                        )}
-                      </Box>
-                    )}
-                    {fieldErrors.phoneOtp && (
-                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-                        {fieldErrors.phoneOtp}
-                      </Typography>
-                    )}
-                  </Box>
-                </Grid>
-
                 {/* Password Fields */}
                 <Grid item xs={12}>
                   <TextField
@@ -787,13 +754,9 @@ function Register() {
                     value={formData.password}
                     onChange={handleChange('password')}
                     error={!!fieldErrors.password}
-                    helperText={fieldErrors.password}
+                    helperText={fieldErrors.password || 'Minimum 6 characters'}
                     InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Lock color="action" />
-                        </InputAdornment>
-                      ),
+                      startAdornment: <InputAdornment position="start"><Lock color="action" /></InputAdornment>,
                       endAdornment: (
                         <InputAdornment position="end">
                           <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
@@ -815,11 +778,7 @@ function Register() {
                     error={!!fieldErrors.confirmPassword}
                     helperText={fieldErrors.confirmPassword}
                     InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Lock color="action" />
-                        </InputAdornment>
-                      ),
+                      startAdornment: <InputAdornment position="start"><Lock color="action" /></InputAdornment>,
                       endAdornment: (
                         <InputAdornment position="end">
                           <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end">
@@ -834,80 +793,33 @@ function Register() {
 
                 {/* Password Strength */}
                 <Grid item xs={12}>
-                  <Box sx={{ mt: 1 }}>
-                    <Typography variant="caption" color="text.secondary" gutterBottom>
-                      Password Strength
-                    </Typography>
-                    <LinearProgress
-                      variant="determinate"
-                      value={Math.min(100, formData.password.length * 10)}
-                      sx={{
-                        height: 8,
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min(100, formData.password.length * 12)}
+                    sx={{
+                      height: 8,
+                      borderRadius: 4,
+                      bgcolor: alpha('#F7931A', 0.1),
+                      '& .MuiLinearProgress-bar': {
                         borderRadius: 4,
-                        bgcolor: alpha(theme.palette.primary.main, 0.1),
-                        '& .MuiLinearProgress-bar': {
-                          borderRadius: 4,
-                          background: formData.password.length >= 8 
-                            ? 'linear-gradient(90deg, #00C853, #69F0AE)'
-                            : formData.password.length >= 6 
-                              ? 'linear-gradient(90deg, #FFC107, #FFD54F)'
-                              : 'linear-gradient(90deg, #FF5252, #FF8A80)',
-                        },
-                      }}
-                    />
-                  </Box>
-                </Grid>
-
-                {/* Referral Code */}
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Referral Code (Optional)"
-                    value={formData.referralCode}
-                    onChange={handleChange('referralCode')}
-                    placeholder="Enter referral code if you have one"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Groups color="action" />
-                        </InputAdornment>
-                      ),
-                      endAdornment: referrerInfo && (
-                        <InputAdornment position="end">
-                          <Chip
-                            icon={<Verified />}
-                            label={referrerInfo.name}
-                            color="success"
-                            size="small"
-                            sx={{ fontWeight: 600 }}
-                          />
-                        </InputAdornment>
-                      ),
+                        background: formData.password.length >= 8 
+                          ? 'linear-gradient(90deg, #00C853, #69F0AE)'
+                          : formData.password.length >= 6 
+                            ? 'linear-gradient(90deg, #FFC107, #FFD54F)'
+                            : 'linear-gradient(90deg, #FF5252, #FF8A80)',
+                      },
                     }}
-                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
+                  <Typography variant="caption" color="text.secondary">
+                    Password Strength: {formData.password.length >= 8 ? '💪 Strong' : formData.password.length >= 6 ? '👍 Good' : '⚠️ Weak'}
+                  </Typography>
                 </Grid>
-              </Grid>
-            </Box>
-          </Fade>
-        );
 
-      case 2:
-        return (
-          <Fade in timeout={500}>
-            <Box>
-              <Typography variant="h5" fontWeight="700" gutterBottom sx={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
-                Wallet Setup
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mb={3}>
-                Add your crypto wallet for withdrawals
-              </Typography>
+                <Grid item xs={12}>
+                  <Divider sx={{ my: 1 }} />
+                </Grid>
 
-              <Grid container spacing={2}>
+                {/* Wallet Setup */}
                 <Grid item xs={12}>
                   <FormControl fullWidth>
                     <InputLabel>Wallet Type</InputLabel>
@@ -932,35 +844,22 @@ function Register() {
                     value={formData.walletAddress}
                     onChange={handleChange('walletAddress')}
                     error={!!fieldErrors.walletAddress}
-                    helperText={fieldErrors.walletAddress || 'Enter your TRC20 USDT wallet address for withdrawals'}
+                    helperText={fieldErrors.walletAddress || 'Your crypto wallet address for withdrawals'}
                     multiline
                     rows={2}
                     InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <AccountBalanceWallet color="action" />
-                        </InputAdornment>
-                      ),
+                      startAdornment: <InputAdornment position="start"><AccountBalanceWallet color="action" /></InputAdornment>,
                     }}
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
                 </Grid>
 
                 <Grid item xs={12}>
-                  <Box sx={{
-                    p: 2,
-                    borderRadius: 2,
-                    bgcolor: alpha(theme.palette.warning.main, 0.1),
-                    border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
-                  }}>
+                  <Paper sx={{ p: 2, borderRadius: 2, bgcolor: alpha('#FF9800', 0.1), border: '1px solid', borderColor: alpha('#FF9800', 0.3) }}>
                     <Typography variant="body2" color="warning.dark" fontWeight={600}>
-                      ⚠️ Important:
+                      ⚠️ Important: Make sure your wallet address is correct. Withdrawals will be sent to this address.
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Make sure your wallet address is correct. Withdrawals will be sent to this address. 
-                      We recommend using TRC20 USDT for lower fees.
-                    </Typography>
-                  </Box>
+                  </Paper>
                 </Grid>
 
                 <Grid item xs={12}>
@@ -969,31 +868,17 @@ function Register() {
                       <Checkbox
                         checked={formData.agreeTerms}
                         onChange={handleChange('agreeTerms')}
-                        sx={{
-                          color: theme.palette.primary.main,
-                          '&.Mui-checked': {
-                            color: theme.palette.primary.main,
-                          },
-                        }}
+                        sx={{ color: '#F7931A', '&.Mui-checked': { color: '#F7931A' } }}
                       />
                     }
                     label={
                       <Typography variant="body2">
-                        I agree to the{' '}
-                        <Link to="/terms" style={{ color: theme.palette.primary.main }}>
-                          Terms & Conditions
-                        </Link>{' '}
-                        and{' '}
-                        <Link to="/privacy" style={{ color: theme.palette.primary.main }}>
-                          Privacy Policy
-                        </Link>
+                        I agree to the <Link to="/terms" style={{ color: '#F7931A' }}>Terms & Conditions</Link> and <Link to="/privacy" style={{ color: '#F7931A' }}>Privacy Policy</Link>
                       </Typography>
                     }
                   />
                   {fieldErrors.agreeTerms && (
-                    <Typography variant="caption" color="error">
-                      {fieldErrors.agreeTerms}
-                    </Typography>
+                    <Typography variant="caption" color="error">⚠️ {fieldErrors.agreeTerms}</Typography>
                   )}
                 </Grid>
               </Grid>
@@ -1016,35 +901,40 @@ function Register() {
         overflow: 'hidden',
       }}
     >
-      {/* Animated Background Elements */}
+      {/* Floating Crypto Icons */}
       <Box sx={{
-        position: 'absolute',
-        top: '10%',
-        left: '5%',
-        width: 300,
-        height: 300,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(102,126,234,0.3) 0%, transparent 70%)',
-        filter: 'blur(60px)',
-        animation: 'float 8s ease-in-out infinite',
-        '@keyframes float': {
-          '0%, 100%': { transform: 'translateY(0) rotate(0deg)' },
-          '50%': { transform: 'translateY(-30px) rotate(180deg)' },
-        },
-      }} />
+        position: 'absolute', top: '10%', left: '5%', width: 60, height: 60, borderRadius: '50%',
+        background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        animation: `${float} 6s ease-in-out infinite`, boxShadow: '0 10px 30px rgba(247,147,26,0.4)',
+      }}>
+        <Typography sx={{ fontSize: 28, fontWeight: 900, color: 'white' }}>₿</Typography>
+      </Box>
       <Box sx={{
-        position: 'absolute',
-        bottom: '10%',
-        right: '10%',
-        width: 400,
-        height: 400,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(118,75,162,0.3) 0%, transparent 70%)',
-        filter: 'blur(80px)',
-        animation: 'float 10s ease-in-out infinite reverse',
+        position: 'absolute', bottom: '15%', right: '8%', width: 50, height: 50, borderRadius: '50%',
+        background: 'linear-gradient(135deg, #627EEA 0%, #8B9FEF 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        animation: `${float} 8s ease-in-out infinite`, animationDelay: '1s', boxShadow: '0 10px 30px rgba(98,126,234,0.4)',
+      }}>
+        <Typography sx={{ fontSize: 24, fontWeight: 900, color: 'white' }}>Ξ</Typography>
+      </Box>
+      <Box sx={{
+        position: 'absolute', top: '60%', left: '8%', width: 40, height: 40, borderRadius: '50%',
+        background: 'linear-gradient(135deg, #26A17B 0%, #4ECDC4 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        animation: `${float} 7s ease-in-out infinite`, animationDelay: '2s', boxShadow: '0 10px 30px rgba(38,161,123,0.4)',
+      }}>
+        <Typography sx={{ fontSize: 20, fontWeight: 900, color: 'white' }}>₮</Typography>
+      </Box>
+
+      {/* Grid overlay */}
+      <Box sx={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
+        backgroundSize: '50px 50px',
       }} />
 
-      {/* Left Side - Features (Hidden on mobile) */}
+      {/* Left Side - Branding (Hidden on mobile) */}
       <Box
         sx={{
           flex: 1,
@@ -1057,53 +947,46 @@ function Register() {
         }}
       >
         <Zoom in timeout={800}>
-          <Box textAlign="center" mb={6}>
-            <Typography variant="h2" fontWeight="800" gutterBottom sx={{
-              background: 'linear-gradient(135deg, #fff 0%, #a78bfa 100%)',
+          <Box textAlign="center" mb={4}>
+            <Box sx={{ 
+              width: 120, height: 120, borderRadius: '50%', mx: 'auto', mb: 3,
+              background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              animation: `${glow} 2s ease-in-out infinite`,
+            }}>
+              <CurrencyBitcoin sx={{ fontSize: 70, color: 'white' }} />
+            </Box>
+            <Typography variant="h2" fontWeight="900" sx={{
+              background: 'linear-gradient(135deg, #fff 0%, #F7931A 50%, #fff 100%)',
+              backgroundSize: '200% auto',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
               CryptoMLM
             </Typography>
-            <Typography variant="h5" sx={{ opacity: 0.9 }}>
+            <Typography variant="h6" sx={{ opacity: 0.9, mt: 1 }}>
               Build Your Crypto Empire
             </Typography>
           </Box>
         </Zoom>
 
-        <Grid container spacing={3} maxWidth={500}>
-          {features.map((feature, index) => (
-            <Grid item xs={6} key={index}>
-              <Fade in timeout={500 + index * 200}>
-                <Box
-                  sx={{
-                    p: 3,
-                    borderRadius: 3,
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-5px)',
-                      bgcolor: 'rgba(255,255,255,0.15)',
-                    },
-                  }}
-                >
-                  <Box sx={{ 
-                    color: '#a78bfa', 
-                    mb: 1,
-                    '& svg': { fontSize: 32 }
-                  }}>
-                    {feature.icon}
-                  </Box>
-                  <Typography variant="subtitle1" fontWeight="700" gutterBottom>
-                    {feature.title}
-                  </Typography>
-                  <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                    {feature.desc}
-                  </Typography>
-                </Box>
-              </Fade>
+        <Grid container spacing={2} maxWidth={400}>
+          {[
+            { icon: <TrendingUp />, title: 'High Returns', desc: 'Up to 320% ROI' },
+            { icon: <Groups />, title: 'Team Bonus', desc: '5 levels deep' },
+            { icon: <Security />, title: 'Secure', desc: 'Bank-level security' },
+            { icon: <AttachMoney />, title: 'Fast Payouts', desc: 'Instant withdrawals' },
+          ].map((item, i) => (
+            <Grid item xs={6} key={i}>
+              <Paper sx={{
+                p: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)', transition: 'all 0.3s',
+                '&:hover': { transform: 'translateY(-5px)', bgcolor: 'rgba(255,255,255,0.15)' },
+              }}>
+                <Box sx={{ color: '#F7931A', mb: 1 }}>{item.icon}</Box>
+                <Typography variant="subtitle2" fontWeight={700} color="white">{item.title}</Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>{item.desc}</Typography>
+              </Paper>
             </Grid>
           ))}
         </Grid>
@@ -1128,33 +1011,45 @@ function Register() {
               borderRadius: 4,
               boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
               background: 'rgba(255,255,255,0.98)',
-              backdropFilter: 'blur(20px)',
               maxHeight: '90vh',
               overflowY: 'auto',
             }}
           >
-            {/* Logo for mobile */}
-            <Box sx={{ display: { xs: 'block', lg: 'none' }, textAlign: 'center', mb: 3 }}>
-              <Typography variant="h4" fontWeight="800" sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+            {/* Mobile Logo */}
+            <Box sx={{ display: { xs: 'flex', lg: 'none' }, justifyContent: 'center', mb: 2 }}>
+              <Box sx={{ 
+                width: 60, height: 60, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                CryptoMLM
-              </Typography>
+                <CurrencyBitcoin sx={{ fontSize: 35, color: 'white' }} />
+              </Box>
             </Box>
 
             {/* Stepper */}
-            <Box sx={{ mb: 4 }}>
+            <Box sx={{ mb: 3 }}>
               <Stepper activeStep={activeStep} alternativeLabel>
                 {steps.map((label, index) => (
                   <Step key={label}>
-                    <StepLabel StepIconComponent={() => getStepIcon(label, index)}>
-                      <Typography 
-                        variant="caption" 
-                        fontWeight={index === activeStep ? 700 : 400}
-                        color={index <= activeStep ? 'primary' : 'text.secondary'}
-                      >
+                    <StepLabel
+                      StepIconComponent={() => (
+                        <Box sx={{
+                          width: 36, height: 36, borderRadius: '50%',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: index < activeStep 
+                            ? 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)'
+                            : index === activeStep 
+                              ? 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)'
+                              : '#e0e0e0',
+                          color: index <= activeStep ? '#fff' : '#999',
+                          fontWeight: 700,
+                          transition: 'all 0.3s',
+                        }}>
+                          {index < activeStep ? <CheckCircle sx={{ fontSize: 20 }} /> : index + 1}
+                        </Box>
+                      )}
+                    >
+                      <Typography variant="caption" fontWeight={index === activeStep ? 700 : 400}>
                         {label}
                       </Typography>
                     </StepLabel>
@@ -1163,41 +1058,23 @@ function Register() {
               </Stepper>
             </Box>
 
-            {/* Error/Success Messages */}
-            {error && (
-              <Fade in>
-                <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
-                  {error}
-                </Alert>
-              </Fade>
-            )}
-            {success && (
-              <Fade in>
-                <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>
-                  {success}
-                </Alert>
-              </Fade>
-            )}
+            {/* Messages */}
+            {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
+            {success && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>{success}</Alert>}
 
             {/* Step Content */}
-            <Box sx={{ minHeight: 320 }}>
+            <Box sx={{ minHeight: 380 }}>
               {renderStepContent()}
             </Box>
 
-            {/* Navigation Buttons */}
-            <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
+            {/* Navigation */}
+            <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
               {activeStep > 0 && (
                 <Button
                   variant="outlined"
                   onClick={handleBack}
                   startIcon={<ArrowBack />}
-                  sx={{
-                    flex: 1,
-                    py: 1.5,
-                    borderRadius: 2,
-                    borderWidth: 2,
-                    '&:hover': { borderWidth: 2 },
-                  }}
+                  sx={{ flex: 1, py: 1.5, borderRadius: 2, borderWidth: 2, fontWeight: 700 }}
                 >
                   Back
                 </Button>
@@ -1209,15 +1086,10 @@ function Register() {
                   onClick={handleNext}
                   endIcon={<ArrowForward />}
                   sx={{
-                    flex: 1,
-                    py: 1.5,
-                    borderRadius: 2,
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%)',
-                      boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)',
-                    },
+                    flex: 1, py: 1.5, borderRadius: 2, fontWeight: 700,
+                    background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                    boxShadow: '0 4px 15px rgba(247, 147, 26, 0.4)',
+                    '&:hover': { background: 'linear-gradient(135deg, #E8820A 0%, #F7931A 100%)' },
                   }}
                 >
                   Continue
@@ -1229,18 +1101,13 @@ function Register() {
                   disabled={loading}
                   endIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CheckCircle />}
                   sx={{
-                    flex: 1,
-                    py: 1.5,
-                    borderRadius: 2,
+                    flex: 1, py: 1.5, borderRadius: 2, fontWeight: 700,
                     background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)',
                     boxShadow: '0 4px 15px rgba(0, 200, 83, 0.4)',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #00B248 0%, #5CE09E 100%)',
-                      boxShadow: '0 6px 20px rgba(0, 200, 83, 0.5)',
-                    },
+                    '&:hover': { background: 'linear-gradient(135deg, #00B248 0%, #5CE09E 100%)' },
                   }}
                 >
-                  {loading ? 'Creating Account...' : 'Create Account'}
+                  {loading ? 'Creating...' : '🚀 Create Account'}
                 </Button>
               )}
             </Box>
@@ -1249,14 +1116,7 @@ function Register() {
             <Box sx={{ textAlign: 'center', mt: 3 }}>
               <Typography variant="body2" color="text.secondary">
                 Already have an account?{' '}
-                <Link 
-                  to="/login" 
-                  style={{ 
-                    color: '#667eea', 
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                  }}
-                >
+                <Link to="/login" style={{ color: '#F7931A', fontWeight: 600, textDecoration: 'none' }}>
                   Sign In
                 </Link>
               </Typography>
@@ -1266,41 +1126,40 @@ function Register() {
       </Box>
 
       {/* Demo OTP Dialog */}
-      <Dialog open={showDemoDialog} onClose={() => setShowDemoDialog(false)}>
+      <Dialog open={showDemoDialog} onClose={() => setShowDemoDialog(false)} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: '#fff',
+          background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+          color: '#fff', fontWeight: 700,
         }}>
           📱 OTP Code (Demo Mode)
         </DialogTitle>
-        <DialogContent sx={{ mt: 2 }}>
+        <DialogContent sx={{ mt: 2, textAlign: 'center' }}>
           <Typography variant="body1" gutterBottom>
-            Your {demoOtpType === 'email' ? 'Email' : 'Phone'} OTP Code:
+            Your {demoOtpType === 'email' ? '📧 Email' : '📱 Phone'} OTP Code:
           </Typography>
           <Box sx={{ 
-            p: 3, 
-            bgcolor: alpha('#667eea', 0.1), 
-            borderRadius: 2, 
-            textAlign: 'center',
-            my: 2,
+            p: 3, bgcolor: alpha('#F7931A', 0.1), borderRadius: 3, my: 2,
+            border: '2px dashed #F7931A',
           }}>
-            <Typography variant="h3" fontWeight="800" color="primary" letterSpacing={8}>
+            <Typography variant="h2" fontWeight="900" color="#F7931A" letterSpacing={8}>
               {demoOtpType === 'email' ? demoEmailOtp : demoPhoneOtp}
             </Typography>
           </Box>
           <Typography variant="caption" color="text.secondary">
-            In production, this OTP will be sent to your actual {demoOtpType === 'email' ? 'email' : 'phone'}.
+            ⚠️ In production, this OTP will be sent to your actual {demoOtpType === 'email' ? 'email inbox' : 'phone via SMS'}.
           </Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ p: 2 }}>
           <Button 
             onClick={() => setShowDemoDialog(false)} 
             variant="contained"
+            fullWidth
             sx={{ 
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              py: 1.5, borderRadius: 2, fontWeight: 700,
+              background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
             }}
           >
-            Got it!
+            Got it! ✓
           </Button>
         </DialogActions>
       </Dialog>
