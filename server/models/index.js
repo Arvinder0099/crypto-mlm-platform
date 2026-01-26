@@ -5,6 +5,7 @@ import Transaction from './Transaction.js';
 import Withdrawal from './Withdrawal.js';
 import Commission from './Commission.js';
 import AdminSettings from './AdminSettings.js';
+import Deposit from './Deposit.js';
 
 export {
   User,
@@ -14,4 +15,5 @@ export {
   Withdrawal,
   Commission,
   AdminSettings,
+  Deposit,
 };

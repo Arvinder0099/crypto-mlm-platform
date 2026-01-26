@@ -15,6 +15,7 @@ import {
   IconButton,
 } from '@mui/material';
 import { Description as ExcelIcon, Print as PrintIcon, Search as SearchIcon, AccountCircle } from '@mui/icons-material';
+import { exportToExcel, printPage } from '../utils/exportUtils';
 
 const AllActiveMembers = () => {
   const [filters, setFilters] = useState({
@@ -46,11 +47,21 @@ const AllActiveMembers = () => {
   }, []);
 
   const handleExport = () => {
-    console.log('Export to Excel');
+    const exportData = activeMembers.map(member => ({
+      'User ID': member.userId || 'N/A',
+      'Name': member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim(),
+      'Email': member.email || 'N/A',
+      'Mobile': member.mobile || member.phone || 'N/A',
+      'Status': member.status || 'active',
+      'Total Investment': member.totalInvested || 0,
+      'Total Earned': member.totalEarned || 0,
+      'Joined Date': member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'N/A'
+    }));
+    exportToExcel(exportData, 'active-members');
   };
 
   const handlePrint = () => {
-    window.print();
+    printPage();
   };
 
   const handleSearch = () => {

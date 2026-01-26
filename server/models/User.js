@@ -38,9 +38,14 @@ const userSchema = new mongoose.Schema(
     totalDirectCommission: { type: Number, default: 0, min: 0 },
     totalLevelCommission: { type: Number, default: 0, min: 0 },
     totalRankIncome: { type: Number, default: 0, min: 0 },
+    
+    // Referral Bonus Tracking
+    totalReferralBonus: { type: Number, default: 0, min: 0 },
+    referralBonusCount: { type: Number, default: 0, min: 0 },
 
     // Deposit Address
     walletAddress: String,
+    walletType: { type: String, enum: ['usdt_trc20', 'bnb_bep20'], default: 'usdt_trc20' },
     walletAddressApproved: Boolean,
 
     // Metadata

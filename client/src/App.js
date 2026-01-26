@@ -80,6 +80,9 @@ import PendingWithdrawalRequests from './pages/PendingWithdrawalRequests';
 import WithdrawalRequestsSummary from './pages/WithdrawalRequestsSummary';
 import WithdrawalDatewiseSummary from './pages/WithdrawalDatewiseSummary';
 
+// Import Deposit Management pages
+import PendingDepositRequests from './pages/PendingDepositRequests';
+
 // Import Admin Settings pages
 import ROISetup from './pages/ROISetup';
 import DepositAddressSetup from './pages/DepositAddressSetup';
@@ -93,6 +96,11 @@ import DirectIncomeSummary from './pages/DirectIncomeSummary';
 import DailyLevelIncomeSummary from './pages/DailyLevelIncomeSummary';
 import RankIncomeSummary from './pages/RankIncomeSummary';
 import TransactionSummary from './pages/TransactionSummary';
+
+// Import Referral Bonus System pages
+import ReferralBonus from './pages/ReferralBonus';
+import AdminNotifications from './pages/AdminNotifications';
+import AdminReferralBonuses from './pages/AdminReferralBonuses';
 
 // Import components
 import UnifiedLayout from './layouts/UnifiedLayout';
@@ -269,9 +277,14 @@ function AppContent() {
                 {/* Withdrawal routes */}
                 <Route path="/withdrawal/request" element={<WithdrawalRequest />} />
                 <Route path="/withdrawal/summary" element={<WithdrawalSummary />} />
+                
+                {/* Referral Bonus System */}
+                <Route path="/referral-bonus" element={<ReferralBonus />} />
 
                 {/* Admin-Only Routes */}
                 <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/admin/notifications" element={<AdminNotifications />} />
+                <Route path="/admin/referral-bonuses" element={<AdminReferralBonuses />} />
                 <Route path="/activation-options" element={<ActivationOptions />} />
                 
                 {/* Activation Routes */}
@@ -286,6 +299,10 @@ function AppContent() {
                 <Route path="/withdrawal-management/pending-requests" element={<PendingWithdrawalRequests />} />
                 <Route path="/withdrawal-management/requests-summary" element={<WithdrawalRequestsSummary />} />
                 <Route path="/withdrawal-management/datewise-summary" element={<WithdrawalDatewiseSummary />} />
+                
+                {/* Deposit Management Routes */}
+                <Route path="/deposit-management/pending-deposits" element={<PendingDepositRequests />} />
+                
                 <Route path="/financial-reports" element={<FinancialReports />} />
                 <Route path="/admin-settings" element={<AdminSettings />} />
                 

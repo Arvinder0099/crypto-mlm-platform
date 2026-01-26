@@ -134,6 +134,7 @@ function Register() {
   const [demoOtpType, setDemoOtpType] = useState('');
 
   const [formData, setFormData] = useState({
+    userId: '',
     firstName: '',
     lastName: '',
     email: '',
@@ -150,6 +151,36 @@ function Register() {
 
   const [fieldErrors, setFieldErrors] = useState({});
   const [referrerInfo, setReferrerInfo] = useState(null);
+  const [walletValid, setWalletValid] = useState(false);
+
+  // Wallet validation function
+  const validateWalletAddress = (address, type) => {
+    if (!address) return false;
+    
+    if (type === 'usdt_trc20') {
+      // TRC20 addresses start with 'T' and are 34 characters
+      return /^T[A-Za-z1-9]{33}$/.test(address);
+    } else if (type === 'bnb_bep20') {
+      // BEP20 addresses start with '0x' and are 42 characters
+      return /^0x[a-fA-F0-9]{40}$/.test(address);
+    }
+    return false;
+  };
+
+  // Validate wallet when address or type changes
+  useEffect(() => {
+    if (formData.walletAddress) {
+      const isValid = validateWalletAddress(formData.walletAddress, formData.walletType);
+      setWalletValid(isValid);
+      if (!isValid && formData.walletAddress.length > 10) {
+        setFieldErrors(prev => ({ ...prev, walletAddress: `Invalid ${formData.walletType === 'usdt_trc20' ? 'TRC20 (starts with T, 34 chars)' : 'BEP20 (starts with 0x, 42 chars)'} address` }));
+      } else {
+        setFieldErrors(prev => ({ ...prev, walletAddress: '' }));
+      }
+    } else {
+      setWalletValid(false);
+    }
+  }, [formData.walletAddress, formData.walletType]);
 
   // Email Timer
   useEffect(() => {
@@ -369,6 +400,9 @@ function Register() {
     const errors = {};
     
     if (step === 0) {
+      if (!formData.userId.trim()) errors.userId = 'User ID is required';
+      else if (formData.userId.length < 4) errors.userId = 'User ID must be at least 4 characters';
+      else if (!/^[a-zA-Z0-9_]+$/.test(formData.userId)) errors.userId = 'User ID can only contain letters, numbers, and underscores';
       if (!formData.firstName.trim()) errors.firstName = 'First name is required';
       if (!formData.lastName.trim()) errors.lastName = 'Last name is required';
       if (!formData.email.trim()) errors.email = 'Email is required';
@@ -383,6 +417,11 @@ function Register() {
       else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
       if (formData.password !== formData.confirmPassword) errors.confirmPassword = 'Passwords do not match';
       if (!formData.walletAddress.trim()) errors.walletAddress = 'Wallet address is required';
+      else if (!validateWalletAddress(formData.walletAddress, formData.walletType)) {
+        errors.walletAddress = formData.walletType === 'usdt_trc20' 
+          ? 'Invalid TRC20 address (must start with T and be 34 characters)' 
+          : 'Invalid BEP20 address (must start with 0x and be 42 characters)';
+      }
       if (!formData.agreeTerms) errors.agreeTerms = 'You must agree to terms';
     }
 
@@ -408,6 +447,7 @@ function Register() {
 
     try {
       const payload = {
+        userId: formData.userId,
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email.toLowerCase(),
@@ -416,6 +456,7 @@ function Register() {
         password: formData.password,
         referralCode: formData.referralCode || undefined,
         walletAddress: formData.walletAddress,
+        walletType: formData.walletType,
         emailVerified: true,
         phoneVerified: true,
       };
@@ -569,6 +610,23 @@ function Register() {
               </Typography>
 
               <Grid container spacing={2}>
+                {/* User ID Field */}
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="User ID (Your unique login ID)"
+                    value={formData.userId}
+                    onChange={handleChange('userId')}
+                    error={!!fieldErrors.userId}
+                    helperText={fieldErrors.userId || 'Choose a unique User ID (min 4 characters, letters, numbers, underscores only)'}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start"><Person color="action" /></InputAdornment>,
+                    }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    placeholder="e.g., john_doe123"
+                  />
+                </Grid>
+
                 {/* Name Fields */}
                 <Grid item xs={12} sm={6}>
                   <TextField
@@ -829,35 +887,70 @@ function Register() {
                       onChange={handleChange('walletType')}
                       sx={{ borderRadius: 2 }}
                     >
-                      <MenuItem value="usdt_trc20">USDT (TRC20 - Recommended)</MenuItem>
-                      <MenuItem value="usdt_erc20">USDT (ERC20)</MenuItem>
-                      <MenuItem value="usdt_bep20">USDT (BEP20)</MenuItem>
-                      <MenuItem value="btc">Bitcoin (BTC)</MenuItem>
-                      <MenuItem value="eth">Ethereum (ETH)</MenuItem>
+                      <MenuItem value="usdt_trc20">
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box 
+                            component="img" 
+                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%2326A17B'/%3E%3Cpath d='M17.922 17.383v-.002c-.11.008-.677.042-1.942.042-1.01 0-1.721-.03-1.971-.042v.003c-3.888-.171-6.79-.848-6.79-1.658 0-.809 2.902-1.486 6.79-1.66v2.644c.254.018.982.061 1.988.061 1.207 0 1.812-.05 1.925-.06v-2.643c3.88.173 6.775.85 6.775 1.658 0 .81-2.895 1.485-6.775 1.657m0-3.59v-2.366h5.414V7.819H8.595v3.608h5.414v2.365c-4.4.202-7.709 1.074-7.709 2.118 0 1.044 3.309 1.915 7.709 2.118v7.582h3.913v-7.584c4.393-.202 7.694-1.073 7.694-2.116 0-1.043-3.301-1.914-7.694-2.117' fill='%23fff'/%3E%3C/svg%3E" 
+                            alt="USDT" 
+                            sx={{ width: 24, height: 24 }}
+                          />
+                          USDT (TRC20) - TRON Network
+                        </Box>
+                      </MenuItem>
+                      <MenuItem value="bnb_bep20">
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box 
+                            component="img" 
+                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23F3BA2F'/%3E%3Cpath d='M12.116 14.404L16 10.52l3.886 3.886 2.26-2.26L16 6l-6.144 6.144 2.26 2.26zM6 16l2.26-2.26L10.52 16l-2.26 2.26L6 16zm6.116 1.596L16 21.48l3.886-3.886 2.26 2.259L16 26l-6.144-6.144-.003-.003 2.263-2.257zM21.48 16l2.26-2.26L26 16l-2.26 2.26L21.48 16zm-3.188-.002h.002V16L16 18.294l-2.291-2.29-.004-.004.004-.003.401-.402.195-.195L16 13.706l2.293 2.293z' fill='%23fff'/%3E%3C/svg%3E" 
+                            alt="BNB" 
+                            sx={{ width: 24, height: 24 }}
+                          />
+                          BNB (BEP20) - BSC Network
+                        </Box>
+                      </MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Wallet Address"
+                    label={formData.walletType === 'usdt_trc20' ? 'TRC20 Wallet Address' : 'BEP20 Wallet Address'}
                     value={formData.walletAddress}
                     onChange={handleChange('walletAddress')}
                     error={!!fieldErrors.walletAddress}
-                    helperText={fieldErrors.walletAddress || 'Your crypto wallet address for withdrawals'}
-                    multiline
-                    rows={2}
+                    helperText={
+                      fieldErrors.walletAddress || 
+                      (formData.walletType === 'usdt_trc20' 
+                        ? 'Enter your TRON wallet address (starts with T)' 
+                        : 'Enter your BSC wallet address (starts with 0x)')
+                    }
+                    placeholder={formData.walletType === 'usdt_trc20' ? 'TRC20 Address (T...)' : 'BEP20 Address (0x...)'}
                     InputProps={{
                       startAdornment: <InputAdornment position="start"><AccountBalanceWallet color="action" /></InputAdornment>,
+                      endAdornment: walletValid && (
+                        <InputAdornment position="end">
+                          <CheckCircle color="success" />
+                        </InputAdornment>
+                      ),
                     }}
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
                 </Grid>
 
                 <Grid item xs={12}>
-                  <Paper sx={{ p: 2, borderRadius: 2, bgcolor: alpha('#FF9800', 0.1), border: '1px solid', borderColor: alpha('#FF9800', 0.3) }}>
-                    <Typography variant="body2" color="warning.dark" fontWeight={600}>
-                      ⚠️ Important: Make sure your wallet address is correct. Withdrawals will be sent to this address.
+                  <Paper sx={{ 
+                    p: 2, 
+                    borderRadius: 2, 
+                    bgcolor: walletValid ? alpha('#4CAF50', 0.1) : alpha('#FF9800', 0.1), 
+                    border: '1px solid', 
+                    borderColor: walletValid ? alpha('#4CAF50', 0.3) : alpha('#FF9800', 0.3) 
+                  }}>
+                    <Typography variant="body2" color={walletValid ? 'success.dark' : 'warning.dark'} fontWeight={600}>
+                      {walletValid 
+                        ? '✅ Wallet address validated! This address will be used for your withdrawals.'
+                        : '⚠️ Important: Make sure your wallet address is correct. Withdrawals will be sent to this address.'
+                      }
                     </Typography>
                   </Paper>
                 </Grid>

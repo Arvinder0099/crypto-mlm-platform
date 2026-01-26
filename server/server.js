@@ -31,6 +31,8 @@ const Investment = require('./models/Investment');
 const Withdrawal = require('./models/Withdrawal');
 const ROI = require('./models/ROI');
 const Referral = require('./models/Referral');
+const ReferralBonus = require('./models/ReferralBonus');
+const AdminNotification = require('./models/AdminNotification');
 
 // Authentication Middleware
 const authenticateToken = (req, res, next) => {
@@ -128,6 +130,44 @@ app.post('/api/auth/register', async (req, res) => {
         commission: 0,
       });
       await referral.save();
+      
+      // Get referrer details for notification
+      const referrer = await User.findById(referrerId);
+      
+      // Create referral bonus record (10% bonus - will be credited when user makes first deposit)
+      const referralBonus = new ReferralBonus({
+        referrerId,
+        referredUserId: user._id,
+        bonusPercentage: 10, // 10% bonus
+        bonusAmount: 0, // Will be calculated on first deposit
+        status: 'pending',
+        description: `Referral bonus for inviting ${firstName} ${lastName}`,
+      });
+      await referralBonus.save();
+      
+      // Create admin notification
+      const adminNotification = new AdminNotification({
+        type: 'referral_registration',
+        title: 'New Referral Registration',
+        message: `${firstName} ${lastName} registered using referral link of ${referrer.firstName} ${referrer.lastName}`,
+        userId: user._id,
+        referrerId: referrerId,
+        data: {
+          referralCode: referrer.referralCode,
+          referrerName: `${referrer.firstName} ${referrer.lastName}`,
+          newUserName: `${firstName} ${lastName}`,
+          newUserEmail: email,
+        },
+        priority: 'normal',
+      });
+      await adminNotification.save();
+      
+      // Update referrer's direct referrals array
+      await User.findByIdAndUpdate(referrerId, {
+        $push: { directReferrals: user._id }
+      });
+      
+      console.log(`✅ Referral registration: ${firstName} ${lastName} referred by ${referrer.firstName} ${referrer.lastName}`);
     }
 
     // Generate token

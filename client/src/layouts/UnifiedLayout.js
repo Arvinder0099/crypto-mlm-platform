@@ -115,11 +115,14 @@ const UnifiedLayout = ({ children }) => {
     { label: 'Genealogy', type: 'dropdown', anchor: genealogyAnchor, setter: setGenealogyAnchor },
     { label: 'Reports', type: 'dropdown', anchor: reportsAnchor, setter: setReportsAnchor },
     { label: 'Withdrawal', type: 'dropdown', anchor: withdrawalAnchor, setter: setWithdrawalAnchor },
+    { label: 'Referral Bonus', path: '/referral-bonus' },
   ];
 
   // Admin Menu Items
   const adminMenuItems = [
     { label: 'Dashboard', path: '/admin' },
+    { label: 'Notifications', path: '/admin/notifications' },
+    { label: 'Referral Bonuses', path: '/admin/referral-bonuses' },
     { label: 'Members', type: 'dropdown', anchor: membersAnchor, setter: setMembersAnchor },
     { label: 'Activation', type: 'dropdown', anchor: activationAnchor, setter: setActivationAnchor },
     { label: 'Withdrawal', type: 'dropdown', anchor: adminWithdrawalAnchor, setter: setAdminWithdrawalAnchor },
@@ -268,6 +271,12 @@ const UnifiedLayout = ({ children }) => {
                 </ListItemButton>
               </List>
             </Collapse>
+
+            {/* Referral Bonus */}
+            <ListItemButton onClick={() => handleMobileNavigate('/referral-bonus')} sx={{ borderRadius: 2, mb: 0.5 }}>
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><MonetizationOn /></ListItemIcon>
+              <ListItemText primary="Referral Bonus" />
+            </ListItemButton>
           </>
         ) : (
           <>
@@ -275,6 +284,18 @@ const UnifiedLayout = ({ children }) => {
             <ListItemButton onClick={() => handleMobileNavigate('/admin')} sx={{ borderRadius: 2, mb: 0.5 }}>
               <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><Dashboard /></ListItemIcon>
               <ListItemText primary="Dashboard" />
+            </ListItemButton>
+
+            {/* Admin Notifications */}
+            <ListItemButton onClick={() => handleMobileNavigate('/admin/notifications')} sx={{ borderRadius: 2, mb: 0.5 }}>
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><Notifications /></ListItemIcon>
+              <ListItemText primary="Notifications" />
+            </ListItemButton>
+
+            {/* Admin Referral Bonuses */}
+            <ListItemButton onClick={() => handleMobileNavigate('/admin/referral-bonuses')} sx={{ borderRadius: 2, mb: 0.5 }}>
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><MonetizationOn /></ListItemIcon>
+              <ListItemText primary="Referral Bonuses" />
             </ListItemButton>
 
             {/* Members Submenu */}
@@ -718,10 +739,13 @@ const UnifiedLayout = ({ children }) => {
           onClose={handleMenuClose(setAdminWithdrawalAnchor)}
         >
           <MenuItem onClick={handleNavigate('/withdrawal-management/pending-requests', setAdminWithdrawalAnchor)}>
-            Pending Requests
+            Pending Withdrawals
+          </MenuItem>
+          <MenuItem onClick={handleNavigate('/deposit-management/pending-deposits', setAdminWithdrawalAnchor)}>
+            Pending Deposits
           </MenuItem>
           <MenuItem onClick={handleNavigate('/withdrawal-management/requests-summary', setAdminWithdrawalAnchor)}>
-            Requests Summary
+            Withdrawal Summary
           </MenuItem>
           <MenuItem onClick={handleNavigate('/withdrawal-management/datewise-summary', setAdminWithdrawalAnchor)}>
             Datewise Summary

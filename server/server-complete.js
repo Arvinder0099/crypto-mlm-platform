@@ -102,9 +102,12 @@ const userSchema = new mongoose.Schema({
   totalDirectCommission: { type: Number, default: 0, min: 0 },
   totalLevelCommission: { type: Number, default: 0, min: 0 },
   totalRankIncome: { type: Number, default: 0, min: 0 },
+  totalReferralBonus: { type: Number, default: 0, min: 0 },
+  referralBonusCount: { type: Number, default: 0, min: 0 },
   
   // Wallet
   walletAddress: String,
+  walletType: { type: String, enum: ['usdt_trc20', 'bnb_bep20'], default: 'usdt_trc20' },
   walletAddressApproved: Boolean,
   lastLogin: Date,
   loginAttempts: { type: Number, default: 0 },
@@ -193,6 +196,28 @@ const withdrawalSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
+// Deposit Schema
+const depositSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  amount: { type: Number, required: true, min: 0 },
+  network: { type: String, enum: ['usdt_trc20', 'bnb_bep20'], required: true },
+  adminAddress: { type: String, required: true },
+  userWalletAddress: { type: String, required: true },
+  transactionHash: { type: String, required: true },
+  paymentSlip: String,
+  paymentSlipData: Buffer,
+  paymentSlipMimeType: String,
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  approvedAt: Date,
+  rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  rejectedAt: Date,
+  rejectionReason: String,
+  adminNotes: String,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
 // Commission Schema
 const commissionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -228,11 +253,71 @@ const adminSettingsSchema = new mongoose.Schema({
   platformFeePercent: { type: Number, default: 0 },
   maintenanceFeePercent: { type: Number, default: 0 },
   depositWalletAddress: String,
+  // Admin deposit wallet addresses for each network
+  depositWallets: {
+    usdt_trc20: { 
+      address: { type: String, default: 'TFVh7tRnCP3TnAxVSf6KvxN7qJ78SYYp7p' },
+      enabled: { type: Boolean, default: true },
+      name: { type: String, default: 'USDT (TRC20)' }
+    },
+    bnb_bep20: { 
+      address: { type: String, default: '0xcEEecCF61B06867332B3672830A3A2cDeb6b47f7' },
+      enabled: { type: Boolean, default: true },
+      name: { type: String, default: 'BNB (BEP20)' }
+    }
+  },
   minimumDeposit: { type: Number, default: 100 },
   maximumDeposit: { type: Number, default: 1000000 },
   platformStatus: { type: String, enum: ['active', 'maintenance', 'closed'], default: 'active' },
   maintenanceMessage: String,
   updatedBy: mongoose.Schema.Types.ObjectId,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+// Referral Bonus Schema - tracks 10% bonus for referring new users (requires admin approval)
+const referralBonusSchema = new mongoose.Schema({
+  referrerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  referredUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  bonusPercentage: { type: Number, default: 10 },
+  bonusAmount: { type: Number, default: 0 },
+  investmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Investment' },
+  investmentAmount: { type: Number, default: 0 },
+  status: { type: String, enum: ['pending', 'approved', 'credited', 'rejected', 'cancelled'], default: 'pending' },
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  approvedAt: Date,
+  creditedAt: Date,
+  rejectedAt: Date,
+  rejectionReason: String,
+  description: String,
+  adminNotes: String,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+// Admin Notification Schema - notifies admin of referral registrations
+const adminNotificationSchema = new mongoose.Schema({
+  type: { type: String, enum: ['referral_registration', 'referral_bonus_pending', 'withdrawal_request', 'deposit', 'kyc_submission', 'system_alert', 'other'], required: true },
+  title: { type: String, required: true },
+  message: { type: String, required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  referrerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  data: {
+    referralCode: String,
+    referrerName: String,
+    referrerEmail: String,
+    newUserName: String,
+    newUserEmail: String,
+    bonusAmount: Number,
+    investmentAmount: Number,
+    referralBonusId: String,
+    transactionId: mongoose.Schema.Types.ObjectId,
+    investmentId: mongoose.Schema.Types.ObjectId,
+  },
+  isRead: { type: Boolean, default: false },
+  readAt: Date,
+  readBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  priority: { type: String, enum: ['low', 'normal', 'high', 'urgent'], default: 'normal' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
@@ -243,8 +328,11 @@ const Plan = mongoose.model('Plan', planSchema);
 const Investment = mongoose.model('Investment', investmentSchema);
 const Transaction = mongoose.model('Transaction', transactionSchema);
 const Withdrawal = mongoose.model('Withdrawal', withdrawalSchema);
+const Deposit = mongoose.model('Deposit', depositSchema);
 const Commission = mongoose.model('Commission', commissionSchema);
 const AdminSettings = mongoose.model('AdminSettings', adminSettingsSchema);
+const ReferralBonus = mongoose.model('ReferralBonus', referralBonusSchema);
+const AdminNotification = mongoose.model('AdminNotification', adminNotificationSchema);
 
 // ==================== INITIALIZE SERVICES ====================
 
@@ -318,7 +406,7 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
   try {
-    const { firstName, lastName, email, password, phone, phoneCountryCode, country, referralCode, walletAddress, fullName, username } = req.body;
+    const { firstName, lastName, email, password, phone, phoneCountryCode, country, referralCode, walletAddress, walletType, fullName, username, userId: customUserId } = req.body;
     
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({ message: 'Missing required fields' });
@@ -329,8 +417,27 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
       return res.status(400).json({ message: 'Email already registered' });
     }
     
+    // Check if custom userId is provided and valid
+    let userId;
+    if (customUserId && customUserId.trim()) {
+      // Validate custom userId format
+      if (customUserId.length < 4) {
+        return res.status(400).json({ message: 'User ID must be at least 4 characters' });
+      }
+      if (!/^[a-zA-Z0-9_]+$/.test(customUserId)) {
+        return res.status(400).json({ message: 'User ID can only contain letters, numbers, and underscores' });
+      }
+      // Check if userId already exists
+      const existingUserId = await User.findOne({ userId: customUserId.toUpperCase() });
+      if (existingUserId) {
+        return res.status(400).json({ message: 'This User ID is already taken. Please choose another.' });
+      }
+      userId = customUserId.toUpperCase();
+    } else {
+      userId = generateUserId();
+    }
+    
     const hashedPassword = await bcrypt.hash(password, 10);
-    const userId = generateUserId();
     const userReferralCode = generateReferralCode(firstName);
     
     let referrerId = null;
@@ -348,6 +455,7 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
       phone, 
       phoneCountryCode,
       walletAddress,
+      walletType: walletType || 'usdt_trc20',
       country,
       referralCode: userReferralCode, 
       referredBy: referrerId, 
@@ -361,6 +469,39 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
       await User.findByIdAndUpdate(referrerId, {
         $push: { directReferrals: user._id, downlineUsers: user._id },
       });
+      
+      // Get referrer details
+      const referrer = await User.findById(referrerId);
+      
+      // Create referral bonus record (10% bonus - will be credited when user makes first deposit/investment)
+      const referralBonus = new ReferralBonus({
+        referrerId,
+        referredUserId: user._id,
+        bonusPercentage: 10,
+        bonusAmount: 0,
+        status: 'pending',
+        description: `Referral bonus for inviting ${firstName} ${lastName}`,
+      });
+      await referralBonus.save();
+      
+      // Create admin notification for referral registration
+      const adminNotification = new AdminNotification({
+        type: 'referral_registration',
+        title: 'New Referral Registration',
+        message: `${firstName} ${lastName} (${email}) registered using referral link of ${referrer.firstName} ${referrer.lastName} (${referrer.email})`,
+        userId: user._id,
+        referrerId: referrerId,
+        data: {
+          referralCode: referrer.referralCode,
+          referrerName: `${referrer.firstName} ${referrer.lastName}`,
+          newUserName: `${firstName} ${lastName}`,
+          newUserEmail: email,
+        },
+        priority: 'normal',
+      });
+      await adminNotification.save();
+      
+      console.log(`✅ Referral registration: ${firstName} ${lastName} referred by ${referrer.firstName} ${referrer.lastName}`);
     }
     
     const token = jwt.sign({ id: user._id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
@@ -1100,6 +1241,246 @@ app.get('/api/user/dashboard', authenticateToken, async (req, res) => {
   }
 });
 
+// ==================== NETWORK/GENEALOGY ROUTES ====================
+
+// Get My Direct Referrals (Level 1 - Users who used YOUR referral link)
+app.get('/api/network/directs', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Find all users who were referred by the current user
+    const directReferrals = await User.find({ referredBy: req.user.id })
+      .select('firstName lastName email phone status createdAt totalInvested totalEarned referralCode directReferrals')
+      .sort({ createdAt: -1 });
+
+    // Calculate stats for each direct
+    const directsWithStats = await Promise.all(directReferrals.map(async (direct) => {
+      // Count their downline (indirect referrals)
+      const theirDirectCount = await User.countDocuments({ referredBy: direct._id });
+      
+      return {
+        id: direct._id,
+        name: `${direct.firstName} ${direct.lastName}`,
+        email: direct.email,
+        phone: direct.phone || 'N/A',
+        status: direct.status,
+        joinDate: direct.createdAt,
+        totalInvested: direct.totalInvested || 0,
+        totalEarned: direct.totalEarned || 0,
+        referralCode: direct.referralCode,
+        theirDirectCount: theirDirectCount,
+        level: 1
+      };
+    }));
+
+    res.json({
+      success: true,
+      totalDirects: directsWithStats.length,
+      directs: directsWithStats
+    });
+  } catch (error) {
+    console.error('Error fetching direct referrals:', error);
+    res.status(500).json({ message: 'Error fetching direct referrals', error: error.message });
+  }
+});
+
+// Get My Downline (Complete Network - All levels below you)
+app.get('/api/network/downline', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Recursive function to build downline tree
+    const buildDownlineTree = async (userId, level = 1, maxLevel = 10) => {
+      if (level > maxLevel) return [];
+      
+      const referrals = await User.find({ referredBy: userId })
+        .select('firstName lastName email phone status createdAt totalInvested totalEarned referralCode');
+      
+      const nodes = [];
+      for (const referral of referrals) {
+        const children = await buildDownlineTree(referral._id, level + 1, maxLevel);
+        const totalDownline = children.reduce((sum, child) => sum + 1 + (child.totalDownline || 0), 0);
+        
+        nodes.push({
+          id: referral._id,
+          name: `${referral.firstName} ${referral.lastName}`,
+          email: referral.email,
+          phone: referral.phone || 'N/A',
+          status: referral.status,
+          joinDate: referral.createdAt,
+          totalInvested: referral.totalInvested || 0,
+          totalEarned: referral.totalEarned || 0,
+          referralCode: referral.referralCode,
+          level: level,
+          directCount: children.length,
+          totalDownline: totalDownline,
+          children: children
+        });
+      }
+      return nodes;
+    };
+
+    // Build the complete downline tree
+    const downlineTree = await buildDownlineTree(req.user.id);
+    
+    // Calculate total stats
+    const calculateTotalStats = (nodes) => {
+      let total = 0;
+      let totalInvested = 0;
+      let totalEarned = 0;
+      let levelCounts = {};
+      
+      const traverse = (nodeList) => {
+        for (const node of nodeList) {
+          total++;
+          totalInvested += node.totalInvested || 0;
+          totalEarned += node.totalEarned || 0;
+          levelCounts[node.level] = (levelCounts[node.level] || 0) + 1;
+          if (node.children && node.children.length > 0) {
+            traverse(node.children);
+          }
+        }
+      };
+      traverse(nodes);
+      return { total, totalInvested, totalEarned, levelCounts };
+    };
+
+    const stats = calculateTotalStats(downlineTree);
+
+    res.json({
+      success: true,
+      totalDownline: stats.total,
+      totalNetworkInvested: stats.totalInvested,
+      totalNetworkEarned: stats.totalEarned,
+      levelBreakdown: stats.levelCounts,
+      downline: downlineTree
+    });
+  } catch (error) {
+    console.error('Error fetching downline:', error);
+    res.status(500).json({ message: 'Error fetching downline', error: error.message });
+  }
+});
+
+// Get Full Genealogy Tree (for tree visualization)
+app.get('/api/network/genealogy', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .select('firstName lastName email phone status createdAt totalInvested totalEarned referralCode');
+    
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Recursive function to build tree with limited depth
+    const buildTree = async (userId, level = 0, maxLevel = 5) => {
+      const currentUser = await User.findById(userId)
+        .select('firstName lastName email phone status createdAt totalInvested totalEarned referralCode');
+      
+      if (!currentUser) return null;
+
+      const children = [];
+      if (level < maxLevel) {
+        const referrals = await User.find({ referredBy: userId })
+          .select('firstName lastName email phone status createdAt totalInvested totalEarned referralCode');
+        
+        for (const referral of referrals) {
+          const childNode = await buildTree(referral._id, level + 1, maxLevel);
+          if (childNode) children.push(childNode);
+        }
+      }
+
+      const totalTeam = await User.countDocuments({ referredBy: userId });
+
+      return {
+        id: currentUser._id,
+        name: `${currentUser.firstName} ${currentUser.lastName}`,
+        email: currentUser.email,
+        phone: currentUser.phone || 'N/A',
+        isActive: currentUser.status === 'active',
+        rank: currentUser.totalInvested >= 10000 ? 'Diamond' : 
+              currentUser.totalInvested >= 5000 ? 'Gold' : 
+              currentUser.totalInvested >= 1000 ? 'Silver' : 'Bronze',
+        level: level,
+        joinDate: currentUser.createdAt ? new Date(currentUser.createdAt).toLocaleDateString() : 'N/A',
+        totalEarnings: currentUser.totalEarned || 0,
+        totalTeam: totalTeam,
+        directReferrals: children.length,
+        referralCode: currentUser.referralCode,
+        children: children
+      };
+    };
+
+    const treeData = await buildTree(req.user.id, 0, 5);
+
+    res.json({
+      success: true,
+      data: treeData
+    });
+  } catch (error) {
+    console.error('Error fetching genealogy tree:', error);
+    res.status(500).json({ message: 'Error fetching genealogy tree', error: error.message });
+  }
+});
+
+// Get Network Statistics Summary
+app.get('/api/network/stats', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Direct referrals count
+    const directCount = await User.countDocuments({ referredBy: req.user.id });
+
+    // Recursive count of all downline
+    const countAllDownline = async (userId) => {
+      const directs = await User.find({ referredBy: userId }).select('_id');
+      let count = directs.length;
+      for (const direct of directs) {
+        count += await countAllDownline(direct._id);
+      }
+      return count;
+    };
+
+    const totalDownline = await countAllDownline(req.user.id);
+
+    // Get level-wise breakdown (up to 10 levels)
+    const getLevelBreakdown = async (userId, level = 1, maxLevel = 10) => {
+      if (level > maxLevel) return {};
+      
+      const directs = await User.find({ referredBy: userId }).select('_id');
+      let breakdown = { [level]: directs.length };
+      
+      for (const direct of directs) {
+        const childBreakdown = await getLevelBreakdown(direct._id, level + 1, maxLevel);
+        for (const [lvl, cnt] of Object.entries(childBreakdown)) {
+          breakdown[lvl] = (breakdown[lvl] || 0) + cnt;
+        }
+      }
+      return breakdown;
+    };
+
+    const levelBreakdown = await getLevelBreakdown(req.user.id);
+
+    // Get active members count
+    const activeDirects = await User.countDocuments({ referredBy: req.user.id, status: 'active' });
+
+    res.json({
+      success: true,
+      stats: {
+        directReferrals: directCount,
+        activeDirects: activeDirects,
+        totalDownline: totalDownline,
+        totalNetwork: directCount + totalDownline - directCount, // Just the downline beyond directs
+        levelBreakdown: levelBreakdown,
+        referralCode: user.referralCode
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching network stats:', error);
+    res.status(500).json({ message: 'Error fetching network stats', error: error.message });
+  }
+});
+
 // ==================== PLANS ROUTES ====================
 
 app.get('/api/plans', async (req, res) => {
@@ -1170,6 +1551,10 @@ app.post('/api/investments', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Insufficient balance. Please deposit funds.' });
     }
     
+    // Check if this is the user's first investment (for referral bonus)
+    const existingInvestments = await Investment.countDocuments({ userId: req.user.id });
+    const isFirstInvestment = existingInvestments === 0;
+    
     const investment = new Investment({
       userId: req.user.id, planId, amount: plan.investment, startDate: new Date(),
       endDate: calculateEndDate(new Date(), plan.duration), status: 'active', activationFor: activationFor || 'self', downlineUserId,
@@ -1190,6 +1575,48 @@ app.post('/api/investments', authenticateToken, async (req, res) => {
     });
     
     await transaction.save();
+    
+    // Credit referral bonus on first investment (10% of investment amount) - REQUIRES ADMIN APPROVAL
+    if (isFirstInvestment && user.referredBy) {
+      const referralBonus = await ReferralBonus.findOne({ 
+        referredUserId: user._id, 
+        referrerId: user.referredBy,
+        status: 'pending'
+      });
+      
+      if (referralBonus) {
+        const bonusAmount = plan.investment * 0.10; // 10% bonus
+        
+        // Update bonus amount but keep status as pending (requires admin approval)
+        referralBonus.bonusAmount = bonusAmount;
+        referralBonus.investmentId = investment._id;
+        referralBonus.investmentAmount = plan.investment;
+        await referralBonus.save();
+        
+        // Create admin notification for pending bonus approval
+        const referrer = await User.findById(user.referredBy);
+        const bonusNotification = new AdminNotification({
+          type: 'referral_bonus_pending',
+          title: 'Referral Bonus Pending Approval',
+          message: `$${bonusAmount.toFixed(2)} referral bonus waiting for approval. ${referrer.firstName} ${referrer.lastName} referred ${user.firstName} ${user.lastName} who made first investment of $${plan.investment}`,
+          userId: user._id,
+          referrerId: user.referredBy,
+          data: {
+            referrerName: `${referrer.firstName} ${referrer.lastName}`,
+            referrerEmail: referrer.email,
+            newUserName: `${user.firstName} ${user.lastName}`,
+            newUserEmail: user.email,
+            bonusAmount: bonusAmount,
+            investmentAmount: plan.investment,
+            referralBonusId: referralBonus._id.toString()
+          },
+          priority: 'high',
+        });
+        await bonusNotification.save();
+        
+        console.log(`⏳ Referral bonus of $${bonusAmount} pending admin approval for ${referrer.firstName} ${referrer.lastName}`);
+      }
+    }
     
     // Send email notification
     emailService.sendInvestmentConfirmed(user.email, {
@@ -1397,6 +1824,206 @@ app.post('/api/withdrawals', authenticateToken, async (req, res) => {
   }
 });
 
+// ==================== DEPOSIT ENDPOINTS ====================
+
+// Create deposit request (user)
+app.post('/api/deposits', authenticateToken, upload.single('slip'), async (req, res) => {
+  try {
+    const { amount, transactionHash, network, adminAddress, userWalletAddress } = req.body;
+    
+    if (!amount || parseFloat(amount) <= 0) {
+      return res.status(400).json({ message: 'Invalid deposit amount' });
+    }
+    if (!transactionHash) {
+      return res.status(400).json({ message: 'Transaction hash is required' });
+    }
+    if (!network || !['usdt_trc20', 'bnb_bep20'].includes(network)) {
+      return res.status(400).json({ message: 'Invalid network selected' });
+    }
+
+    // Check for duplicate transaction hash
+    const existing = await Deposit.findOne({ transactionHash });
+    if (existing) {
+      return res.status(400).json({ message: 'This transaction hash has already been submitted' });
+    }
+
+    const depositData = {
+      userId: req.user.id,
+      amount: parseFloat(amount),
+      network,
+      adminAddress,
+      userWalletAddress,
+      transactionHash,
+      status: 'pending',
+    };
+
+    // Store payment slip if uploaded
+    if (req.file) {
+      depositData.paymentSlipData = req.file.buffer;
+      depositData.paymentSlipMimeType = req.file.mimetype;
+      depositData.paymentSlip = `deposit_${Date.now()}_${req.file.originalname}`;
+    }
+
+    const deposit = new Deposit(depositData);
+    await deposit.save();
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Deposit request submitted successfully. Admin will verify and approve.',
+      deposit: {
+        id: deposit._id,
+        amount: deposit.amount,
+        network: deposit.network,
+        status: deposit.status,
+        transactionHash: deposit.transactionHash,
+        createdAt: deposit.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Deposit creation error:', error);
+    res.status(500).json({ message: 'Error creating deposit request', error: error.message });
+  }
+});
+
+// Get user's deposits
+app.get('/api/deposits', authenticateToken, async (req, res) => {
+  try {
+    const deposits = await Deposit.find({ userId: req.user.id })
+      .sort({ createdAt: -1 })
+      .select('-paymentSlipData');
+    res.json({ deposits });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching deposits', error: error.message });
+  }
+});
+
+// Admin: Get all pending deposits
+app.get('/api/admin/deposits/pending', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const deposits = await Deposit.find({ status: 'pending' })
+      .populate('userId', 'userId firstName lastName email phone walletAddress walletType')
+      .sort({ createdAt: -1 })
+      .select('-paymentSlipData');
+    res.json({ success: true, data: deposits });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching pending deposits', error: error.message });
+  }
+});
+
+// Admin: Get all deposits
+app.get('/api/admin/deposits', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { status } = req.query;
+    const query = status ? { status } : {};
+    
+    const deposits = await Deposit.find(query)
+      .populate('userId', 'userId firstName lastName email phone walletAddress walletType')
+      .populate('approvedBy', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .select('-paymentSlipData');
+    res.json({ success: true, data: deposits });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching deposits', error: error.message });
+  }
+});
+
+// Get deposit payment slip image
+app.get('/api/admin/deposits/:id/slip', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const deposit = await Deposit.findById(req.params.id);
+    if (!deposit || !deposit.paymentSlipData) {
+      return res.status(404).json({ message: 'Payment slip not found' });
+    }
+    res.set('Content-Type', deposit.paymentSlipMimeType || 'image/png');
+    res.send(deposit.paymentSlipData);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching payment slip', error: error.message });
+  }
+});
+
+// Admin: Approve deposit
+app.post('/api/admin/deposits/:id/approve', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { adminNotes } = req.body;
+    
+    const deposit = await Deposit.findById(req.params.id);
+    if (!deposit) {
+      return res.status(404).json({ message: 'Deposit not found' });
+    }
+    if (deposit.status !== 'pending') {
+      return res.status(400).json({ message: 'Deposit has already been processed' });
+    }
+
+    // Update deposit status
+    deposit.status = 'approved';
+    deposit.approvedBy = req.user.id;
+    deposit.approvedAt = new Date();
+    deposit.adminNotes = adminNotes;
+    await deposit.save();
+
+    // Credit user's balance
+    const user = await User.findById(deposit.userId);
+    if (user) {
+      user.balance = (user.balance || 0) + deposit.amount;
+      await user.save();
+
+      // Create transaction record
+      const transaction = new Transaction({
+        userId: user._id,
+        type: 'deposit',
+        amount: deposit.amount,
+        currency: deposit.network === 'usdt_trc20' ? 'USDT' : 'BNB',
+        status: 'completed',
+        description: `Deposit via ${deposit.network.toUpperCase()}`,
+        transactionId: deposit.transactionHash,
+        balanceAfter: user.balance
+      });
+      await transaction.save();
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Deposit of $${deposit.amount} approved and credited to user's wallet`,
+      deposit
+    });
+  } catch (error) {
+    console.error('Deposit approval error:', error);
+    res.status(500).json({ message: 'Error approving deposit', error: error.message });
+  }
+});
+
+// Admin: Reject deposit
+app.post('/api/admin/deposits/:id/reject', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { reason, adminNotes } = req.body;
+    
+    const deposit = await Deposit.findById(req.params.id);
+    if (!deposit) {
+      return res.status(404).json({ message: 'Deposit not found' });
+    }
+    if (deposit.status !== 'pending') {
+      return res.status(400).json({ message: 'Deposit has already been processed' });
+    }
+
+    deposit.status = 'rejected';
+    deposit.rejectedBy = req.user.id;
+    deposit.rejectedAt = new Date();
+    deposit.rejectionReason = reason;
+    deposit.adminNotes = adminNotes;
+    await deposit.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Deposit rejected',
+      deposit
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error rejecting deposit', error: error.message });
+  }
+});
+
+// ==================== END DEPOSIT ENDPOINTS ====================
+
 app.get('/api/withdrawals', authenticateToken, async (req, res) => {
   try {
     const withdrawals = await Withdrawal.find({ userId: req.user.id }).sort({ createdAt: -1 });
@@ -1595,6 +2222,147 @@ app.put('/api/admin/settings', authenticateToken, isAdmin, async (req, res) => {
   }
 });
 
+// Get specific admin config
+app.get('/api/admin/settings/config', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) {
+      settings = new AdminSettings({ key: 'platform-settings' });
+      await settings.save();
+    }
+    res.json({ success: true, data: settings });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching config', error: error.message });
+  }
+});
+
+// Save specific admin config
+app.post('/api/admin/settings/config', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) settings = new AdminSettings({ key: 'platform-settings' });
+    Object.assign(settings, req.body);
+    settings.updatedBy = req.user.id;
+    settings.updatedAt = new Date();
+    await settings.save();
+    res.json({ success: true, message: 'Settings saved successfully', data: settings });
+  } catch (error) {
+    res.status(500).json({ message: 'Error saving config', error: error.message });
+  }
+});
+
+// ==================== ADMIN WALLET MANAGEMENT ====================
+
+// Get admin deposit wallet addresses (public - for users to see)
+app.get('/api/deposit-wallets', async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) {
+      settings = new AdminSettings({ key: 'platform-settings' });
+      await settings.save();
+    }
+    
+    const wallets = {
+      usdt_trc20: {
+        address: settings.depositWallets?.usdt_trc20?.address || 'TFVh7tRnCP3TnAxVSf6KvxN7qJ78SYYp7p',
+        enabled: settings.depositWallets?.usdt_trc20?.enabled !== false,
+        name: settings.depositWallets?.usdt_trc20?.name || 'USDT (TRC20)',
+        network: 'TRC20',
+        color: '#26A17B',
+        icon: '₮'
+      },
+      bnb_bep20: {
+        address: settings.depositWallets?.bnb_bep20?.address || '0xcEEecCF61B06867332B3672830A3A2cDeb6b47f7',
+        enabled: settings.depositWallets?.bnb_bep20?.enabled !== false,
+        name: settings.depositWallets?.bnb_bep20?.name || 'BNB (BEP20)',
+        network: 'BEP20',
+        color: '#F3BA2F',
+        icon: 'BNB'
+      }
+    };
+    
+    res.json({ success: true, wallets });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching wallets', error: error.message });
+  }
+});
+
+// Admin: Get wallet settings
+app.get('/api/admin/wallets', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) {
+      settings = new AdminSettings({ key: 'platform-settings' });
+      await settings.save();
+    }
+    
+    const wallets = {
+      usdt_trc20: {
+        address: settings.depositWallets?.usdt_trc20?.address || 'TFVh7tRnCP3TnAxVSf6KvxN7qJ78SYYp7p',
+        enabled: settings.depositWallets?.usdt_trc20?.enabled !== false,
+        name: settings.depositWallets?.usdt_trc20?.name || 'USDT (TRC20)'
+      },
+      bnb_bep20: {
+        address: settings.depositWallets?.bnb_bep20?.address || '0xcEEecCF61B06867332B3672830A3A2cDeb6b47f7',
+        enabled: settings.depositWallets?.bnb_bep20?.enabled !== false,
+        name: settings.depositWallets?.bnb_bep20?.name || 'BNB (BEP20)'
+      }
+    };
+    
+    res.json({ success: true, wallets });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching wallets', error: error.message });
+  }
+});
+
+// Admin: Update wallet addresses
+app.put('/api/admin/wallets', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { usdt_trc20, bnb_bep20 } = req.body;
+    
+    let settings = await AdminSettings.findOne({});
+    if (!settings) {
+      settings = new AdminSettings({ key: 'platform-settings' });
+    }
+    
+    // Initialize depositWallets if not exists
+    if (!settings.depositWallets) {
+      settings.depositWallets = {};
+    }
+    
+    // Update TRC20 wallet
+    if (usdt_trc20) {
+      settings.depositWallets.usdt_trc20 = {
+        address: usdt_trc20.address || settings.depositWallets?.usdt_trc20?.address,
+        enabled: usdt_trc20.enabled !== undefined ? usdt_trc20.enabled : true,
+        name: usdt_trc20.name || 'USDT (TRC20)'
+      };
+    }
+    
+    // Update BEP20 wallet
+    if (bnb_bep20) {
+      settings.depositWallets.bnb_bep20 = {
+        address: bnb_bep20.address || settings.depositWallets?.bnb_bep20?.address,
+        enabled: bnb_bep20.enabled !== undefined ? bnb_bep20.enabled : true,
+        name: bnb_bep20.name || 'BNB (BEP20)'
+      };
+    }
+    
+    settings.updatedBy = req.user.id;
+    settings.updatedAt = new Date();
+    settings.markModified('depositWallets');
+    await settings.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Wallet addresses updated successfully',
+      wallets: settings.depositWallets
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating wallets', error: error.message });
+  }
+});
+
 // Admin overview summary for dashboard widgets
 app.get('/api/admin/summary', authenticateToken, isAdmin, async (req, res) => {
   try {
@@ -1770,6 +2538,111 @@ app.get('/api/admin/members', authenticateToken, isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Get members error:', error);
     res.status(500).json({ message: 'Error fetching members', error: error.message });
+  }
+});
+
+// ==================== DASHBOARD STATS API ====================
+
+// Get comprehensive user dashboard stats - real-time data
+app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .populate('directReferrals', 'userId firstName lastName email status totalInvested createdAt')
+      .populate('downlineUsers', 'status totalInvested');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Get active investments
+    const activeInvestments = await Investment.find({ userId: req.user.id, status: 'active' }).populate('planId');
+    const allInvestments = await Investment.find({ userId: req.user.id });
+    
+    // Calculate total invested and earned
+    const totalInvested = user.totalInvested || allInvestments.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+    const totalEarned = user.totalEarned || allInvestments.reduce((sum, inv) => sum + (inv.earned || 0), 0);
+    
+    // Calculate daily earning based on active investments
+    let dailyEarning = 0;
+    activeInvestments.forEach(inv => {
+      if (inv.planId) {
+        dailyEarning += (inv.amount * (inv.planId.dailyReturn || 0)) / 100;
+      }
+    });
+
+    // Get pending withdrawals
+    const pendingWithdrawals = await Withdrawal.find({ userId: req.user.id, status: 'pending' });
+    const pendingAmount = pendingWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
+
+    // Get recent transactions for transaction history
+    const recentTransactions = await Transaction.find({ userId: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    // Calculate income breakdown
+    const referralEarnings = user.referralEarnings || 0;
+    const investmentEarnings = totalEarned - referralEarnings;
+    
+    // Active vs Passive income
+    // Active Income: Direct referral earnings, level income
+    // Passive Income: Investment ROI
+    const activeIncome = referralEarnings;
+    const passiveIncome = investmentEarnings;
+
+    // Wallet data
+    const walletData = {
+      myWallet: user.balance || 0,
+      fundWallet: user.fundWallet || 0,
+      utilityWallet: user.utilityWallet || 0,
+      totalBalance: (user.balance || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0)
+    };
+
+    res.json({
+      data: {
+        // User Profile Info
+        userId: user.userId,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        rank: user.rank || 'N/A',
+        status: user.status,
+        dateOfRegistration: user.createdAt,
+        dateOfActivation: user.activatedAt || null,
+        rankAchievedOn: user.rankAchievedAt || null,
+
+        // Investment Monitor
+        totalInvested,
+        totalEarned,
+        dailyEarning,
+        activePlans: activeInvestments.length,
+
+        // Wallet Overview
+        wallet: walletData,
+
+        // Income Breakdown
+        activeIncome,
+        passiveIncome,
+        totalIncome: activeIncome + passiveIncome,
+
+        // Transaction History
+        recentTransactions: recentTransactions.map(t => ({
+          id: t._id,
+          date: t.createdAt,
+          description: t.description || t.type,
+          type: t.type,
+          credit: t.type === 'deposit' || t.type === 'earning' ? t.amount : 0,
+          debit: t.type === 'withdrawal' || t.type === 'investment' ? t.amount : 0,
+          balance: t.balanceAfter || 0
+        })),
+
+        // Referral Info
+        referralCode: user.referralCode,
+        referralLink: `${process.env.APP_URL || 'http://localhost:3049'}/register?ref=${user.userId}`
+      }
+    });
+  } catch (error) {
+    console.error('Dashboard stats error:', error);
+    res.status(500).json({ message: 'Error fetching dashboard stats', error: error.message });
   }
 });
 
@@ -1957,6 +2830,122 @@ app.get('/api/admin/fund-requests/processed', authenticateToken, isAdmin, async 
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching fund requests', error: error.message });
+  }
+});
+
+// Admin activate/invest for user
+app.post('/api/admin/activate-user', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { userId, amount, planId, paymentMode, referenceNo, returnType, investmentType } = req.body;
+    
+    if (!userId || !amount) {
+      return res.status(400).json({ message: 'User ID and amount are required' });
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Get the plan or use defaults
+    let plan = null;
+    if (planId) {
+      plan = await InvestmentPlan.findById(planId);
+    }
+    if (!plan) {
+      plan = await InvestmentPlan.findOne({ status: 'active' });
+    }
+    
+    const dailyReturn = plan?.dailyReturn || 1.5;
+    const duration = plan?.duration || 30;
+    
+    // Create investment
+    const investment = new Investment({
+      userId: user._id,
+      planId: plan?._id,
+      planName: plan?.name || 'Admin Activation',
+      amount: Number(amount),
+      dailyReturn,
+      duration,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + duration * 24 * 60 * 60 * 1000),
+      status: 'active',
+      paymentMethod: paymentMode || 'admin_credit',
+      transactionId: referenceNo || `ADMIN-${Date.now()}`,
+      returnType: returnType || 'Allow ROI',
+      adminActivated: true,
+      activatedBy: req.user.id
+    });
+    
+    await investment.save();
+    
+    // Update user stats
+    await User.findByIdAndUpdate(user._id, {
+      $inc: { totalInvested: Number(amount), balance: Number(amount) },
+      status: 'active',
+      activatedAt: new Date()
+    });
+    
+    // Create transaction record
+    const transaction = new Transaction({
+      userId: user._id,
+      type: 'deposit',
+      amount: Number(amount),
+      currency: 'USDT',
+      status: 'completed',
+      description: `Admin activation - ${investmentType || 'Investment'}`,
+      transactionId: referenceNo || `ADMIN-${Date.now()}`,
+      balanceAfter: (user.balance || 0) + Number(amount)
+    });
+    await transaction.save();
+    
+    // Process referral bonus if user has referrer
+    if (user.referredBy) {
+      const referrer = await User.findById(user.referredBy);
+      if (referrer) {
+        const bonusAmount = Number(amount) * 0.1; // 10% referral bonus
+        
+        // Update referral bonus record
+        await ReferralBonus.findOneAndUpdate(
+          { referrerId: referrer._id, referredUserId: user._id },
+          { 
+            bonusAmount,
+            status: 'credited',
+            creditedAt: new Date(),
+            investmentAmount: Number(amount)
+          }
+        );
+        
+        // Credit referrer's account
+        await User.findByIdAndUpdate(referrer._id, {
+          $inc: { balance: bonusAmount, referralEarnings: bonusAmount, totalEarned: bonusAmount }
+        });
+        
+        // Create transaction for referral bonus
+        await new Transaction({
+          userId: referrer._id,
+          type: 'commission',
+          amount: bonusAmount,
+          currency: 'USDT',
+          status: 'completed',
+          description: `Referral bonus from ${user.firstName} ${user.lastName}'s investment`
+        }).save();
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `User ${user.firstName} ${user.lastName} activated with $${amount} investment`,
+      investment: {
+        id: investment._id,
+        amount: investment.amount,
+        plan: investment.planName,
+        status: investment.status
+      }
+    });
+  } catch (error) {
+    console.error('Admin activation error:', error);
+    res.status(500).json({ message: 'Error activating user', error: error.message });
   }
 });
 
@@ -2232,6 +3221,372 @@ app.get('/api/admin/eliminate-conditions', authenticateToken, isAdmin, async (re
     res.json({ data: [] });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching conditions', error: error.message });
+  }
+});
+
+// ==================== REFERRAL BONUS ROUTES ====================
+
+// Get user's referral bonuses
+app.get('/api/user/referral-bonuses', authenticateToken, async (req, res) => {
+  try {
+    const bonuses = await ReferralBonus.find({ referrerId: req.user.id })
+      .populate('referredUserId', 'userId firstName lastName email createdAt')
+      .sort({ createdAt: -1 });
+    
+    const totalBonus = bonuses.reduce((sum, b) => sum + (b.bonusAmount || 0), 0);
+    const creditedBonus = bonuses.filter(b => b.status === 'credited').reduce((sum, b) => sum + b.bonusAmount, 0);
+    const pendingBonus = bonuses.filter(b => b.status === 'pending').reduce((sum, b) => sum + b.bonusAmount, 0);
+    
+    res.json({
+      success: true,
+      data: {
+        bonuses: bonuses.map(b => ({
+          id: b._id,
+          referredUser: {
+            userId: b.referredUserId?.userId,
+            name: b.referredUserId ? `${b.referredUserId.firstName} ${b.referredUserId.lastName}` : 'N/A',
+            email: b.referredUserId?.email,
+            joinedAt: b.referredUserId?.createdAt
+          },
+          bonusPercentage: b.bonusPercentage,
+          bonusAmount: b.bonusAmount,
+          status: b.status,
+          creditedAt: b.creditedAt,
+          createdAt: b.createdAt
+        })),
+        summary: {
+          totalReferrals: bonuses.length,
+          totalBonus,
+          creditedBonus,
+          pendingBonus
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get referral bonuses error:', error);
+    res.status(500).json({ message: 'Error fetching referral bonuses', error: error.message });
+  }
+});
+
+// Admin: Get all referral bonuses
+app.get('/api/admin/referral-bonuses', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { status, limit = 50, page = 1 } = req.query;
+    const filter = {};
+    if (status) filter.status = status;
+    
+    const bonuses = await ReferralBonus.find(filter)
+      .populate('referrerId', 'userId firstName lastName email')
+      .populate('referredUserId', 'userId firstName lastName email createdAt')
+      .populate('investmentId', 'planName amount status')
+      .populate('approvedBy', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+    
+    const total = await ReferralBonus.countDocuments(filter);
+    const pendingCount = await ReferralBonus.countDocuments({ status: 'pending', bonusAmount: { $gt: 0 } });
+    
+    res.json({
+      success: true,
+      data: bonuses.map(b => ({
+        id: b._id,
+        referrer: {
+          id: b.referrerId?._id,
+          oderId: b.referrerId?.userId,
+          name: b.referrerId ? `${b.referrerId.firstName} ${b.referrerId.lastName}` : 'N/A',
+          email: b.referrerId?.email
+        },
+        referredUser: {
+          id: b.referredUserId?._id,
+          oderId: b.referredUserId?.userId,
+          name: b.referredUserId ? `${b.referredUserId.firstName} ${b.referredUserId.lastName}` : 'N/A',
+          email: b.referredUserId?.email,
+          joinedAt: b.referredUserId?.createdAt
+        },
+        investment: b.investmentId ? {
+          id: b.investmentId._id,
+          planName: b.investmentId.planName,
+          amount: b.investmentId.amount,
+          status: b.investmentId.status
+        } : null,
+        bonusPercentage: b.bonusPercentage,
+        bonusAmount: b.bonusAmount,
+        investmentAmount: b.investmentAmount,
+        status: b.status,
+        approvedBy: b.approvedBy ? `${b.approvedBy.firstName} ${b.approvedBy.lastName}` : null,
+        approvedAt: b.approvedAt,
+        creditedAt: b.creditedAt,
+        rejectedAt: b.rejectedAt,
+        rejectionReason: b.rejectionReason,
+        adminNotes: b.adminNotes,
+        description: b.description,
+        createdAt: b.createdAt
+      })),
+      pendingCount,
+      pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) }
+    });
+  } catch (error) {
+    console.error('Get admin referral bonuses error:', error);
+    res.status(500).json({ message: 'Error fetching referral bonuses', error: error.message });
+  }
+});
+
+// Approve and Credit referral bonus (admin approval required)
+app.post('/api/admin/referral-bonuses/:id/approve', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { adminNotes } = req.body;
+    const bonus = await ReferralBonus.findById(req.params.id)
+      .populate('referrerId', 'firstName lastName email')
+      .populate('referredUserId', 'firstName lastName email');
+    
+    if (!bonus) {
+      return res.status(404).json({ message: 'Referral bonus not found' });
+    }
+    
+    if (bonus.status === 'credited') {
+      return res.status(400).json({ message: 'Bonus already credited' });
+    }
+    
+    if (bonus.status === 'rejected') {
+      return res.status(400).json({ message: 'Bonus was rejected and cannot be approved' });
+    }
+    
+    if (bonus.bonusAmount <= 0) {
+      return res.status(400).json({ message: 'No bonus amount to credit. Referred user has not made an investment yet.' });
+    }
+    
+    const bonusAmount = bonus.bonusAmount;
+    
+    // Update referral bonus status to credited
+    bonus.status = 'credited';
+    bonus.approvedBy = req.user.id;
+    bonus.approvedAt = new Date();
+    bonus.creditedAt = new Date();
+    if (adminNotes) bonus.adminNotes = adminNotes;
+    await bonus.save();
+    
+    // Update referrer's balance and stats
+    await User.findByIdAndUpdate(bonus.referrerId._id, {
+      $inc: { 
+        balance: bonusAmount,
+        totalReferralBonus: bonusAmount,
+        referralBonusCount: 1,
+        totalEarned: bonusAmount
+      }
+    });
+    
+    // Create transaction record
+    const transaction = new Transaction({
+      userId: bonus.referrerId._id,
+      type: 'commission',
+      amount: bonusAmount,
+      status: 'completed',
+      description: `Referral bonus (${bonus.bonusPercentage}%) for referring ${bonus.referredUserId.firstName} ${bonus.referredUserId.lastName}`,
+      referredUserId: bonus.referredUserId._id
+    });
+    await transaction.save();
+    
+    // Create notification for the referrer
+    await AdminNotification.create({
+      type: 'other',
+      title: 'Referral Bonus Credited',
+      message: `Referral bonus of $${bonusAmount.toFixed(2)} has been credited to ${bonus.referrerId.firstName} ${bonus.referrerId.lastName}`,
+      userId: bonus.referrerId._id,
+      referrerId: bonus.referrerId._id,
+      data: {
+        referrerName: `${bonus.referrerId.firstName} ${bonus.referrerId.lastName}`,
+        referrerEmail: bonus.referrerId.email,
+        newUserName: `${bonus.referredUserId.firstName} ${bonus.referredUserId.lastName}`,
+        bonusAmount: bonusAmount,
+        referralBonusId: bonus._id.toString()
+      },
+      priority: 'normal',
+      isRead: true
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Referral bonus of $${bonusAmount.toFixed(2)} approved and credited successfully to ${bonus.referrerId.firstName} ${bonus.referrerId.lastName}`, 
+      bonus 
+    });
+  } catch (error) {
+    console.error('Approve referral bonus error:', error);
+    res.status(500).json({ message: 'Error approving bonus', error: error.message });
+  }
+});
+
+// Reject referral bonus
+app.post('/api/admin/referral-bonuses/:id/reject', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { reason, adminNotes } = req.body;
+    const bonus = await ReferralBonus.findById(req.params.id);
+    
+    if (!bonus) {
+      return res.status(404).json({ message: 'Referral bonus not found' });
+    }
+    
+    if (bonus.status === 'credited') {
+      return res.status(400).json({ message: 'Cannot reject an already credited bonus' });
+    }
+    
+    if (bonus.status === 'rejected') {
+      return res.status(400).json({ message: 'Bonus is already rejected' });
+    }
+    
+    // Update referral bonus status to rejected
+    bonus.status = 'rejected';
+    bonus.rejectedAt = new Date();
+    bonus.rejectionReason = reason || 'Rejected by admin';
+    if (adminNotes) bonus.adminNotes = adminNotes;
+    await bonus.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Referral bonus rejected successfully', 
+      bonus 
+    });
+  } catch (error) {
+    console.error('Reject referral bonus error:', error);
+    res.status(500).json({ message: 'Error rejecting bonus', error: error.message });
+  }
+});
+
+// Legacy credit endpoint (for backward compatibility)
+app.post('/api/admin/referral-bonuses/:id/credit', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const bonus = await ReferralBonus.findById(req.params.id)
+      .populate('referrerId', 'firstName lastName')
+      .populate('referredUserId', 'firstName lastName');
+    
+    if (!bonus) {
+      return res.status(404).json({ message: 'Referral bonus not found' });
+    }
+    
+    if (bonus.status === 'credited') {
+      return res.status(400).json({ message: 'Bonus already credited' });
+    }
+    
+    const bonusAmount = amount || bonus.bonusAmount;
+    
+    // Update referral bonus
+    bonus.bonusAmount = bonusAmount;
+    bonus.status = 'credited';
+    bonus.approvedBy = req.user.id;
+    bonus.approvedAt = new Date();
+    bonus.creditedAt = new Date();
+    await bonus.save();
+    
+    // Update referrer's balance and stats
+    await User.findByIdAndUpdate(bonus.referrerId._id, {
+      $inc: { 
+        balance: bonusAmount,
+        totalReferralBonus: bonusAmount,
+        referralBonusCount: 1,
+        totalEarned: bonusAmount
+      }
+    });
+    
+    // Create transaction record
+    const transaction = new Transaction({
+      userId: bonus.referrerId._id,
+      type: 'commission',
+      amount: bonusAmount,
+      status: 'completed',
+      description: `Referral bonus for referring ${bonus.referredUserId.firstName} ${bonus.referredUserId.lastName}`,
+      referredUserId: bonus.referredUserId._id
+    });
+    await transaction.save();
+    
+    res.json({ success: true, message: 'Referral bonus credited successfully', bonus });
+  } catch (error) {
+    console.error('Credit referral bonus error:', error);
+    res.status(500).json({ message: 'Error crediting bonus', error: error.message });
+  }
+});
+
+// ==================== ADMIN NOTIFICATIONS ROUTES ====================
+
+// Get admin notifications
+app.get('/api/admin/notifications', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { type, isRead, limit = 50, page = 1 } = req.query;
+    const filter = {};
+    if (type) filter.type = type;
+    if (isRead !== undefined) filter.isRead = isRead === 'true';
+    
+    const notifications = await AdminNotification.find(filter)
+      .populate('userId', 'userId firstName lastName email')
+      .populate('referrerId', 'userId firstName lastName email')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+    
+    const total = await AdminNotification.countDocuments(filter);
+    const unreadCount = await AdminNotification.countDocuments({ isRead: false });
+    
+    res.json({
+      success: true,
+      data: notifications,
+      unreadCount,
+      pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) }
+    });
+  } catch (error) {
+    console.error('Get admin notifications error:', error);
+    res.status(500).json({ message: 'Error fetching notifications', error: error.message });
+  }
+});
+
+// Get unread notification count
+app.get('/api/admin/notifications/unread-count', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const count = await AdminNotification.countDocuments({ isRead: false });
+    res.json({ success: true, count });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching count', error: error.message });
+  }
+});
+
+// Mark notification as read
+app.put('/api/admin/notifications/:id/read', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const notification = await AdminNotification.findByIdAndUpdate(
+      req.params.id,
+      { isRead: true, readAt: new Date(), readBy: req.user.id },
+      { new: true }
+    );
+    
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+    
+    res.json({ success: true, notification });
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking notification as read', error: error.message });
+  }
+});
+
+// Mark all notifications as read
+app.put('/api/admin/notifications/mark-all-read', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    await AdminNotification.updateMany(
+      { isRead: false },
+      { isRead: true, readAt: new Date(), readBy: req.user.id }
+    );
+    res.json({ success: true, message: 'All notifications marked as read' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking notifications as read', error: error.message });
+  }
+});
+
+// Delete notification
+app.delete('/api/admin/notifications/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    await AdminNotification.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Notification deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting notification', error: error.message });
   }
 });
 

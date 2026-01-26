@@ -38,9 +38,28 @@ const AdminSettingPage = () => {
     });
   };
 
-  const handleSave = () => {
-    console.log('Save admin settings:', settings);
-    // Add API call here
+  const handleSave = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/admin/settings/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(settings)
+      });
+      
+      const data = await response.json();
+      if (response.ok) {
+        alert('Settings saved successfully!');
+      } else {
+        alert(data.message || 'Failed to save settings');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Error saving settings');
+    }
   };
 
   return (

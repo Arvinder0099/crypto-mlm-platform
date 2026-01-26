@@ -25,11 +25,12 @@ import {
   CheckCircle,
   Edit,
   QrCode2,
+  Visibility,
 } from '@mui/icons-material';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../contexts/AuthContext';
 
-const DepositAddressSetup = () => {
+const AdminWalletSettings = () => {
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,26 +41,28 @@ const DepositAddressSetup = () => {
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
   const [copiedAddress, setCopiedAddress] = useState('');
   const [editMode, setEditMode] = useState({ usdt_trc20: false, bnb_bep20: false });
+  const [previewQr, setPreviewQr] = useState({ open: false, network: null });
 
   useEffect(() => {
-    const fetchWallets = async () => {
-      try {
-        const response = await fetch('/api/admin/wallets', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json();
-        if (data.success) {
-          setWallets(data.wallets);
-        }
-      } catch (error) {
-        console.error('Failed to fetch wallets:', error);
-        setSnack({ open: true, message: 'Failed to load wallet settings', severity: 'error' });
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchWallets();
-  }, [token]);
+  }, []);
+
+  const fetchWallets = async () => {
+    try {
+      const response = await fetch('/api/admin/wallets', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setWallets(data.wallets);
+      }
+    } catch (error) {
+      console.error('Failed to fetch wallets:', error);
+      setSnack({ open: true, message: 'Failed to load wallet settings', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -132,10 +135,10 @@ const DepositAddressSetup = () => {
           <AccountBalanceWallet sx={{ fontSize: 40, color: 'white' }} />
           <Box>
             <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
-              Deposit Address Control
+              Admin Wallet Settings
             </Typography>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-              Manage deposit wallet addresses for user payments - QR codes auto-generate
+              Manage deposit wallet addresses for user payments
             </Typography>
           </Box>
         </Box>
@@ -416,4 +419,4 @@ const DepositAddressSetup = () => {
   );
 };
 
-export default DepositAddressSetup;
+export default AdminWalletSettings;
