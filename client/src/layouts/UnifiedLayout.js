@@ -397,7 +397,7 @@ const UnifiedLayout = ({ children }) => {
                   <ListItemText primary="ROI Setup" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/deposit-address-setup')}>
-                  <ListItemText primary="Deposit Address Setup" primaryTypographyProps={{ fontSize: 14 }} />
+                  <ListItemText primary="💳 Edit Wallet Addresses" primaryTypographyProps={{ fontSize: 14, fontWeight: 'bold' }} />
                 </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/eliminate-specific-condition')}>
                   <ListItemText primary="Eliminate Specific Condition" primaryTypographyProps={{ fontSize: 14 }} />
@@ -766,8 +766,8 @@ const UnifiedLayout = ({ children }) => {
           <MenuItem onClick={handleNavigate('/admin-settings/roi-setup', setSettingsAnchor)}>
             ROI Setup
           </MenuItem>
-          <MenuItem onClick={handleNavigate('/admin-settings/deposit-address-setup', setSettingsAnchor)}>
-            Deposit Address Setup
+          <MenuItem onClick={handleNavigate('/admin-settings/deposit-address-setup', setSettingsAnchor)} sx={{ fontWeight: 'bold' }}>
+            💳 Edit Wallet Addresses
           </MenuItem>
           <MenuItem onClick={handleNavigate('/admin-settings/eliminate-specific-condition', setSettingsAnchor)}>
             Eliminate Specific Condition
