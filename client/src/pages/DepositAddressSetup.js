@@ -29,14 +29,25 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../contexts/AuthContext';
 
+// Default wallet addresses
+const DEFAULT_WALLETS = {
+  usdt_trc20: { 
+    address: 'TFVh7tRnCP3TnAxVSf6KvxN7qJ78SYYp7p', 
+    enabled: true, 
+    name: 'USDT (TRC20)' 
+  },
+  bnb_bep20: { 
+    address: '0xcEEecCF61B06867332B3672830A3A2cDeb6b47f7', 
+    enabled: true, 
+    name: 'BNB (BEP20)' 
+  },
+};
+
 const DepositAddressSetup = () => {
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [wallets, setWallets] = useState({
-    usdt_trc20: { address: '', enabled: true, name: 'USDT (TRC20)' },
-    bnb_bep20: { address: '', enabled: true, name: 'BNB (BEP20)' },
-  });
+  const [wallets, setWallets] = useState(DEFAULT_WALLETS);
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
   const [copiedAddress, setCopiedAddress] = useState('');
   const [editMode, setEditMode] = useState({ usdt_trc20: false, bnb_bep20: false });
@@ -48,12 +59,24 @@ const DepositAddressSetup = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
-        if (data.success) {
-          setWallets(data.wallets);
+        if (data.success && data.wallets) {
+          // Merge with defaults to ensure all fields exist
+          setWallets({
+            usdt_trc20: {
+              address: data.wallets.usdt_trc20?.address || DEFAULT_WALLETS.usdt_trc20.address,
+              enabled: data.wallets.usdt_trc20?.enabled !== false,
+              name: data.wallets.usdt_trc20?.name || DEFAULT_WALLETS.usdt_trc20.name,
+            },
+            bnb_bep20: {
+              address: data.wallets.bnb_bep20?.address || DEFAULT_WALLETS.bnb_bep20.address,
+              enabled: data.wallets.bnb_bep20?.enabled !== false,
+              name: data.wallets.bnb_bep20?.name || DEFAULT_WALLETS.bnb_bep20.name,
+            }
+          });
         }
       } catch (error) {
         console.error('Failed to fetch wallets:', error);
-        setSnack({ open: true, message: 'Failed to load wallet settings', severity: 'error' });
+        setSnack({ open: true, message: 'Using default wallet addresses', severity: 'warning' });
       } finally {
         setLoading(false);
       }
