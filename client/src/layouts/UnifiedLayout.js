@@ -760,6 +760,9 @@ const UnifiedLayout = ({ children }) => {
           open={Boolean(settingsAnchor)}
           onClose={handleMenuClose(setSettingsAnchor)}
         >
+          <MenuItem onClick={handleNavigate('/admin/points-management', setSettingsAnchor)} sx={{ fontWeight: 'bold', color: 'success.main' }}>
+            💰 Add USDT Points
+          </MenuItem>
           <MenuItem onClick={handleNavigate('/admin-settings/edit-plans', setSettingsAnchor)}>
             Edit Plans
           </MenuItem>

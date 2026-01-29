@@ -102,6 +102,9 @@ import ReferralBonus from './pages/ReferralBonus';
 import AdminNotifications from './pages/AdminNotifications';
 import AdminReferralBonuses from './pages/AdminReferralBonuses';
 
+// Import Admin Points Management
+import AdminPointsManagement from './pages/AdminPointsManagement';
+
 // Import components
 import UnifiedLayout from './layouts/UnifiedLayout';
 import SecurityProvider from './components/SecurityProvider';
@@ -285,6 +288,7 @@ function AppContent() {
                 <Route path="/admin" element={<AdminPanel />} />
                 <Route path="/admin/notifications" element={<AdminNotifications />} />
                 <Route path="/admin/referral-bonuses" element={<AdminReferralBonuses />} />
+                <Route path="/admin/points-management" element={<AdminPointsManagement />} />
                 <Route path="/activation-options" element={<ActivationOptions />} />
                 
                 {/* Activation Routes */}

@@ -160,10 +160,12 @@ const investmentSchema = new mongoose.Schema({
 // Transaction Schema
 const transactionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  type: { type: String, enum: ['deposit', 'withdrawal', 'investment', 'earning', 'commission', 'refund'], required: true },
+  type: { type: String, enum: ['deposit', 'withdrawal', 'investment', 'earning', 'commission', 'refund', 'admin_credit'], required: true },
   amount: { type: Number, required: true },
   previousBalance: Number,
   newBalance: Number,
+  balanceBefore: Number,
+  balanceAfter: Number,
   status: { type: String, enum: ['pending', 'completed', 'failed', 'cancelled'], default: 'completed' },
   description: String,
   investmentId: mongoose.Schema.Types.ObjectId,
@@ -174,6 +176,7 @@ const transactionSchema = new mongoose.Schema({
   walletAddress: String,
   adminNotes: String,
   processedBy: mongoose.Schema.Types.ObjectId,
+  processedAt: Date,
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
@@ -253,6 +256,8 @@ const adminSettingsSchema = new mongoose.Schema({
   platformFeePercent: { type: Number, default: 0 },
   maintenanceFeePercent: { type: Number, default: 0 },
   depositWalletAddress: String,
+  // Admin Points Pool - USDT points available for admin to distribute
+  adminPointsPool: { type: Number, default: 25000 },
   // Admin deposit wallet addresses for each network
   depositWallets: {
     usdt_trc20: { 
@@ -2705,6 +2710,211 @@ app.get('/api/dashboard/recent-referrals', authenticateToken, async (req, res) =
   } catch (error) {
     console.error('Recent referrals error:', error);
     res.status(500).json({ message: 'Error fetching referrals', error: error.message });
+  }
+});
+
+// ==================== ADMIN POINTS MANAGEMENT API ====================
+
+// Admin pool balance tracking (in-memory for now, use AdminSettings in production)
+let adminPointsPool = 25000; // Starting pool of 25000 USDT points
+
+// Get admin points stats
+app.get('/api/admin/points/stats', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    // Get total points added (admin credit transactions)
+    const totalPointsResult = await Transaction.aggregate([
+      { $match: { type: 'admin_credit', status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+
+    // Get today's points added
+    const todayPointsResult = await Transaction.aggregate([
+      { $match: { type: 'admin_credit', status: 'completed', createdAt: { $gte: startOfToday } } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+
+    // Get unique users credited
+    const usersCredit = await Transaction.distinct('userId', { type: 'admin_credit', status: 'completed' });
+
+    // Get admin settings for pool balance
+    let settings = await AdminSettings.findOne({});
+    if (settings && settings.adminPointsPool !== undefined) {
+      adminPointsPool = settings.adminPointsPool;
+    }
+
+    res.json({
+      totalPointsAdded: totalPointsResult[0]?.total || 0,
+      todayPointsAdded: todayPointsResult[0]?.total || 0,
+      totalUsersCredit: usersCredit.length,
+      adminPoolBalance: adminPointsPool
+    });
+  } catch (error) {
+    console.error('Admin points stats error:', error);
+    res.status(500).json({ message: 'Error fetching stats', error: error.message });
+  }
+});
+
+// Search user by userId for points
+app.get('/api/admin/points/user/:userId', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await User.findOne({ 
+      $or: [
+        { userId: { $regex: new RegExp(`^${userId}$`, 'i') } },
+        { email: { $regex: new RegExp(`^${userId}$`, 'i') } }
+      ]
+    }).select('userId firstName lastName email balance phone status');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('User search error:', error);
+    res.status(500).json({ message: 'Error searching user', error: error.message });
+  }
+});
+
+// Get recent admin point transactions
+app.get('/api/admin/points/transactions', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const transactions = await Transaction.find({ type: 'admin_credit' })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate('userId', 'userId firstName lastName');
+
+    const formattedTransactions = transactions.map(tx => ({
+      userId: tx.userId?.userId || 'Unknown',
+      userName: tx.userId ? `${tx.userId.firstName} ${tx.userId.lastName}` : 'Unknown',
+      amount: tx.amount,
+      description: tx.description,
+      status: tx.status,
+      createdAt: tx.createdAt
+    }));
+
+    res.json({ transactions: formattedTransactions });
+  } catch (error) {
+    console.error('Points transactions error:', error);
+    res.status(500).json({ message: 'Error fetching transactions', error: error.message });
+  }
+});
+
+// Add USDT points to user wallet
+app.post('/api/admin/points/add', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { userId, amount, description } = req.body;
+
+    if (!userId || !amount) {
+      return res.status(400).json({ success: false, message: 'User ID and amount are required' });
+    }
+
+    const pointsAmount = parseFloat(amount);
+    if (isNaN(pointsAmount) || pointsAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid amount' });
+    }
+
+    // Find the user
+    const user = await User.findOne({ 
+      $or: [
+        { userId: { $regex: new RegExp(`^${userId}$`, 'i') } },
+        { email: { $regex: new RegExp(`^${userId}$`, 'i') } }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Check admin pool balance
+    let settings = await AdminSettings.findOne({});
+    if (settings && settings.adminPointsPool !== undefined) {
+      adminPointsPool = settings.adminPointsPool;
+    }
+
+    if (pointsAmount > adminPointsPool) {
+      return res.status(400).json({ success: false, message: 'Insufficient admin pool balance' });
+    }
+
+    // Update user balance
+    const previousBalance = user.balance || 0;
+    user.balance = previousBalance + pointsAmount;
+    await user.save();
+
+    // Create transaction record
+    const transaction = new Transaction({
+      userId: user._id,
+      type: 'admin_credit',
+      amount: pointsAmount,
+      description: description || 'USDT points added by admin',
+      status: 'completed',
+      balanceBefore: previousBalance,
+      balanceAfter: user.balance,
+      processedBy: req.user.id,
+      processedAt: new Date()
+    });
+    await transaction.save();
+
+    // Deduct from admin pool
+    adminPointsPool -= pointsAmount;
+    
+    // Save pool balance to settings
+    if (!settings) {
+      settings = new AdminSettings({ key: 'platform-settings' });
+    }
+    settings.adminPointsPool = adminPointsPool;
+    await settings.save();
+
+    console.log(`Admin added ${pointsAmount} USDT points to ${user.userId}. New balance: ${user.balance}`);
+
+    res.json({
+      success: true,
+      message: `Successfully added ${pointsAmount} USDT to ${user.userId}'s wallet`,
+      newBalance: user.balance,
+      adminPoolRemaining: adminPointsPool
+    });
+  } catch (error) {
+    console.error('Add points error:', error);
+    res.status(500).json({ success: false, message: 'Error adding points', error: error.message });
+  }
+});
+
+// Add points to admin pool
+app.post('/api/admin/points/add-pool', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const addAmount = parseFloat(amount);
+
+    if (isNaN(addAmount) || addAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid amount' });
+    }
+
+    // Update pool balance
+    let settings = await AdminSettings.findOne({});
+    if (!settings) {
+      settings = new AdminSettings({ key: 'platform-settings' });
+    }
+    
+    if (settings.adminPointsPool !== undefined) {
+      adminPointsPool = settings.adminPointsPool;
+    }
+    
+    adminPointsPool += addAmount;
+    settings.adminPointsPool = adminPointsPool;
+    await settings.save();
+
+    res.json({
+      success: true,
+      message: `Added ${addAmount} USDT to admin pool`,
+      newPoolBalance: adminPointsPool
+    });
+  } catch (error) {
+    console.error('Add pool error:', error);
+    res.status(500).json({ success: false, message: 'Error adding to pool', error: error.message });
   }
 });
 

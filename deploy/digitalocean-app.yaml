@@ -35,6 +35,10 @@ spec:
         - key: JWT_SECRET
           scope: RUN_TIME
           type: SECRET
+        # Email Configuration
+        - key: EMAIL_PROVIDER
+          scope: RUN_TIME
+          value: smtp
         - key: SMTP_HOST
           scope: RUN_TIME
           value: smtp.gmail.com
@@ -47,6 +51,20 @@ spec:
         - key: SMTP_PASS
           scope: RUN_TIME
           type: SECRET
+        # SMS/Twilio Configuration (Global OTP)
+        - key: SMS_PROVIDER
+          scope: RUN_TIME
+          value: twilio
+        - key: TWILIO_ACCOUNT_SID
+          scope: RUN_TIME
+          type: SECRET
+        - key: TWILIO_AUTH_TOKEN
+          scope: RUN_TIME
+          type: SECRET
+        - key: TWILIO_PHONE_NUMBER
+          scope: RUN_TIME
+          type: SECRET
+        # MSG91 (India fallback)
         - key: MSG91_API_KEY
           scope: RUN_TIME
           type: SECRET
