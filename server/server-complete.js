@@ -105,6 +105,11 @@ const userSchema = new mongoose.Schema({
   totalReferralBonus: { type: Number, default: 0, min: 0 },
   referralBonusCount: { type: Number, default: 0, min: 0 },
   
+  // Daily Return (set by admin)
+  dailyReturnAmount: { type: Number, default: 0, min: 0 },
+  totalDailyReturnsReceived: { type: Number, default: 0, min: 0 },
+  lastDailyReturnDate: Date,
+  
   // Wallet
   walletAddress: String,
   walletType: { type: String, enum: ['usdt_trc20', 'bnb_bep20'], default: 'usdt_trc20' },
@@ -160,7 +165,7 @@ const investmentSchema = new mongoose.Schema({
 // Transaction Schema
 const transactionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  type: { type: String, enum: ['deposit', 'withdrawal', 'investment', 'earning', 'commission', 'refund', 'admin_credit'], required: true },
+  type: { type: String, enum: ['deposit', 'withdrawal', 'investment', 'earning', 'commission', 'refund', 'admin_credit', 'daily_return'], required: true },
   amount: { type: Number, required: true },
   previousBalance: Number,
   newBalance: Number,
@@ -2567,8 +2572,8 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
     const totalInvested = user.totalInvested || allInvestments.reduce((sum, inv) => sum + (inv.amount || 0), 0);
     const totalEarned = user.totalEarned || allInvestments.reduce((sum, inv) => sum + (inv.earned || 0), 0);
     
-    // Calculate daily earning based on active investments
-    let dailyEarning = 0;
+    // Calculate daily earning based on active investments + admin-set daily return
+    let dailyEarning = user.dailyReturnAmount || 0; // Start with admin-set daily return
     activeInvestments.forEach(inv => {
       if (inv.planId) {
         dailyEarning += (inv.amount * (inv.planId.dailyReturn || 0)) / 100;
@@ -2590,9 +2595,9 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
     
     // Active vs Passive income
     // Active Income: Direct referral earnings, level income
-    // Passive Income: Investment ROI
+    // Passive Income: Investment ROI + Daily Returns
     const activeIncome = referralEarnings;
-    const passiveIncome = investmentEarnings;
+    const passiveIncome = investmentEarnings + (user.totalDailyReturnsReceived || 0);
 
     // Wallet data
     const walletData = {
@@ -2619,6 +2624,8 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
         totalInvested,
         totalEarned,
         dailyEarning,
+        dailyReturnAmount: user.dailyReturnAmount || 0,
+        totalDailyReturnsReceived: user.totalDailyReturnsReceived || 0,
         activePlans: activeInvestments.length,
 
         // Wallet Overview
@@ -2635,7 +2642,7 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
           date: t.createdAt,
           description: t.description || t.type,
           type: t.type,
-          credit: t.type === 'deposit' || t.type === 'earning' ? t.amount : 0,
+          credit: t.type === 'deposit' || t.type === 'earning' || t.type === 'admin_credit' || t.type === 'daily_return' ? t.amount : 0,
           debit: t.type === 'withdrawal' || t.type === 'investment' ? t.amount : 0,
           balance: t.balanceAfter || 0
         })),
@@ -2767,7 +2774,7 @@ app.get('/api/admin/points/user/:userId', authenticateToken, isAdmin, async (req
         { userId: { $regex: new RegExp(`^${userId}$`, 'i') } },
         { email: { $regex: new RegExp(`^${userId}$`, 'i') } }
       ]
-    }).select('userId firstName lastName email balance phone status');
+    }).select('userId firstName lastName email balance phone status dailyReturnAmount totalDailyReturnsReceived');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -2780,18 +2787,19 @@ app.get('/api/admin/points/user/:userId', authenticateToken, isAdmin, async (req
   }
 });
 
-// Get recent admin point transactions
+// Get recent admin point transactions (includes admin_credit and daily_return)
 app.get('/api/admin/points/transactions', authenticateToken, isAdmin, async (req, res) => {
   try {
-    const transactions = await Transaction.find({ type: 'admin_credit' })
+    const transactions = await Transaction.find({ type: { $in: ['admin_credit', 'daily_return'] } })
       .sort({ createdAt: -1 })
-      .limit(50)
+      .limit(100)
       .populate('userId', 'userId firstName lastName');
 
     const formattedTransactions = transactions.map(tx => ({
       userId: tx.userId?.userId || 'Unknown',
       userName: tx.userId ? `${tx.userId.firstName} ${tx.userId.lastName}` : 'Unknown',
       amount: tx.amount,
+      type: tx.type,
       description: tx.description,
       status: tx.status,
       createdAt: tx.createdAt
@@ -2917,6 +2925,207 @@ app.post('/api/admin/points/add-pool', authenticateToken, isAdmin, async (req, r
     res.status(500).json({ success: false, message: 'Error adding to pool', error: error.message });
   }
 });
+
+// ==================== DAILY RETURN MANAGEMENT API ====================
+
+// Get all users with active daily returns
+app.get('/api/admin/daily-returns/users', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({ dailyReturnAmount: { $gt: 0 } })
+      .select('userId firstName lastName email dailyReturnAmount totalDailyReturnsReceived lastDailyReturnDate balance')
+      .sort({ dailyReturnAmount: -1 });
+
+    res.json({ users });
+  } catch (error) {
+    console.error('Get daily return users error:', error);
+    res.status(500).json({ message: 'Error fetching users', error: error.message });
+  }
+});
+
+// Set daily return amount for a user
+app.post('/api/admin/daily-returns/set', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { userId, dailyReturnAmount } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required' });
+    }
+
+    const amount = parseFloat(dailyReturnAmount);
+    if (isNaN(amount) || amount < 0) {
+      return res.status(400).json({ success: false, message: 'Invalid daily return amount' });
+    }
+
+    // Find user
+    const user = await User.findOne({ 
+      $or: [
+        { userId: { $regex: new RegExp(`^${userId}$`, 'i') } },
+        { email: { $regex: new RegExp(`^${userId}$`, 'i') } }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Update daily return amount
+    user.dailyReturnAmount = amount;
+    await user.save();
+
+    console.log(`Admin set daily return of $${amount} for ${user.userId}`);
+
+    res.json({
+      success: true,
+      message: amount > 0 
+        ? `Daily return of $${amount} USDT set for ${user.userId}` 
+        : `Daily return removed for ${user.userId}`,
+      user: {
+        userId: user.userId,
+        dailyReturnAmount: user.dailyReturnAmount
+      }
+    });
+  } catch (error) {
+    console.error('Set daily return error:', error);
+    res.status(500).json({ success: false, message: 'Error setting daily return', error: error.message });
+  }
+});
+
+// Remove daily return for a user
+app.post('/api/admin/daily-returns/remove', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    const user = await User.findOne({ 
+      $or: [
+        { userId: { $regex: new RegExp(`^${userId}$`, 'i') } },
+        { email: { $regex: new RegExp(`^${userId}$`, 'i') } }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    user.dailyReturnAmount = 0;
+    await user.save();
+
+    res.json({ success: true, message: 'Daily return removed' });
+  } catch (error) {
+    console.error('Remove daily return error:', error);
+    res.status(500).json({ success: false, message: 'Error removing daily return', error: error.message });
+  }
+});
+
+// Process daily returns (call this daily via cron or manually)
+app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find all users with active daily returns who haven't received today
+    const users = await User.find({
+      dailyReturnAmount: { $gt: 0 },
+      $or: [
+        { lastDailyReturnDate: { $lt: today } },
+        { lastDailyReturnDate: null }
+      ]
+    });
+
+    let processedCount = 0;
+    let totalDistributed = 0;
+
+    for (const user of users) {
+      const amount = user.dailyReturnAmount;
+      const previousBalance = user.balance || 0;
+
+      // Add to user's balance
+      user.balance = previousBalance + amount;
+      user.totalDailyReturnsReceived = (user.totalDailyReturnsReceived || 0) + amount;
+      user.totalEarned = (user.totalEarned || 0) + amount;
+      user.lastDailyReturnDate = new Date();
+      await user.save();
+
+      // Create transaction record
+      const transaction = new Transaction({
+        userId: user._id,
+        type: 'daily_return',
+        amount: amount,
+        description: 'Daily return credited',
+        status: 'completed',
+        balanceBefore: previousBalance,
+        balanceAfter: user.balance,
+        processedAt: new Date()
+      });
+      await transaction.save();
+
+      processedCount++;
+      totalDistributed += amount;
+    }
+
+    console.log(`Daily returns processed: ${processedCount} users, $${totalDistributed} total`);
+
+    res.json({
+      success: true,
+      message: `Daily returns processed`,
+      processedUsers: processedCount,
+      totalDistributed: totalDistributed
+    });
+  } catch (error) {
+    console.error('Process daily returns error:', error);
+    res.status(500).json({ success: false, message: 'Error processing daily returns', error: error.message });
+  }
+});
+
+// Auto-process daily returns (runs every 24 hours)
+const processDailyReturnsAutomatically = async () => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const users = await User.find({
+      dailyReturnAmount: { $gt: 0 },
+      $or: [
+        { lastDailyReturnDate: { $lt: today } },
+        { lastDailyReturnDate: null }
+      ]
+    });
+
+    for (const user of users) {
+      const amount = user.dailyReturnAmount;
+      const previousBalance = user.balance || 0;
+
+      user.balance = previousBalance + amount;
+      user.totalDailyReturnsReceived = (user.totalDailyReturnsReceived || 0) + amount;
+      user.totalEarned = (user.totalEarned || 0) + amount;
+      user.lastDailyReturnDate = new Date();
+      await user.save();
+
+      const transaction = new Transaction({
+        userId: user._id,
+        type: 'daily_return',
+        amount: amount,
+        description: 'Daily return credited',
+        status: 'completed',
+        balanceBefore: previousBalance,
+        balanceAfter: user.balance,
+        processedAt: new Date()
+      });
+      await transaction.save();
+    }
+
+    if (users.length > 0) {
+      console.log(`✅ Auto-processed daily returns for ${users.length} users`);
+    }
+  } catch (error) {
+    console.error('Auto daily returns error:', error);
+  }
+};
+
+// Run daily returns every 24 hours (86400000 ms)
+setInterval(processDailyReturnsAutomatically, 24 * 60 * 60 * 1000);
+
+// Also run once on server start (after 10 seconds to ensure DB connection)
+setTimeout(processDailyReturnsAutomatically, 10000);
 
 // ==================== ADMIN REPORTS API ====================
 
