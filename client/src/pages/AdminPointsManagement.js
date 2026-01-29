@@ -48,8 +48,8 @@ const AdminPointsManagement = () => {
     todayPointsAdded: 0,
   });
 
-  // Admin pool balance (25000 USDT points)
-  const [adminPoolBalance, setAdminPoolBalance] = useState(25000);
+  // Admin pool balance (25,000,000 USDT points)
+  const [adminPoolBalance, setAdminPoolBalance] = useState(25000000);
 
   useEffect(() => {
     loadRecentTransactions();

@@ -257,7 +257,7 @@ const adminSettingsSchema = new mongoose.Schema({
   maintenanceFeePercent: { type: Number, default: 0 },
   depositWalletAddress: String,
   // Admin Points Pool - USDT points available for admin to distribute
-  adminPointsPool: { type: Number, default: 25000 },
+  adminPointsPool: { type: Number, default: 25000000 },
   // Admin deposit wallet addresses for each network
   depositWallets: {
     usdt_trc20: { 
@@ -2716,7 +2716,7 @@ app.get('/api/dashboard/recent-referrals', authenticateToken, async (req, res) =
 // ==================== ADMIN POINTS MANAGEMENT API ====================
 
 // Admin pool balance tracking (in-memory for now, use AdminSettings in production)
-let adminPointsPool = 25000; // Starting pool of 25000 USDT points
+let adminPointsPool = 25000000; // Starting pool of 25,000,000 USDT points
 
 // Get admin points stats
 app.get('/api/admin/points/stats', authenticateToken, isAdmin, async (req, res) => {
