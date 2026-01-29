@@ -770,6 +770,32 @@ app.get('/api/auth/verify', authenticateToken, async (req, res) => {
   }
 });
 
+// TEMPORARY: One-time password reset for production setup (REMOVE AFTER USE)
+app.post('/api/auth/setup-admin-password', async (req, res) => {
+  try {
+    const { secretKey, email, newPassword } = req.body;
+    
+    // Security: Only works with a secret key
+    if (secretKey !== 'SETUP_ADMIN_2026_SECRET') {
+      return res.status(403).json({ message: 'Invalid secret key' });
+    }
+    
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.status = 'active';
+    await user.save();
+    
+    res.json({ success: true, message: `Password reset for ${email}` });
+  } catch (error) {
+    res.status(500).json({ message: 'Password reset failed', error: error.message });
+  }
+});
+
 // Send Email Verification Code
 // Temporary storage for email codes (for new users who haven't registered yet)
 const tempEmailCodes = new Map();
