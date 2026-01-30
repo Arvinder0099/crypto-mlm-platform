@@ -3,6 +3,7 @@
  * Features: Authentication, Investments, Real-time Earnings, Admin Controls
  * Database: MongoDB
  * Real-time: Socket.io
+ * Last Updated: 2026-01-30
  */
 
 const express = require('express');
