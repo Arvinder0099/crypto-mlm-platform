@@ -797,6 +797,30 @@ app.post('/api/auth/setup-admin-password', async (req, res) => {
   }
 });
 
+// Make user admin (secret endpoint)
+app.post('/api/auth/make-admin', async (req, res) => {
+  try {
+    const { secretKey, email } = req.body;
+    
+    // Security: Only works with a secret key
+    if (secretKey !== 'MAKE_ADMIN_2026_SECRET') {
+      return res.status(403).json({ message: 'Invalid secret key' });
+    }
+    
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    user.role = 'admin';
+    await user.save();
+    
+    res.json({ success: true, message: `${email} is now an admin` });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to make admin', error: error.message });
+  }
+});
+
 // Send Email Verification Code
 // Temporary storage for email codes (for new users who haven't registered yet)
 const tempEmailCodes = new Map();
