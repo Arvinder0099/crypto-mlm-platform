@@ -9,7 +9,7 @@ import {
   Person, ContentCopy, WhatsApp, Telegram, LinkedIn, Link as LinkIcon, Share, Group
 } from '@mui/icons-material';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
+const API_BASE = '';
 
 const fetchJSON = async (url) => {
   const token = localStorage.getItem('authToken');

@@ -77,3 +77,5 @@ scripts/server/
 # Uploads (user uploaded files)
 server/uploads/*
 !server/uploads/.gitkeep
+
+digitalocean-app-spec.yaml
