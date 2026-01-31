@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, TextField, Button, Grid, Snackbar, Alert, Paper, Select, FormControl, MenuItem, Link, Card, CardContent, Chip, List, ListItem, ListItemIcon, ListItemText, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
-import { fetchJSON, fetchWithAuth } from '../utils/api';
-import { CheckCircle, Star, Info, AccountBalanceWallet, Warning } from '@mui/icons-material';
+import { Box, Typography, TextField, Button, Grid, Snackbar, Alert, Paper, Select, FormControl, MenuItem, InputLabel, Card, CardContent, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { fetchJSON } from '../utils/api';
+import { Warning } from '@mui/icons-material';
 import OtpDialog from '../components/OtpDialog';
 
 const Activation = () => {
-  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [activationType, setActivationType] = useState('self');
+  const [selectedWallet, setSelectedWallet] = useState('fund');
   const [form, setForm] = useState({ otp: '' });
   const [walletBalance, setWalletBalance] = useState(0);
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
@@ -21,13 +23,13 @@ const Activation = () => {
 
   // Default plans to show when API has no data
   const defaultPlans = [
-    { id: 'plan1', name: 'STARTER PLAN', investment: 100, dailyEarn: 0.55, duration: 365, totalReturn: 200.75, roi: 200.75, features: ['Investment: 100 USDT', 'Daily Earning: 0.55 USDT', 'Duration: 365 Days', 'Total Return: 200.75 USDT', 'ROI: 200.75%'] },
-    { id: 'plan2', name: 'BASIC PLAN', investment: 250, dailyEarn: 1.25, duration: 400, totalReturn: 500, roi: 200, features: ['Investment: 250 USDT', 'Daily Earning: 1.25 USDT', 'Duration: 400 Days', 'Total Return: 500 USDT', 'ROI: 200%'] },
-    { id: 'plan3', name: 'BRONZE PLAN', investment: 500, dailyEarn: 2.5, duration: 400, totalReturn: 1000, roi: 200, features: ['Investment: 500 USDT', 'Daily Earning: 2.5 USDT', 'Duration: 400 Days', 'Total Return: 1000 USDT', 'ROI: 200%'] },
-    { id: 'plan4', name: 'SILVER PLAN', investment: 1000, dailyEarn: 5, duration: 400, totalReturn: 2000, roi: 200, features: ['Investment: 1000 USDT', 'Daily Earning: 5 USDT', 'Duration: 400 Days', 'Total Return: 2000 USDT', 'ROI: 200%'] },
-    { id: 'plan5', name: 'GOLD PLAN', investment: 2000, dailyEarn: 10, duration: 400, totalReturn: 4000, roi: 200, features: ['Investment: 2000 USDT', 'Daily Earning: 10 USDT', 'Duration: 400 Days', 'Total Return: 4000 USDT', 'ROI: 200%'] },
-    { id: 'plan6', name: 'PLATINUM PLAN', investment: 5000, dailyEarn: 27.5, duration: 400, totalReturn: 11000, roi: 220, features: ['Investment: 5000 USDT', 'Daily Earning: 27.5 USDT', 'Duration: 400 Days', 'Total Return: 11000 USDT', 'ROI: 220%'] },
-    { id: 'plan7', name: 'DIAMOND PLAN', investment: 10000, dailyEarn: 60, duration: 400, totalReturn: 24000, roi: 240, features: ['Investment: 10000 USDT', 'Daily Earning: 60 USDT', 'Duration: 400 Days', 'Total Return: 24000 USDT', 'ROI: 240%'] },
+    { id: 'plan1', name: 'STARTER PLAN', investment: 100, dailyEarn: 0.55, duration: 365, totalReturn: 200.75, roi: 200.75 },
+    { id: 'plan2', name: 'BASIC PLAN', investment: 250, dailyEarn: 1.25, duration: 400, totalReturn: 500, roi: 200 },
+    { id: 'plan3', name: 'BRONZE PLAN', investment: 500, dailyEarn: 2.5, duration: 400, totalReturn: 1000, roi: 200 },
+    { id: 'plan4', name: 'SILVER PLAN', investment: 1000, dailyEarn: 5, duration: 400, totalReturn: 2000, roi: 200 },
+    { id: 'plan5', name: 'GOLD PLAN', investment: 2000, dailyEarn: 10, duration: 400, totalReturn: 4000, roi: 200 },
+    { id: 'plan6', name: 'PLATINUM PLAN', investment: 5000, dailyEarn: 27.5, duration: 400, totalReturn: 11000, roi: 220 },
+    { id: 'plan7', name: 'DIAMOND PLAN', investment: 10000, dailyEarn: 60, duration: 400, totalReturn: 24000, roi: 240 },
   ];
 
   const fetchData = async () => {
@@ -43,17 +45,8 @@ const Activation = () => {
           duration: p.duration,
           totalReturn: p.totalReturn,
           roi: p.roi,
-          note: p.note,
-          features: [
-            `Investment: ${p.investment} USDT`,
-            `Daily Earning: ${p.dailyEarn} USDT`,
-            `Duration: ${p.duration} Days`,
-            `Total Return: ${p.totalReturn} USDT`,
-            `ROI: ${p.roi}%`,
-          ],
         })));
       } else {
-        // No plans in database, use defaults
         setPlans(defaultPlans);
       }
 
@@ -68,10 +61,7 @@ const Activation = () => {
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
-      // Use default plans if API fails
       setPlans(defaultPlans);
-      
-      // Try to get balance from localStorage
       try {
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
         setWalletBalance(userData.balance || 0);
@@ -83,13 +73,11 @@ const Activation = () => {
     }
   };
 
-  const handlePlanSelect = (plan) => {
-    setSelectedPlan(plan);
-  };
+  const selectedPlan = plans.find(p => p.id === selectedPlanId);
 
   const handleBuyClick = () => {
-    if (!selectedPlan) {
-      setSnack({ open: true, message: 'Please select a plan', severity: 'error' });
+    if (!selectedPlanId) {
+      setSnack({ open: true, message: 'Please select an investment plan', severity: 'error' });
       return;
     }
     if (!form.otp) {
@@ -97,7 +85,7 @@ const Activation = () => {
       return;
     }
     if (walletBalance < selectedPlan.investment) {
-      setSnack({ open: true, message: `Insufficient balance. You need ${selectedPlan.investment} USDT but have ${walletBalance.toFixed(2)} USDT. Please deposit funds.`, severity: 'error' });
+      setSnack({ open: true, message: `Insufficient balance. You need ${selectedPlan.investment} USDT but have ${walletBalance.toFixed(2)} USDT.`, severity: 'error' });
       return;
     }
     setConfirmDialog({ open: true, plan: selectedPlan });
@@ -115,7 +103,7 @@ const Activation = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ planId: selectedPlan.id })
+        body: JSON.stringify({ planId: selectedPlanId })
       });
 
       const data = await response.json();
@@ -127,7 +115,7 @@ const Activation = () => {
           severity: 'success' 
         });
         setWalletBalance(data.newBalance);
-        setSelectedPlan(null);
+        setSelectedPlanId('');
         setForm({ otp: '' });
       } else {
         setSnack({ open: true, message: data.message || 'Failed to purchase plan', severity: 'error' });
@@ -158,91 +146,90 @@ const Activation = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ textAlign: 'center', mb: 4 }}>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: '#1a237e' }}>
-          🚀 Activate Investment Plan
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Select your investment plan and start earning daily returns
-        </Typography>
-      </Box>
-
-      {/* Plans Section */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: '#1a237e', textAlign: 'center' }}>
-          Select Investment Plan
-        </Typography>
-        <Grid container spacing={3} justifyContent="center">
+    <Box sx={{ p: 2, bgcolor: '#f5f5f5', minHeight: '100vh' }}>
+      {/* Plan Cards - Horizontal Scroll */}
+      <Box sx={{ mb: 3, overflowX: 'auto', pb: 2 }}>
+        <Grid container spacing={2} sx={{ flexWrap: 'nowrap', minWidth: 'max-content' }}>
           {plans.map((plan) => (
-            <Grid item xs={12} sm={6} md={4} lg={2.4} key={plan.id}>
+            <Grid item key={plan.id} sx={{ minWidth: 180 }}>
               <Card 
                 sx={{ 
-                  height: '100%',
+                  borderRadius: 3,
+                  overflow: 'hidden',
                   cursor: 'pointer',
-                  border: selectedPlan?.id === plan.id ? '3px solid #667eea' : '2px solid #e0e0e0',
-                  transition: 'all 0.3s',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: 6,
-                  }
+                  border: selectedPlanId === plan.id ? '3px solid #4caf50' : '1px solid #e0e0e0',
+                  transition: 'transform 0.2s',
+                  '&:hover': { transform: 'scale(1.02)' }
                 }}
-                onClick={() => handlePlanSelect(plan)}
+                onClick={() => setSelectedPlanId(plan.id)}
               >
+                {/* Daily Earning Header - Green */}
                 <Box sx={{ 
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-                  p: 3, 
-                  textAlign: 'center',
-                  color: 'white',
+                  bgcolor: '#4caf50', 
+                  color: 'white', 
+                  py: 1.5, 
+                  px: 2, 
+                  textAlign: 'center' 
                 }}>
-                  <Star sx={{ fontSize: 48, mb: 1 }} />
-                  <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                    {plan.name}
+                  <Typography variant="caption" sx={{ opacity: 0.9, display: 'block' }}>
+                    Daily Earning
                   </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 800, mt: 1 }}>
-                    {plan.investment} USDT
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    {plan.dailyEarn}
                   </Typography>
+                  <Typography variant="caption">USDT</Typography>
                 </Box>
-                
-                <CardContent>
-                  {/* Daily Earning Highlight */}
-                  <Box sx={{ 
-                    bgcolor: '#e8f5e9', 
-                    p: 2, 
-                    borderRadius: 2, 
-                    textAlign: 'center',
-                    mb: 2,
-                  }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Daily Earning
+
+                {/* Plan Details - White */}
+                <CardContent sx={{ p: 2, textAlign: 'center' }}>
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="caption" color="text.secondary">Investment</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                      {plan.investment} USDT
                     </Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#4caf50' }}>
+                  </Box>
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="caption" color="text.secondary">Daily Earning</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
                       {plan.dailyEarn} USDT
                     </Typography>
                   </Box>
-
-                  <List dense>
-                    {plan.features?.map((feature, index) => (
-                      <ListItem key={index} sx={{ px: 0, py: 0.25 }}>
-                        <ListItemIcon sx={{ minWidth: 28 }}>
-                          <CheckCircle sx={{ color: '#667eea', fontSize: 18 }} />
-                        </ListItemIcon>
-                        <ListItemText 
-                          primary={feature}
-                          primaryTypographyProps={{ variant: 'body2', fontSize: '0.75rem' }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-
-                  {selectedPlan?.id === plan.id && (
-                    <Chip 
-                      label="Selected" 
-                      color="primary" 
-                      icon={<CheckCircle />}
-                      sx={{ mt: 1, fontWeight: 700, width: '100%' }}
-                    />
-                  )}
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="caption" color="text.secondary">Duration</Typography>
+                    <Typography variant="body2">
+                      {plan.duration} Days
+                    </Typography>
+                  </Box>
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="caption" color="text.secondary">Total Return</Typography>
+                    <Typography variant="body2">
+                      {plan.totalReturn} USDT
+                    </Typography>
+                  </Box>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" color="text.secondary">ROI</Typography>
+                    <Typography variant="body2" sx={{ color: '#4caf50', fontWeight: 600 }}>
+                      {plan.roi}%
+                    </Typography>
+                  </Box>
+                  <Button 
+                    variant="contained" 
+                    size="small" 
+                    fullWidth
+                    sx={{ 
+                      bgcolor: '#ff9800', 
+                      color: 'white',
+                      '&:hover': { bgcolor: '#f57c00' },
+                      borderRadius: 2,
+                      textTransform: 'none'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPlanId(plan.id);
+                    }}
+                  >
+                    {plan.name.includes('STARTER') ? 'Minimum' : 'Select'}
+                  </Button>
                 </CardContent>
               </Card>
             </Grid>
@@ -250,68 +237,127 @@ const Activation = () => {
         </Grid>
       </Box>
 
-      {/* Activation Form */}
-      <Paper sx={{ p: 4, maxWidth: 600, mx: 'auto' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: '#1a237e' }}>
-          Complete Activation
+      {/* Activation Details Form */}
+      <Paper sx={{ p: 3, borderRadius: 3 }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: '#333' }}>
+          Activation Details
         </Typography>
-        
-        {selectedPlan && (
-          <Alert severity="info" sx={{ mb: 3 }}>
-            <strong>Selected Plan:</strong> {selectedPlan.name} - {selectedPlan.investment} USDT<br />
-            <strong>Daily Earning:</strong> {selectedPlan.dailyEarn} USDT | <strong>Duration:</strong> {selectedPlan.duration} days
-          </Alert>
-        )}
 
         <Grid container spacing={3}>
+          {/* Activation For */}
           <Grid item xs={12}>
-            <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
-              One Time Password * (Required for security)
-            </Typography>
+            <FormControl fullWidth>
+              <InputLabel>Activation For</InputLabel>
+              <Select
+                value={activationType}
+                label="Activation For"
+                onChange={(e) => setActivationType(e.target.value)}
+              >
+                <MenuItem value="self">Self Activation</MenuItem>
+                <MenuItem value="downline">Downline Activation</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          {/* Investment Selection */}
+          <Grid item xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>Investment</InputLabel>
+              <Select
+                value={selectedPlanId}
+                label="Investment"
+                onChange={(e) => setSelectedPlanId(e.target.value)}
+              >
+                <MenuItem value="">Select Investment Plan</MenuItem>
+                {plans.map((plan) => (
+                  <MenuItem key={plan.id} value={plan.id}>
+                    ${plan.investment} - {plan.name} (Daily: {plan.dailyEarn} USDT)
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          {/* Wallet Selection */}
+          <Grid item xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>Wallet</InputLabel>
+              <Select
+                value={selectedWallet}
+                label="Wallet"
+                onChange={(e) => setSelectedWallet(e.target.value)}
+              >
+                <MenuItem value="fund">Fund Wallet</MenuItem>
+                <MenuItem value="income">Income Wallet</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          {/* Wallet Balance Display */}
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Wallet Balance"
+              value={`$ ${walletBalance.toFixed(2)}`}
+              InputProps={{ readOnly: true }}
+              sx={{ 
+                '& .MuiInputBase-input': { 
+                  fontWeight: 600,
+                  color: '#4caf50',
+                  fontSize: '1.1rem'
+                }
+              }}
+            />
+          </Grid>
+
+          {/* OTP Field */}
+          <Grid item xs={12}>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
                 fullWidth
+                label="One Time Password"
                 value={form.otp}
                 placeholder="Enter OTP"
                 InputProps={{ readOnly: true }}
-                helperText={form.otp ? '✅ OTP Verified' : 'Click Send OTP to receive code'}
+                helperText={form.otp ? '✅ OTP Verified' : 'Click Send OTP to verify'}
               />
               <Button 
-                variant="outlined" 
+                variant="contained" 
                 onClick={handleSendOtp}
                 disabled={!!form.otp}
+                sx={{ 
+                  minWidth: 120,
+                  bgcolor: form.otp ? '#4caf50' : '#1976d2'
+                }}
               >
                 {form.otp ? 'Verified' : 'Send OTP'}
               </Button>
             </Box>
           </Grid>
 
+          {/* Submit Button */}
           <Grid item xs={12}>
             <Button 
               variant="contained" 
               fullWidth
               size="large"
               onClick={handleBuyClick}
-              disabled={!selectedPlan || !form.otp || submitting}
-              startIcon={submitting ? <CircularProgress size={20} /> : null}
+              disabled={!selectedPlanId || !form.otp || submitting}
+              startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : null}
               sx={{ 
                 py: 1.5,
-                fontSize: '1.1rem',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
-                },
-                '&:disabled': {
-                  background: '#ccc'
-                }
+                fontSize: '1rem',
+                bgcolor: '#4caf50',
+                '&:hover': { bgcolor: '#388e3c' },
+                '&:disabled': { bgcolor: '#ccc' },
+                borderRadius: 2
               }}
             >
-              {submitting ? 'Processing...' : selectedPlan ? `Invest ${selectedPlan.investment} USDT` : 'Select a Plan First'}
+              {submitting ? 'Processing...' : selectedPlan ? `Activate ${selectedPlan.name} - $${selectedPlan.investment}` : 'Select a Plan to Activate'}
             </Button>
           </Grid>
         </Grid>
       </Paper>
-
       {/* Confirmation Dialog */}
       <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, plan: null })}>
         <DialogTitle>Confirm Investment</DialogTitle>
@@ -349,6 +395,7 @@ const Activation = () => {
           {snack.message}
         </Alert>
       </Snackbar>
+
       <OtpDialog
         open={otpDialogOpen}
         onClose={() => setOtpDialogOpen(false)}
