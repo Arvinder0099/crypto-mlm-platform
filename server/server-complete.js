@@ -4120,6 +4120,692 @@ app.delete('/api/admin/notifications/:id', authenticateToken, isAdmin, async (re
   }
 });
 
+// ==================== USER PANEL - COMPLETE FUNCTIONAL APIS ====================
+
+// Withdrawal Summary for User
+app.get('/api/withdrawals/summary', authenticateToken, async (req, res) => {
+  try {
+    const withdrawals = await Withdrawal.find({ userId: req.user.id })
+      .sort({ createdAt: -1 });
+    
+    const data = withdrawals.map(w => ({
+      id: w._id,
+      requestId: w._id.toString().slice(-8).toUpperCase(),
+      date: w.createdAt,
+      amount: w.amount,
+      charges: w.charges || 0,
+      netAmount: w.amount - (w.charges || 0),
+      walletAddress: w.walletAddress,
+      status: w.status,
+      transactionHash: w.transactionHash || null,
+      rejectionReason: w.rejectionReason || null,
+      processedAt: w.approvalDate || w.paymentDate || null
+    }));
+    
+    // Calculate totals
+    const totalRequested = withdrawals.reduce((sum, w) => sum + w.amount, 0);
+    const totalApproved = withdrawals.filter(w => w.status === 'completed' || w.status === 'approved')
+      .reduce((sum, w) => sum + w.amount, 0);
+    const totalPending = withdrawals.filter(w => w.status === 'pending')
+      .reduce((sum, w) => sum + w.amount, 0);
+    
+    res.json({ 
+      success: true,
+      data,
+      summary: { totalRequested, totalApproved, totalPending, totalCount: withdrawals.length }
+    });
+  } catch (error) {
+    console.error('Withdrawal summary error:', error);
+    res.status(500).json({ message: 'Error fetching withdrawal summary', error: error.message });
+  }
+});
+
+// Deposit Report for User
+app.get('/api/deposits/report', authenticateToken, async (req, res) => {
+  try {
+    const { startDate, endDate, status } = req.query;
+    let query = { userId: req.user.id };
+    
+    if (status) query.status = status;
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+    
+    const deposits = await Deposit.find(query).sort({ createdAt: -1 });
+    
+    const data = deposits.map(d => ({
+      id: d._id,
+      depositId: d._id.toString().slice(-8).toUpperCase(),
+      date: d.createdAt,
+      amount: d.amount,
+      network: d.network,
+      transactionHash: d.transactionHash,
+      status: d.status,
+      adminRemarks: d.adminNotes || d.rejectionReason || null,
+      approvedAt: d.approvedAt || null,
+      rejectedAt: d.rejectedAt || null
+    }));
+    
+    const totalDeposited = deposits.filter(d => d.status === 'approved').reduce((sum, d) => sum + d.amount, 0);
+    const totalPending = deposits.filter(d => d.status === 'pending').reduce((sum, d) => sum + d.amount, 0);
+    
+    res.json({
+      success: true,
+      data,
+      summary: { totalDeposited, totalPending, totalCount: deposits.length }
+    });
+  } catch (error) {
+    console.error('Deposit report error:', error);
+    res.status(500).json({ message: 'Error fetching deposit report', error: error.message });
+  }
+});
+
+// User Activation Report
+app.get('/api/activations/report', authenticateToken, async (req, res) => {
+  try {
+    const investments = await Investment.find({ userId: req.user.id })
+      .populate('planId')
+      .sort({ createdAt: -1 });
+    
+    const data = investments.map(inv => ({
+      id: inv._id,
+      activationId: inv._id.toString().slice(-8).toUpperCase(),
+      date: inv.createdAt,
+      planName: inv.planId?.name || 'N/A',
+      amount: inv.amount,
+      paymentMethod: inv.paymentMethod || 'Wallet',
+      status: inv.status,
+      totalEarned: inv.totalEarned || 0,
+      daysRemaining: inv.endDate ? Math.max(0, Math.ceil((new Date(inv.endDate) - new Date()) / (1000 * 60 * 60 * 24))) : 0
+    }));
+    
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Activation report error:', error);
+    res.status(500).json({ message: 'Error fetching activation report', error: error.message });
+  }
+});
+
+// User Profile Update with Image Upload
+app.put('/api/user/profile/update', authenticateToken, upload.single('profileImage'), async (req, res) => {
+  try {
+    const { firstName, lastName, phone, country, address, walletAddress, walletType } = req.body;
+    
+    const updateData = {
+      firstName, lastName, phone, country, address, updatedAt: new Date()
+    };
+    
+    // Only update wallet if provided
+    if (walletAddress) updateData.walletAddress = walletAddress;
+    if (walletType) updateData.walletType = walletType;
+    
+    // Handle profile image upload
+    if (req.file) {
+      updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
+    }
+    
+    const user = await User.findByIdAndUpdate(req.user.id, updateData, { new: true }).select('-password');
+    
+    res.json({ 
+      success: true, 
+      message: 'Profile updated successfully', 
+      user 
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Error updating profile', error: error.message });
+  }
+});
+
+// Withdrawal Address Management
+app.get('/api/user/withdrawal-addresses', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('walletAddress walletType withdrawalAddresses');
+    
+    // If user has multiple addresses stored, return them; otherwise return the primary
+    const addresses = user.withdrawalAddresses || [];
+    if (user.walletAddress && !addresses.find(a => a.address === user.walletAddress)) {
+      addresses.unshift({
+        id: 'primary',
+        type: user.walletType || 'usdt_trc20',
+        address: user.walletAddress,
+        isPrimary: true,
+        createdAt: user.createdAt
+      });
+    }
+    
+    res.json({ success: true, addresses });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching addresses', error: error.message });
+  }
+});
+
+app.post('/api/user/withdrawal-addresses', authenticateToken, async (req, res) => {
+  try {
+    const { address, type, isPrimary } = req.body;
+    
+    if (!address || !type) {
+      return res.status(400).json({ success: false, message: 'Address and type are required' });
+    }
+    
+    // Validate address format
+    if (type === 'usdt_trc20' && !address.startsWith('T')) {
+      return res.status(400).json({ success: false, message: 'Invalid TRC20 address format' });
+    }
+    if ((type === 'bnb_bep20' || type === 'usdt_erc20') && !address.startsWith('0x')) {
+      return res.status(400).json({ success: false, message: 'Invalid address format' });
+    }
+    
+    const user = await User.findById(req.user.id);
+    
+    if (isPrimary) {
+      user.walletAddress = address;
+      user.walletType = type;
+    }
+    
+    // Add to withdrawal addresses array if it exists
+    if (!user.withdrawalAddresses) user.withdrawalAddresses = [];
+    user.withdrawalAddresses.push({
+      address,
+      type,
+      isPrimary: isPrimary || false,
+      createdAt: new Date()
+    });
+    
+    await user.save();
+    
+    res.json({ success: true, message: 'Address added successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error adding address', error: error.message });
+  }
+});
+
+app.delete('/api/user/withdrawal-addresses/:addressId', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (user.withdrawalAddresses) {
+      user.withdrawalAddresses = user.withdrawalAddresses.filter(
+        a => a._id?.toString() !== req.params.addressId
+      );
+      await user.save();
+    }
+    
+    res.json({ success: true, message: 'Address removed' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error removing address', error: error.message });
+  }
+});
+
+// Real Withdrawal Request with Balance Check
+app.post('/api/withdrawals/request', authenticateToken, async (req, res) => {
+  try {
+    const { amount, walletAddress } = req.body;
+    const withdrawAmount = parseFloat(amount);
+    
+    if (!withdrawAmount || withdrawAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Invalid withdrawal amount' });
+    }
+    if (!walletAddress) {
+      return res.status(400).json({ success: false, message: 'Wallet address is required' });
+    }
+    
+    const user = await User.findById(req.user.id);
+    
+    // Get admin settings for min/max withdrawal
+    const settings = await AdminSettings.findOne({});
+    const minWithdrawal = settings?.minWithdrawal || 50;
+    const maxWithdrawal = settings?.maxWithdrawal || 50000;
+    const withdrawalFeePercent = settings?.withdrawalFeePercent || 0;
+    
+    if (withdrawAmount < minWithdrawal) {
+      return res.status(400).json({ success: false, message: `Minimum withdrawal is $${minWithdrawal}` });
+    }
+    if (withdrawAmount > maxWithdrawal) {
+      return res.status(400).json({ success: false, message: `Maximum withdrawal is $${maxWithdrawal}` });
+    }
+    if (withdrawAmount > user.balance) {
+      return res.status(400).json({ success: false, message: 'Insufficient balance' });
+    }
+    
+    // Calculate charges
+    const charges = (withdrawAmount * withdrawalFeePercent) / 100;
+    const netAmount = withdrawAmount - charges;
+    
+    // Create withdrawal request
+    const withdrawal = new Withdrawal({
+      userId: user._id,
+      amount: withdrawAmount,
+      charges,
+      netAmount,
+      walletAddress,
+      status: 'pending'
+    });
+    await withdrawal.save();
+    
+    // Deduct from balance and add to pending
+    user.balance -= withdrawAmount;
+    user.pendingWithdrawal += withdrawAmount;
+    await user.save();
+    
+    // Create transaction record
+    const transaction = new Transaction({
+      userId: user._id,
+      type: 'withdrawal',
+      amount: -withdrawAmount,
+      balanceBefore: user.balance + withdrawAmount,
+      balanceAfter: user.balance,
+      status: 'pending',
+      description: `Withdrawal request to ${walletAddress}`,
+      withdrawalId: withdrawal._id
+    });
+    await transaction.save();
+    
+    res.json({
+      success: true,
+      message: 'Withdrawal request submitted successfully',
+      requestId: withdrawal._id.toString().slice(-8).toUpperCase(),
+      amount: withdrawAmount,
+      charges,
+      netAmount,
+      newBalance: user.balance
+    });
+  } catch (error) {
+    console.error('Withdrawal request error:', error);
+    res.status(500).json({ message: 'Error processing withdrawal request', error: error.message });
+  }
+});
+
+// Get User's Complete Transaction History
+app.get('/api/user/transactions/all', authenticateToken, async (req, res) => {
+  try {
+    const { type, category, startDate, endDate, page = 1, limit = 20 } = req.query;
+    
+    let query = { userId: req.user.id };
+    
+    if (type) query.type = type;
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const transactions = await Transaction.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    const total = await Transaction.countDocuments(query);
+    
+    const data = transactions.map(t => ({
+      id: t._id,
+      transactionId: t._id.toString().slice(-10).toUpperCase(),
+      date: t.createdAt,
+      type: t.amount >= 0 ? 'credit' : 'debit',
+      category: t.type,
+      amount: Math.abs(t.amount),
+      balanceBefore: t.balanceBefore || t.previousBalance,
+      balanceAfter: t.balanceAfter || t.newBalance,
+      status: t.status,
+      description: t.description || t.type
+    }));
+    
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Transactions error:', error);
+    res.status(500).json({ message: 'Error fetching transactions', error: error.message });
+  }
+});
+
+// Daily Income Report
+app.get('/api/user/income/daily', authenticateToken, async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    let query = { 
+      userId: req.user.id, 
+      type: { $in: ['earning', 'daily_return'] }
+    };
+    
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+    
+    const transactions = await Transaction.find(query)
+      .populate('investmentId')
+      .sort({ createdAt: -1 });
+    
+    const data = transactions.map(t => ({
+      id: t._id,
+      date: t.createdAt,
+      planName: t.investmentId?.planName || 'Daily Return',
+      investmentAmount: t.investmentId?.amount || 0,
+      roiPercentage: t.investmentId?.dailyReturn || 0,
+      incomeAmount: t.amount,
+      description: t.description
+    }));
+    
+    const totalIncome = transactions.reduce((sum, t) => sum + t.amount, 0);
+    
+    res.json({ success: true, data, totalIncome });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching daily income', error: error.message });
+  }
+});
+
+// Direct Income Report
+app.get('/api/user/income/direct', authenticateToken, async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    let query = { userId: req.user.id, type: 'commission' };
+    
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+    
+    const commissions = await Commission.find({ ...query, type: 'direct' })
+      .populate('sourceUserId', 'firstName lastName userId')
+      .sort({ createdAt: -1 });
+    
+    const data = commissions.map(c => ({
+      id: c._id,
+      date: c.createdAt,
+      fromUser: c.sourceUserId ? `${c.sourceUserId.firstName} ${c.sourceUserId.lastName}` : 'N/A',
+      fromUserId: c.sourceUserId?.userId || 'N/A',
+      level: 1,
+      commissionPercent: 10,
+      amount: c.amount,
+      status: c.status
+    }));
+    
+    const totalIncome = commissions.reduce((sum, c) => sum + c.amount, 0);
+    
+    res.json({ success: true, data, totalIncome });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching direct income', error: error.message });
+  }
+});
+
+// Level Income Report
+app.get('/api/user/income/level', authenticateToken, async (req, res) => {
+  try {
+    const { startDate, endDate, level } = req.query;
+    
+    let query = { userId: req.user.id, type: 'level' };
+    
+    if (level) query.level = parseInt(level);
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+    
+    const commissions = await Commission.find(query)
+      .populate('sourceUserId', 'firstName lastName userId')
+      .sort({ createdAt: -1 });
+    
+    const data = commissions.map(c => ({
+      id: c._id,
+      date: c.createdAt,
+      fromUser: c.sourceUserId ? `${c.sourceUserId.firstName} ${c.sourceUserId.lastName}` : 'N/A',
+      level: c.level,
+      amount: c.amount,
+      percentage: c.percentage || 0
+    }));
+    
+    // Group by level
+    const levelTotals = {};
+    commissions.forEach(c => {
+      levelTotals[c.level] = (levelTotals[c.level] || 0) + c.amount;
+    });
+    
+    const totalIncome = commissions.reduce((sum, c) => sum + c.amount, 0);
+    
+    res.json({ success: true, data, levelTotals, totalIncome });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching level income', error: error.message });
+  }
+});
+
+// Rank Income Report
+app.get('/api/user/income/rank', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    const rankBonuses = await Commission.find({ userId: req.user.id, type: 'rank' })
+      .sort({ createdAt: -1 });
+    
+    // Calculate current rank
+    const totalInvested = user.totalInvested || 0;
+    let currentRank = 'Bronze';
+    let nextRank = 'Silver';
+    let nextRankTarget = 1000;
+    
+    if (totalInvested >= 10000) {
+      currentRank = 'Diamond';
+      nextRank = 'Crown Diamond';
+      nextRankTarget = 50000;
+    } else if (totalInvested >= 5000) {
+      currentRank = 'Gold';
+      nextRank = 'Diamond';
+      nextRankTarget = 10000;
+    } else if (totalInvested >= 1000) {
+      currentRank = 'Silver';
+      nextRank = 'Gold';
+      nextRankTarget = 5000;
+    }
+    
+    const data = rankBonuses.map(r => ({
+      id: r._id,
+      date: r.createdAt,
+      rankAchieved: r.description || currentRank,
+      bonusAmount: r.amount,
+      status: r.status
+    }));
+    
+    const totalRankIncome = rankBonuses.reduce((sum, r) => sum + r.amount, 0);
+    
+    res.json({
+      success: true,
+      data,
+      currentRank,
+      nextRank,
+      nextRankTarget,
+      progress: Math.min((totalInvested / nextRankTarget) * 100, 100),
+      totalRankIncome
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching rank income', error: error.message });
+  }
+});
+
+// Referral Bonus Page Data
+app.get('/api/user/referral-info', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .populate('directReferrals', 'firstName lastName email createdAt totalInvested status');
+    
+    const referralBonuses = await ReferralBonus.find({ referrerId: req.user.id })
+      .populate('referredUserId', 'firstName lastName userId email createdAt')
+      .sort({ createdAt: -1 });
+    
+    const referralLink = `${process.env.FRONTEND_URL || 'https://crypto-mlm-platform-efji5.ondigitalocean.app'}/register?ref=${user.referralCode}`;
+    
+    // Commission structure from settings
+    const settings = await AdminSettings.findOne({});
+    const commissionStructure = {
+      directBonus: settings?.directCommissionRate || 10,
+      levels: settings?.levelCommissionRates || {
+        level1: 5, level2: 3, level3: 2, level4: 1, level5: 0.5
+      }
+    };
+    
+    const totalBonus = referralBonuses.reduce((sum, b) => sum + b.bonusAmount, 0);
+    const creditedBonus = referralBonuses.filter(b => b.status === 'credited').reduce((sum, b) => sum + b.bonusAmount, 0);
+    const pendingBonus = referralBonuses.filter(b => b.status === 'pending').reduce((sum, b) => sum + b.bonusAmount, 0);
+    
+    res.json({
+      success: true,
+      referralCode: user.referralCode,
+      referralLink,
+      stats: {
+        totalReferrals: user.directReferrals?.length || 0,
+        activeReferrals: user.directReferrals?.filter(r => r.status === 'active').length || 0,
+        totalBonusEarned: totalBonus,
+        creditedBonus,
+        pendingBonus
+      },
+      recentBonuses: referralBonuses.slice(0, 10).map(b => ({
+        id: b._id,
+        referredUser: b.referredUserId ? {
+          name: `${b.referredUserId.firstName} ${b.referredUserId.lastName}`,
+          email: b.referredUserId.email
+        } : null,
+        amount: b.bonusAmount,
+        status: b.status,
+        date: b.createdAt
+      })),
+      commissionStructure
+    });
+  } catch (error) {
+    console.error('Referral info error:', error);
+    res.status(500).json({ message: 'Error fetching referral info', error: error.message });
+  }
+});
+
+// Plan Purchase/Activation with Commission Distribution
+app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
+  try {
+    const { planId } = req.body;
+    
+    const user = await User.findById(req.user.id);
+    const plan = await Plan.findById(planId);
+    
+    if (!plan || !plan.isActive) {
+      return res.status(404).json({ success: false, message: 'Plan not found or inactive' });
+    }
+    
+    if (user.balance < plan.investment) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Insufficient balance',
+        required: plan.investment,
+        available: user.balance,
+        shortfall: plan.investment - user.balance
+      });
+    }
+    
+    // Check if first investment for referral bonus
+    const existingInvestments = await Investment.countDocuments({ userId: req.user.id });
+    const isFirstInvestment = existingInvestments === 0;
+    
+    // Create investment
+    const investment = new Investment({
+      userId: req.user.id,
+      planId: plan._id,
+      planName: plan.name,
+      amount: plan.investment,
+      dailyReturn: plan.dailyEarn,
+      expectedReturn: plan.totalReturn,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + plan.duration * 24 * 60 * 60 * 1000),
+      status: 'active'
+    });
+    await investment.save();
+    
+    // Deduct from wallet
+    const previousBalance = user.balance;
+    user.balance -= plan.investment;
+    user.totalInvested += plan.investment;
+    user.activeInvestments += 1;
+    await user.save();
+    
+    // Create transaction
+    const transaction = new Transaction({
+      userId: req.user.id,
+      type: 'investment',
+      amount: -plan.investment,
+      balanceBefore: previousBalance,
+      balanceAfter: user.balance,
+      status: 'completed',
+      description: `Invested in ${plan.name}`,
+      investmentId: investment._id
+    });
+    await transaction.save();
+    
+    // Credit referral bonus if first investment and user was referred
+    if (isFirstInvestment && user.referredBy) {
+      const referrer = await User.findById(user.referredBy);
+      if (referrer) {
+        const settings = await AdminSettings.findOne({});
+        const bonusPercent = settings?.directCommissionRate || 10;
+        const bonusAmount = (plan.investment * bonusPercent) / 100;
+        
+        // Create referral bonus (pending admin approval)
+        const referralBonus = new ReferralBonus({
+          referrerId: referrer._id,
+          referredUserId: user._id,
+          bonusPercentage: bonusPercent,
+          bonusAmount,
+          investmentId: investment._id,
+          investmentAmount: plan.investment,
+          status: 'pending'
+        });
+        await referralBonus.save();
+        
+        // Create admin notification
+        const notification = new AdminNotification({
+          type: 'referral_bonus',
+          title: 'New Referral Bonus Pending',
+          message: `${referrer.firstName} ${referrer.lastName} earned $${bonusAmount} referral bonus from ${user.firstName} ${user.lastName}'s first investment`,
+          userId: referrer._id,
+          referrerId: referrer._id,
+          amount: bonusAmount,
+          relatedId: referralBonus._id
+        });
+        await notification.save();
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Successfully invested in ${plan.name}`,
+      investment: {
+        id: investment._id,
+        planName: plan.name,
+        amount: plan.investment,
+        dailyReturn: plan.dailyEarn,
+        duration: plan.duration,
+        expectedReturn: plan.totalReturn,
+        startDate: investment.startDate,
+        endDate: investment.endDate
+      },
+      newBalance: user.balance
+    });
+  } catch (error) {
+    console.error('Plan purchase error:', error);
+    res.status(500).json({ message: 'Error purchasing plan', error: error.message });
+  }
+});
+
 // ==================== ERROR HANDLING ====================
 
 app.use((err, req, res, next) => {
