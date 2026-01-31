@@ -312,8 +312,5 @@ const WithdrawalRequest = () => {
     </Box>
   );
 };
-    </Box>
-  );
-};
 
 export default WithdrawalRequest;
