@@ -1,0 +1,67 @@
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
+name: crypto-mlm-platform
+region: blr
+services:
+- build_command: npm install
+  environment_slug: node-js
+  envs:
+  - key: NODE_ENV
+    scope: RUN_AND_BUILD_TIME
+    value: production
+  - key: PORT
+    scope: RUN_AND_BUILD_TIME
+    value: "8080"
+  - key: JWT_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: "${JWT_SECRET}"
+  - key: MONGODB_URI
+    scope: RUN_AND_BUILD_TIME
+    value: "${MONGODB_URI}"
+  - key: TWILIO_ACCOUNT_SID
+    scope: RUN_AND_BUILD_TIME
+    value: "${TWILIO_ACCOUNT_SID}"
+  - key: TWILIO_AUTH_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    value: "${TWILIO_AUTH_TOKEN}"
+  - key: TWILIO_PHONE_NUMBER
+    scope: RUN_AND_BUILD_TIME
+    value: "${TWILIO_PHONE_NUMBER}"
+  - key: TWILIO_VERIFY_SERVICE_SID
+    scope: RUN_AND_BUILD_TIME
+    value: "${TWILIO_VERIFY_SERVICE_SID}"
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: Arvinder0099/crypto-mlm-platform
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-0.5gb
+  name: crypto-mlm-backend
+  routes:
+  - path: /api
+    preserve_path_prefix: true
+  run_command: node server-complete.js
+  source_dir: /server
+- build_command: npm install && npm run build
+  environment_slug: node-js
+  envs:
+  - key: REACT_APP_API_URL
+    scope: BUILD_TIME
+    value: ""
+  - key: PORT
+    scope: RUN_TIME
+    value: "3000"
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: Arvinder0099/crypto-mlm-platform
+  http_port: 3000
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-0.5gb
+  name: crypto-mlm-frontend
+  routes:
+  - path: /
+  run_command: node serve.js
+  source_dir: /client
