@@ -234,23 +234,8 @@ const UnifiedLayout = ({ children }) => {
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/daily-income')}>
                   <ListItemText primary="Daily Income" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/direct-income')}>
-                  <ListItemText primary="Direct Income" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/daily-level-income')}>
-                  <ListItemText primary="Daily Level Income" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/rank-income')}>
-                  <ListItemText primary="Rank Income" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/all-transactions')}>
                   <ListItemText primary="All Transactions" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/deposit-report')}>
-                  <ListItemText primary="Deposit Report" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/activation-report')}>
-                  <ListItemText primary="Activation Report" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
               </List>
             </Collapse>
@@ -632,23 +617,8 @@ const UnifiedLayout = ({ children }) => {
           <MenuItem onClick={handleNavigate('/reports/daily-income', setReportsAnchor)}>
             Daily Income
           </MenuItem>
-          <MenuItem onClick={handleNavigate('/reports/direct-income', setReportsAnchor)}>
-            Direct Income
-          </MenuItem>
-          <MenuItem onClick={handleNavigate('/reports/daily-level-income', setReportsAnchor)}>
-            Daily Level Income
-          </MenuItem>
-          <MenuItem onClick={handleNavigate('/reports/rank-income', setReportsAnchor)}>
-            Rank Income
-          </MenuItem>
           <MenuItem onClick={handleNavigate('/reports/all-transactions', setReportsAnchor)}>
             All Transactions
-          </MenuItem>
-          <MenuItem onClick={handleNavigate('/reports/deposit-report', setReportsAnchor)}>
-            Deposit Report
-          </MenuItem>
-          <MenuItem onClick={handleNavigate('/reports/activation-report', setReportsAnchor)}>
-            Activation Report
           </MenuItem>
         </Menu>
       )}
