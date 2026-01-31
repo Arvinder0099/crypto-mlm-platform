@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, TextField, Button, Grid, Snackbar, Alert, Paper, Select, FormControl, MenuItem, InputLabel, Card, CardContent, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Box, Typography, TextField, Button, Grid, Snackbar, Alert, Paper, Select, FormControl, MenuItem, InputLabel, Card, CardContent, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip } from '@mui/material';
 import { fetchJSON } from '../utils/api';
-import { Warning } from '@mui/icons-material';
+import { Warning, Info } from '@mui/icons-material';
 import OtpDialog from '../components/OtpDialog';
 
 const Activation = () => {
@@ -21,15 +21,14 @@ const Activation = () => {
     fetchData();
   }, []);
 
-  // Default plans to show when API has no data
+  // 6 Plans: Introduction, Basic, Bronze, Silver, Gold, Platinum
   const defaultPlans = [
-    { id: 'plan1', name: 'STARTER PLAN', investment: 100, dailyEarn: 0.55, duration: 365, totalReturn: 200.75, roi: 200.75 },
-    { id: 'plan2', name: 'BASIC PLAN', investment: 250, dailyEarn: 1.25, duration: 400, totalReturn: 500, roi: 200 },
-    { id: 'plan3', name: 'BRONZE PLAN', investment: 500, dailyEarn: 2.5, duration: 400, totalReturn: 1000, roi: 200 },
-    { id: 'plan4', name: 'SILVER PLAN', investment: 1000, dailyEarn: 5, duration: 400, totalReturn: 2000, roi: 200 },
-    { id: 'plan5', name: 'GOLD PLAN', investment: 2000, dailyEarn: 10, duration: 400, totalReturn: 4000, roi: 200 },
-    { id: 'plan6', name: 'PLATINUM PLAN', investment: 5000, dailyEarn: 27.5, duration: 400, totalReturn: 11000, roi: 220 },
-    { id: 'plan7', name: 'DIAMOND PLAN', investment: 10000, dailyEarn: 60, duration: 400, totalReturn: 24000, roi: 240 },
+    { id: 'plan1', name: 'INTRODUCTION PLAN', investment: 100, dailyEarn: 0.55, duration: 365, totalReturn: 200.75, roi: 200.75, minWithdraw: '10 USDT' },
+    { id: 'plan2', name: 'BASIC PLAN', investment: 250, dailyEarn: 1.25, duration: 400, totalReturn: 500, roi: 200, minWithdraw: '50 USDT' },
+    { id: 'plan3', name: 'BRONZE PLAN', investment: 500, dailyEarn: 2.5, duration: 400, totalReturn: 1000, roi: 200, minWithdraw: '50 USDT' },
+    { id: 'plan4', name: 'SILVER PLAN', investment: 1000, dailyEarn: 5, duration: 400, totalReturn: 2000, roi: 200, minWithdraw: '50 USDT' },
+    { id: 'plan5', name: 'GOLD PLAN', investment: 2000, dailyEarn: 10, duration: 400, totalReturn: 4000, roi: 200, minWithdraw: '50 USDT' },
+    { id: 'plan6', name: 'PLATINUM PLAN', investment: 5000, dailyEarn: 40, duration: 400, totalReturn: 16000, roi: 320, minWithdraw: 'Coming Soon' },
   ];
 
   const fetchData = async () => {
@@ -37,6 +36,12 @@ const Activation = () => {
       // Fetch plans from API
       const plansRes = await fetchJSON('/api/plans');
       if (plansRes.plans && plansRes.plans.length > 0) {
+        // Map API plans with minWithdraw based on plan name
+        const getMinWithdraw = (name) => {
+          if (name.toUpperCase().includes('INTRODUCTION')) return '10 USDT';
+          if (name.toUpperCase().includes('PLATINUM')) return 'Coming Soon';
+          return '50 USDT';
+        };
         setPlans(plansRes.plans.map(p => ({
           id: p._id,
           name: p.name,
@@ -45,6 +50,7 @@ const Activation = () => {
           duration: p.duration,
           totalReturn: p.totalReturn,
           roi: p.roi,
+          minWithdraw: getMinWithdraw(p.name),
         })));
       } else {
         setPlans(defaultPlans);
@@ -163,7 +169,20 @@ const Activation = () => {
                 }}
                 onClick={() => setSelectedPlanId(plan.id)}
               >
-                {/* Daily Earning Header - Green */}
+                {/* Plan Name Header - Blue */}
+                <Box sx={{ 
+                  bgcolor: '#1976d2', 
+                  color: 'white', 
+                  py: 1, 
+                  px: 1, 
+                  textAlign: 'center' 
+                }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, fontSize: '0.7rem' }}>
+                    {plan.name}
+                  </Typography>
+                </Box>
+
+                {/* Daily Earning - Green */}
                 <Box sx={{ 
                   bgcolor: '#4caf50', 
                   color: 'white', 
@@ -189,12 +208,6 @@ const Activation = () => {
                     </Typography>
                   </Box>
                   <Box sx={{ mb: 1 }}>
-                    <Typography variant="caption" color="text.secondary">Daily Earning</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {plan.dailyEarn} USDT
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 1 }}>
                     <Typography variant="caption" color="text.secondary">Duration</Typography>
                     <Typography variant="body2">
                       {plan.duration} Days
@@ -206,12 +219,23 @@ const Activation = () => {
                       {plan.totalReturn} USDT
                     </Typography>
                   </Box>
-                  <Box sx={{ mb: 2 }}>
+                  <Box sx={{ mb: 1 }}>
                     <Typography variant="caption" color="text.secondary">ROI</Typography>
                     <Typography variant="body2" sx={{ color: '#4caf50', fontWeight: 600 }}>
                       {plan.roi}%
                     </Typography>
                   </Box>
+                  
+                  {/* Info Icon with Minimum Withdraw */}
+                  <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                    <Tooltip title={`Minimum Withdraw: ${plan.minWithdraw}`} arrow>
+                      <Info sx={{ fontSize: 16, color: '#1976d2', cursor: 'pointer' }} />
+                    </Tooltip>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                      Min Withdraw: {plan.minWithdraw}
+                    </Typography>
+                  </Box>
+
                   <Button 
                     variant="contained" 
                     size="small" 
@@ -228,7 +252,7 @@ const Activation = () => {
                       setSelectedPlanId(plan.id);
                     }}
                   >
-                    {plan.name.includes('STARTER') ? 'Minimum' : 'Select'}
+                    {plan.name.includes('INTRODUCTION') ? 'Minimum' : 'Select'}
                   </Button>
                 </CardContent>
               </Card>
