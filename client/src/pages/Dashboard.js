@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Box, Card, CardContent, Typography, Grid, Divider, Button,
@@ -47,6 +48,8 @@ const InfoLine = ({ label, value, light }) => (
 );
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  
   // Real-time dashboard data state
   const [dashboardData, setDashboardData] = useState({
     userId: '',
@@ -253,7 +256,7 @@ const Dashboard = () => {
                 <Button 
                   variant="contained" 
                   size="small"
-                  onClick={() => window.location.href = '/my-investments'}
+                  onClick={() => navigate('/my-investments')}
                   sx={{ 
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     textTransform: 'none'

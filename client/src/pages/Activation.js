@@ -168,16 +168,6 @@ const Activation = () => {
         </Typography>
       </Box>
 
-      {/* Wallet Balance Card */}
-      <Card sx={{ mb: 4, maxWidth: 400, mx: 'auto', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
-        <CardContent sx={{ textAlign: 'center' }}>
-          <AccountBalanceWallet sx={{ fontSize: 40, mb: 1 }} />
-          <Typography variant="body2" sx={{ opacity: 0.9 }}>Available Balance</Typography>
-          <Typography variant="h3" sx={{ fontWeight: 'bold' }}>${walletBalance.toFixed(2)}</Typography>
-          <Typography variant="caption" sx={{ opacity: 0.8 }}>USDT</Typography>
-        </CardContent>
-      </Card>
-
       {/* Plans Section */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: '#1a237e', textAlign: 'center' }}>
@@ -192,7 +182,6 @@ const Activation = () => {
                   cursor: 'pointer',
                   border: selectedPlan?.id === plan.id ? '3px solid #667eea' : '2px solid #e0e0e0',
                   transition: 'all 0.3s',
-                  opacity: walletBalance < plan.investment ? 0.6 : 1,
                   '&:hover': {
                     transform: 'translateY(-8px)',
                     boxShadow: 6,
@@ -246,18 +235,12 @@ const Activation = () => {
                     ))}
                   </List>
 
-                  {walletBalance < plan.investment && (
-                    <Alert severity="warning" sx={{ mt: 1, py: 0 }}>
-                      <Typography variant="caption">Insufficient balance</Typography>
-                    </Alert>
-                  )}
-
                   {selectedPlan?.id === plan.id && (
                     <Chip 
                       label="Selected" 
                       color="primary" 
                       icon={<CheckCircle />}
-                      sx={{ mt: 2, fontWeight: 700, width: '100%' }}
+                      sx={{ mt: 1, fontWeight: 700, width: '100%' }}
                     />
                   )}
                 </CardContent>
