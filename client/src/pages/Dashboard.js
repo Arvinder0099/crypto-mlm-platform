@@ -270,10 +270,10 @@ const Dashboard = () => {
         </Grid>
       </Box>
 
-      {/* Section 2: Wallet Overview, Team Summary, Income Breakdown */}
+      {/* Section 2: Wallet Overview */}
       <Grid container spacing={3} sx={{ mt: 1 }}>
         {/* Wallet Overview */}
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={6}>
           <SectionCard>
             <Typography variant="h6" gutterBottom>Wallet Overview</Typography>
             <Typography variant="h4" sx={{ color: 'success.main', mb: 1 }}>
@@ -283,45 +283,6 @@ const Dashboard = () => {
             <KeyValue label="My Wallet" value={`$ ${dashboardData.wallet.myWallet.toLocaleString()}`} />
             <KeyValue label="Fund Wallet" value={`$ ${dashboardData.wallet.fundWallet.toLocaleString()}`} />
             <KeyValue label="Utility Wallet" value={`$ ${dashboardData.wallet.utilityWallet.toLocaleString()}`} />
-          </SectionCard>
-        </Grid>
-
-        {/* Team Summary Details */}
-        <Grid item xs={12} md={4}>
-          <SectionCard>
-            <Typography variant="h6" gutterBottom>Team Summary Details</Typography>
-            <KeyValue label="My Direct" value={`${teamSummary.myDirect} Nos.`} icon={<Group fontSize="small" />} />
-            <KeyValue label="My Downlines" value={`${teamSummary.myDownlines} Nos.`} />
-            <KeyValue label="Total Active Downlines" value={`${teamSummary.activeDownlines} Nos.`} />
-            <KeyValue label="Total InActive Downlines" value={`${teamSummary.inactiveDownlines} Nos.`} />
-          </SectionCard>
-        </Grid>
-
-        {/* Income Breakdown - Only Active & Passive Income */}
-        <Grid item xs={12} md={4}>
-          <SectionCard>
-            <Typography variant="h6" gutterBottom>Income Breakdown</Typography>
-            <Box display="flex" justifyContent="space-between" mb={2}>
-              <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#e8f5e9', borderRadius: 2, flex: 1, mr: 1 }}>
-                <Typography variant="h5" sx={{ fontWeight: 700, color: '#4caf50' }}>
-                  $ {dashboardData.activeIncome.toLocaleString()}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">Active Income</Typography>
-              </Box>
-              <Box sx={{ textAlign: 'center', p: 2, bgcolor: '#e3f2fd', borderRadius: 2, flex: 1, ml: 1 }}>
-                <Typography variant="h5" sx={{ fontWeight: 700, color: '#2196f3' }}>
-                  $ {dashboardData.passiveIncome.toLocaleString()}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">Passive Income</Typography>
-              </Box>
-            </Box>
-            <Divider sx={{ my: 1 }} />
-            <Box display="flex" justifyContent="space-between" alignItems="center" py={1}>
-              <Typography variant="body1" fontWeight={600}>Total Income</Typography>
-              <Typography variant="h6" fontWeight={700} color="primary">
-                $ {dashboardData.totalIncome.toLocaleString()}
-              </Typography>
-            </Box>
           </SectionCard>
         </Grid>
       </Grid>
