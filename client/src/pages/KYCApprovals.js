@@ -131,11 +131,9 @@ useEffect(() => {
       }));
       setKycRequests(mapped);
     } catch (err) {
-      console.warn('Failed to load KYC from backend, using mock', err);
-      const mockKycRequests = [
-        { id: 1, userId: 'USR-001', userName: 'John Smith', email: 'john.smith@email.com', phone: '+1-555-0123', submissionDate: '2024-01-20 14:30:00', status: 'pending', documentType: 'passport', documentNumber: 'P123456789', country: 'United States', riskLevel: 'low', documents: [], notes: 'All documents appear clear and valid. Ready for approval.', lastUpdate: '2024-01-20 14:30:00' },
-      ];
-      setKycRequests(mockKycRequests);
+      console.warn('Failed to load KYC from backend', err);
+      // No mock data - show empty state
+      setKycRequests([]);
     }
   }
   loadKyc();

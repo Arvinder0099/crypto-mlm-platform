@@ -53,96 +53,104 @@ const ActivationOptions = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Sample data for different activation sections
-  const adminActivationData = [
-    {
-      id: 1,
-      username: 'john_doe',
-      email: 'john@example.com',
-      registrationDate: '2024-01-15',
-      status: 'pending',
-      package: 'Premium',
-      amount: 500,
-      referredBy: 'admin',
-    },
-    {
-      id: 2,
-      username: 'jane_smith',
-      email: 'jane@example.com',
-      registrationDate: '2024-01-14',
-      status: 'approved',
-      package: 'Basic',
-      amount: 100,
-      referredBy: 'user123',
-    },
-  ];
+  // State for real data from API
+  const [adminActivationData, setAdminActivationData] = useState([]);
+  const [activeSummaryData, setActiveSummaryData] = useState([]);
+  const [pendingFundRequests, setPendingFundRequests] = useState([]);
+  const [processedData, setProcessedData] = useState([]);
 
-  const activeSummaryData = [
-    {
-      package: 'Basic',
-      totalUsers: 150,
-      totalAmount: 15000,
-      thisMonth: 25,
-      lastMonth: 30,
-    },
-    {
-      package: 'Premium',
-      totalUsers: 85,
-      totalAmount: 42500,
-      thisMonth: 15,
-      lastMonth: 12,
-    },
-    {
-      package: 'VIP',
-      totalUsers: 35,
-      totalAmount: 35000,
-      thisMonth: 8,
-      lastMonth: 5,
-    },
-  ];
+  // Fetch all activation data on mount
+  useEffect(() => {
+    const fetchActivationData = async () => {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-  const pendingFundRequests = [
-    {
-      id: 1,
-      username: 'mike_wilson',
-      requestDate: '2024-01-20',
-      amount: 250,
-      paymentMethod: 'Bitcoin',
-      transactionId: 'BTC123456789',
-      status: 'pending',
-    },
-    {
-      id: 2,
-      username: 'sarah_jones',
-      requestDate: '2024-01-19',
-      amount: 500,
-      paymentMethod: 'Ethereum',
-      transactionId: 'ETH987654321',
-      status: 'under_review',
-    },
-  ];
+      try {
+        // Fetch pending activation users
+        const usersResponse = await fetch('/api/admin/users?status=pending', { headers });
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json();
+          setAdminActivationData((usersData.users || []).map(u => ({
+            id: u._id,
+            username: u.userId || u.username,
+            email: u.email,
+            registrationDate: new Date(u.createdAt).toLocaleDateString(),
+            status: u.status || 'pending',
+            package: u.package || 'Basic',
+            amount: u.totalInvested || 0,
+            referredBy: u.referredBy || 'Direct',
+          })));
+        }
 
-  const processedData = [
-    {
-      id: 1,
-      username: 'alex_brown',
-      processedDate: '2024-01-18',
-      amount: 300,
-      status: 'approved',
-      processedBy: 'admin',
-      remarks: 'Payment verified',
-    },
-    {
-      id: 2,
-      username: 'lisa_davis',
-      processedDate: '2024-01-17',
-      amount: 150,
-      status: 'rejected',
-      processedBy: 'admin',
-      remarks: 'Invalid transaction',
-    },
-  ];
+        // Fetch active summary by package
+        const summaryResponse = await fetch('/api/admin/summary', { headers });
+        if (summaryResponse.ok) {
+          const summaryData = await summaryResponse.json();
+          // Group users by package for active summary
+          const packageStats = {};
+          (summaryData.users || []).filter(u => u.status === 'active').forEach(u => {
+            const pkg = u.package || 'Basic';
+            if (!packageStats[pkg]) {
+              packageStats[pkg] = { package: pkg, totalUsers: 0, totalAmount: 0, thisMonth: 0, lastMonth: 0 };
+            }
+            packageStats[pkg].totalUsers++;
+            packageStats[pkg].totalAmount += u.totalInvested || 0;
+            const userDate = new Date(u.createdAt);
+            const now = new Date();
+            if (userDate.getMonth() === now.getMonth() && userDate.getFullYear() === now.getFullYear()) {
+              packageStats[pkg].thisMonth++;
+            } else if (userDate.getMonth() === now.getMonth() - 1) {
+              packageStats[pkg].lastMonth++;
+            }
+          });
+          setActiveSummaryData(Object.values(packageStats).length > 0 ? Object.values(packageStats) : [
+            { package: 'Basic', totalUsers: 0, totalAmount: 0, thisMonth: 0, lastMonth: 0 },
+            { package: 'Premium', totalUsers: 0, totalAmount: 0, thisMonth: 0, lastMonth: 0 },
+            { package: 'VIP', totalUsers: 0, totalAmount: 0, thisMonth: 0, lastMonth: 0 },
+          ]);
+        }
+
+        // Fetch pending deposits for pending fund requests
+        const depositsResponse = await fetch('/api/admin/deposits/pending', { headers });
+        if (depositsResponse.ok) {
+          const depositsData = await depositsResponse.json();
+          setPendingFundRequests((depositsData.deposits || []).map(d => ({
+            id: d._id,
+            username: d.userId?.userId || d.userId?.firstName || 'Unknown',
+            requestDate: new Date(d.createdAt).toLocaleDateString(),
+            amount: d.amount,
+            paymentMethod: d.currency || 'USDT',
+            transactionId: d.txHash || d.transactionId || 'N/A',
+            status: d.status || 'pending',
+          })));
+        }
+
+        // Fetch processed transactions
+        const processedResponse = await fetch('/api/admin/transactions/recent?limit=50', { headers });
+        if (processedResponse.ok) {
+          const processedTx = await processedResponse.json();
+          setProcessedData((processedTx.transactions || []).filter(t => t.status !== 'pending').map(t => ({
+            id: t.id,
+            username: t.userName || 'Unknown',
+            processedDate: new Date(t.date).toLocaleDateString(),
+            amount: t.amount,
+            status: t.status,
+            processedBy: 'admin',
+            remarks: t.status === 'approved' ? 'Successfully processed' : 'Transaction rejected',
+          })));
+        }
+      } catch (error) {
+        console.error('Error fetching activation data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActivationData();
+  }, []);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -175,6 +183,8 @@ const ActivationOptions = () => {
 
   const renderAdminActivation = () => (
     <Box>
+      {loading && <LinearProgress sx={{ mb: 2 }} />}
+      
       {/* Enhanced Search and Filter Section */}
       <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
         <TextField
@@ -276,7 +286,15 @@ const ActivationOptions = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {adminActivationData.map((user) => (
+            {adminActivationData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
+                    No pending activations found
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : adminActivationData.map((user) => (
               <TableRow key={user.id} hover>
                 <TableCell>
                   <Checkbox />
@@ -320,9 +338,6 @@ const ActivationOptions = () => {
                 <TableCell>
                   <Box>
                     <Typography variant="body2">{user.registrationDate}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {Math.floor(Math.random() * 30) + 1} days ago
-                    </Typography>
                   </Box>
                 </TableCell>
                 <TableCell>

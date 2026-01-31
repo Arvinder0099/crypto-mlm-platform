@@ -329,15 +329,6 @@ const UnifiedLayout = ({ children }) => {
             </ListItemButton>
             <Collapse in={activationOpen} timeout="auto" unmountOnExit>
               <List component="div" disablePadding>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/activation-options/admin-activation')}>
-                  <ListItemText primary="Admin Activation" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/activation-options/admin-activation-summary')}>
-                  <ListItemText primary="Admin Activation Summary" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/activation-options/all-activation-summary')}>
-                  <ListItemText primary="All Activation Summary" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/activation-options/pending-fund-requests')}>
                   <ListItemText primary="Pending Fund Requests" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
@@ -386,9 +377,6 @@ const UnifiedLayout = ({ children }) => {
                 </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/eliminate-specific-condition')}>
                   <ListItemText primary="Eliminate Specific Condition" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/admin-setting')}>
-                  <ListItemText primary="Admin Setting" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/manage-popup')}>
                   <ListItemText primary="Manage Popup" primaryTypographyProps={{ fontSize: 14 }} />
@@ -683,15 +671,6 @@ const UnifiedLayout = ({ children }) => {
           open={Boolean(activationAnchor)}
           onClose={handleMenuClose(setActivationAnchor)}
         >
-          <MenuItem onClick={handleNavigate('/activation-options/admin-activation', setActivationAnchor)}>
-            Admin Activation
-          </MenuItem>
-          <MenuItem onClick={handleNavigate('/activation-options/admin-activation-summary', setActivationAnchor)}>
-            Admin Activation Summary
-          </MenuItem>
-          <MenuItem onClick={handleNavigate('/activation-options/all-activation-summary', setActivationAnchor)}>
-            All Activation Summary
-          </MenuItem>
           <MenuItem onClick={handleNavigate('/activation-options/pending-fund-requests', setActivationAnchor)}>
             Pending Fund Requests
           </MenuItem>
@@ -744,9 +723,6 @@ const UnifiedLayout = ({ children }) => {
           </MenuItem>
           <MenuItem onClick={handleNavigate('/admin-settings/eliminate-specific-condition', setSettingsAnchor)}>
             Eliminate Specific Condition
-          </MenuItem>
-          <MenuItem onClick={handleNavigate('/admin-settings/admin-setting', setSettingsAnchor)}>
-            Admin Setting
           </MenuItem>
           <MenuItem onClick={handleNavigate('/admin-settings/manage-popup', setSettingsAnchor)}>
             Manage Popup

@@ -69,20 +69,49 @@ const WalletManagement = () => {
     currency: 'BTC'
   });
 
-  // Mock data
-  const walletStats = {
-    totalBalance: 125000.50,
-    totalCredits: 85000.00,
-    totalDebits: 45000.00,
-    pendingWithdrawals: 15000.00
-  };
+  const [walletStats, setWalletStats] = useState({
+    totalBalance: 0,
+    totalCredits: 0,
+    totalDebits: 0,
+    pendingWithdrawals: 0
+  });
 
-  const recentTransactions = [
-    { id: 1, type: 'Credit', user: 'John Doe', amount: 500, currency: 'USD', status: 'Completed', date: '2024-01-15' },
-    { id: 2, type: 'Debit', user: 'Jane Smith', amount: 250, currency: 'USD', status: 'Completed', date: '2024-01-15' },
-    { id: 3, type: 'Withdrawal', user: 'Mike Johnson', amount: 1000, currency: 'BTC', status: 'Pending', date: '2024-01-14' },
-    { id: 4, type: 'Credit', user: 'Sarah Wilson', amount: 750, currency: 'ETH', status: 'Completed', date: '2024-01-14' },
-  ];
+  const [recentTransactions, setRecentTransactions] = useState([]);
+
+  // Fetch wallet stats and transactions from API
+  useEffect(() => {
+    const fetchWalletData = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        
+        // Fetch wallet statistics
+        const statsResponse = await fetch('/api/admin/wallet/stats', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const statsData = await statsResponse.json();
+        if (statsData.success) {
+          setWalletStats(statsData.stats || {
+            totalBalance: 0,
+            totalCredits: 0,
+            totalDebits: 0,
+            pendingWithdrawals: 0
+          });
+        }
+
+        // Fetch recent transactions
+        const txResponse = await fetch('/api/admin/transactions/recent', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const txData = await txResponse.json();
+        if (txData.success && txData.transactions) {
+          setRecentTransactions(txData.transactions);
+        }
+      } catch (error) {
+        console.error('Failed to fetch wallet data:', error);
+      }
+    };
+    fetchWalletData();
+  }, []);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);

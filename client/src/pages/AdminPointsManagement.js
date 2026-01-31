@@ -246,11 +246,14 @@ const AdminPointsManagement = () => {
       });
 
       if (response.success) {
-        setSnackbar({ open: true, message: 'Daily return removed', severity: 'success' });
+        setSnackbar({ open: true, message: 'Daily return removed successfully', severity: 'success' });
         loadDailyReturnUsers();
+      } else {
+        setSnackbar({ open: true, message: response.message || 'Failed to remove daily return', severity: 'error' });
       }
     } catch (error) {
-      setSnackbar({ open: true, message: 'Failed to remove', severity: 'error' });
+      console.error('Remove daily return error:', error);
+      setSnackbar({ open: true, message: error.message || 'Failed to remove daily return', severity: 'error' });
     }
   };
 

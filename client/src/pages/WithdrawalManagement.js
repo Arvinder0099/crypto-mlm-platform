@@ -67,309 +67,63 @@ const WithdrawalManagement = () => {
     startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)),
     endDate: new Date(),
   });
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [requestSummary, setRequestSummary] = useState([]);
+  const [datewiseSummary, setDatewiseSummary] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample data for pending withdrawal requests
-  // Enhanced sample data for pending requests with more details
-  const pendingRequests = [
-    {
-      id: 1,
-      username: 'john_doe',
-      email: 'john@example.com',
-      amount: 500,
-      currency: 'USDT',
-      walletAddress: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE',
-      network: 'TRC20',
-      requestDate: '2024-01-20',
-      status: 'pending',
-      priority: 'high',
-      availableBalance: 1200,
-      totalWithdrawn: 2500,
-      kycStatus: 'verified',
-      accountLevel: 'Premium',
-      lastActivity: '2024-01-20 10:30',
-      withdrawalFee: 25,
-      estimatedProcessTime: '2-4 hours',
-      verificationCode: 'WD001234',
-      notes: 'Regular withdrawal request'
-    },
-    {
-      id: 2,
-      username: 'jane_smith',
-      email: 'jane@example.com',
-      amount: 1000,
-      currency: 'Bitcoin',
-      walletAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-      network: 'BTC',
-      requestDate: '2024-01-19',
-      status: 'reviewing',
-      priority: 'medium',
-      availableBalance: 2500,
-      totalWithdrawn: 5000,
-      kycStatus: 'verified',
-      accountLevel: 'VIP',
-      lastActivity: '2024-01-19 15:45',
-      withdrawalFee: 50,
-      estimatedProcessTime: '4-6 hours',
-      verificationCode: 'WD001235',
-      notes: 'Large amount withdrawal - requires additional verification'
-    },
-    {
-      id: 3,
-      username: 'mike_wilson',
-      email: 'mike@example.com',
-      amount: 250,
-      currency: 'Ethereum',
-      walletAddress: '0x742d35Cc6634C0532925a3b8D4C0C8b3C2F6D5B1',
-      network: 'ETH',
-      requestDate: '2024-01-18',
-      status: 'pending',
-      priority: 'low',
-      availableBalance: 800,
-      totalWithdrawn: 1200,
-      kycStatus: 'pending',
-      accountLevel: 'Basic',
-      lastActivity: '2024-01-18 09:15',
-      withdrawalFee: 12.5,
-      estimatedProcessTime: '1-2 hours',
-      verificationCode: 'WD001236',
-      notes: 'KYC verification pending'
-    },
-    {
-      id: 4,
-      username: 'sarah_jones',
-      email: 'sarah@example.com',
-      amount: 750,
-      currency: 'USDT',
-      walletAddress: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE',
-      network: 'TRC20',
-      requestDate: '2024-01-17',
-      status: 'on_hold',
-      priority: 'high',
-      availableBalance: 1500,
-      totalWithdrawn: 3200,
-      kycStatus: 'verified',
-      accountLevel: 'Premium',
-      lastActivity: '2024-01-17 14:20',
-      withdrawalFee: 37.5,
-      estimatedProcessTime: 'On hold',
-      verificationCode: 'WD001237',
-      notes: 'Suspicious activity detected - under review'
-    },
-    {
-      id: 5,
-      username: 'alex_brown',
-      email: 'alex@example.com',
-      amount: 300,
-      currency: 'Bitcoin',
-      walletAddress: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
-      network: 'BTC',
-      requestDate: '2024-01-16',
-      status: 'pending',
-      priority: 'medium',
-      availableBalance: 900,
-      totalWithdrawn: 1800,
-      kycStatus: 'verified',
-      accountLevel: 'Standard',
-      lastActivity: '2024-01-16 11:30',
-      withdrawalFee: 15,
-      estimatedProcessTime: '2-4 hours',
-      verificationCode: 'WD001238',
-      notes: 'Standard withdrawal request'
-    }
-  ];
+  // Fetch withdrawal data from API
+  useEffect(() => {
+    const fetchWithdrawals = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        
+        // Fetch pending withdrawals
+        const pendingRes = await fetch('/api/admin/withdrawals/pending', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const pendingData = await pendingRes.json();
+        if (pendingData.success && pendingData.withdrawals) {
+          setPendingRequests(pendingData.withdrawals.map(w => ({
+            id: w._id,
+            username: w.user?.username || w.username || 'Unknown',
+            email: w.user?.email || w.email || '',
+            amount: w.amount,
+            currency: w.currency || 'USDT',
+            walletAddress: w.walletAddress,
+            network: w.network || 'TRC20',
+            requestDate: new Date(w.createdAt).toISOString().split('T')[0],
+            status: w.status,
+            priority: w.priority || 'medium',
+            availableBalance: w.user?.balance || 0,
+            totalWithdrawn: w.user?.totalWithdrawn || 0,
+            kycStatus: w.user?.kycStatus || 'pending',
+            accountLevel: w.user?.rank || 'Basic',
+            lastActivity: w.updatedAt || w.createdAt,
+            withdrawalFee: w.fee || 0,
+            estimatedProcessTime: '2-4 hours',
+            verificationCode: `WD${w._id?.slice(-6) || '000000'}`,
+            notes: w.notes || ''
+          })));
+        }
 
-  // Enhanced request summary data
-  const requestSummary = [
-    {
-      id: 1,
-      username: 'john_doe',
-      totalRequests: 15,
-      totalAmount: 7500,
-      approvedAmount: 6800,
-      rejectedAmount: 700,
-      pendingAmount: 500,
-      averageAmount: 500,
-      successRate: 90.7,
-      lastWithdrawal: '2024-01-15',
-      preferredCurrency: 'USDT',
-      accountStatus: 'Active',
-      riskLevel: 'Low',
-      monthlyLimit: 10000,
-      usedLimit: 7500,
-      availableLimit: 2500
-    },
-    {
-      id: 2,
-      username: 'jane_smith',
-      totalRequests: 8,
-      totalAmount: 12000,
-      approvedAmount: 11000,
-      rejectedAmount: 0,
-      pendingAmount: 1000,
-      averageAmount: 1500,
-      successRate: 100,
-      lastWithdrawal: '2024-01-12',
-      preferredCurrency: 'Bitcoin',
-      accountStatus: 'VIP',
-      riskLevel: 'Low',
-      monthlyLimit: 25000,
-      usedLimit: 12000,
-      availableLimit: 13000
-    },
-    {
-      id: 3,
-      username: 'mike_wilson',
-      totalRequests: 22,
-      totalAmount: 5500,
-      approvedAmount: 4800,
-      rejectedAmount: 450,
-      pendingAmount: 250,
-      averageAmount: 250,
-      successRate: 87.3,
-      lastWithdrawal: '2024-01-10',
-      preferredCurrency: 'Ethereum',
-      accountStatus: 'Active',
-      riskLevel: 'Medium',
-      monthlyLimit: 5000,
-      usedLimit: 4800,
-      availableLimit: 200
-    },
-    {
-      id: 4,
-      username: 'sarah_jones',
-      totalRequests: 12,
-      totalAmount: 9000,
-      approvedAmount: 8250,
-      rejectedAmount: 0,
-      pendingAmount: 750,
-      averageAmount: 750,
-      successRate: 100,
-      lastWithdrawal: '2024-01-08',
-      preferredCurrency: 'USDT',
-      accountStatus: 'Premium',
-      riskLevel: 'Low',
-      monthlyLimit: 15000,
-      usedLimit: 9000,
-      availableLimit: 6000
-    },
-    {
-      id: 5,
-      username: 'alex_brown',
-      totalRequests: 18,
-      totalAmount: 4200,
-      approvedAmount: 3900,
-      rejectedAmount: 0,
-      pendingAmount: 300,
-      averageAmount: 233,
-      successRate: 100,
-      lastWithdrawal: '2024-01-05',
-      preferredCurrency: 'Bitcoin',
-      accountStatus: 'Standard',
-      riskLevel: 'Low',
-      monthlyLimit: 8000,
-      usedLimit: 4200,
-      availableLimit: 3800
-    }
-  ];
-
-  // Enhanced datewise summary data
-  const datewiseSummary = [
-    {
-      date: '2024-01-20',
-      totalRequests: 8,
-      totalAmount: 3200,
-      approvedRequests: 5,
-      approvedAmount: 2100,
-      rejectedRequests: 1,
-      rejectedAmount: 200,
-      pendingRequests: 2,
-      pendingAmount: 900,
-      averageAmount: 400,
-      processingTime: '3.2 hours',
-      successRate: 83.3,
-      currencies: { USDT: 1800, Bitcoin: 800, Ethereum: 600 },
-      topUser: 'jane_smith',
-      topAmount: 1000,
-      peakHour: '14:00-15:00',
-      networkFees: 125
-    },
-    {
-      date: '2024-01-19',
-      totalRequests: 12,
-      totalAmount: 4800,
-      approvedRequests: 9,
-      approvedAmount: 3600,
-      rejectedRequests: 2,
-      rejectedAmount: 400,
-      pendingRequests: 1,
-      pendingAmount: 800,
-      averageAmount: 400,
-      processingTime: '2.8 hours',
-      successRate: 75,
-      currencies: { USDT: 2400, Bitcoin: 1600, Ethereum: 800 },
-      topUser: 'john_doe',
-      topAmount: 800,
-      peakHour: '10:00-11:00',
-      networkFees: 180
-    },
-    {
-      date: '2024-01-18',
-      totalRequests: 15,
-      totalAmount: 6000,
-      approvedRequests: 13,
-      approvedAmount: 5200,
-      rejectedRequests: 1,
-      rejectedAmount: 300,
-      pendingRequests: 1,
-      pendingAmount: 500,
-      averageAmount: 400,
-      processingTime: '4.1 hours',
-      successRate: 86.7,
-      currencies: { USDT: 3000, Bitcoin: 2000, Ethereum: 1000 },
-      topUser: 'sarah_jones',
-      topAmount: 1200,
-      peakHour: '16:00-17:00',
-      networkFees: 220
-    },
-    {
-      date: '2024-01-17',
-      totalRequests: 10,
-      totalAmount: 3500,
-      approvedRequests: 8,
-      approvedAmount: 2800,
-      rejectedRequests: 1,
-      rejectedAmount: 200,
-      pendingRequests: 1,
-      pendingAmount: 500,
-      averageAmount: 350,
-      processingTime: '3.5 hours',
-      successRate: 80,
-      currencies: { USDT: 1750, Bitcoin: 1050, Ethereum: 700 },
-      topUser: 'mike_wilson',
-      topAmount: 600,
-      peakHour: '13:00-14:00',
-      networkFees: 140
-    },
-    {
-      date: '2024-01-16',
-      totalRequests: 18,
-      totalAmount: 7200,
-      approvedRequests: 16,
-      approvedAmount: 6400,
-      rejectedRequests: 1,
-      rejectedAmount: 400,
-      pendingRequests: 1,
-      pendingAmount: 400,
-      averageAmount: 400,
-      processingTime: '2.9 hours',
-      successRate: 88.9,
-      currencies: { USDT: 3600, Bitcoin: 2400, Ethereum: 1200 },
-      topUser: 'alex_brown',
-      topAmount: 900,
-      peakHour: '11:00-12:00',
-      networkFees: 280
-    }
-  ];
+        // Fetch summary data
+        const summaryRes = await fetch('/api/admin/withdrawals/summary', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const summaryData = await summaryRes.json();
+        if (summaryData.success) {
+          if (summaryData.userSummary) setRequestSummary(summaryData.userSummary);
+          if (summaryData.datewiseSummary) setDatewiseSummary(summaryData.datewiseSummary);
+        }
+      } catch (error) {
+        console.error('Failed to fetch withdrawals:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchWithdrawals();
+  }, []);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);

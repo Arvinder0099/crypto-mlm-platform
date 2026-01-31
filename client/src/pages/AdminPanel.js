@@ -33,11 +33,8 @@ const AdminPanel = () => {
   });
 
   const [incomeData, setIncomeData] = useState({
-    totalGenerated: 0,
     daily: 0,
     referral: 0,
-    dailyLevel: 0,
-    rank: 0,
   });
 
   const [memberStats, setMemberStats] = useState({
@@ -78,11 +75,8 @@ const AdminPanel = () => {
         });
 
         setIncomeData({
-          totalGenerated: data.income?.totalGenerated || 0,
           daily: data.income?.daily || 0,
           referral: data.income?.referral || 0,
-          dailyLevel: data.income?.dailyLevel || 0,
-          rank: data.income?.rank || 0,
         });
 
         setMemberStats({
@@ -203,45 +197,23 @@ const AdminPanel = () => {
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
           Income Summary
         </Typography>
-        <Paper sx={{ p: 3, mb: 2 }}>
-          <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
-            ${incomeData.totalGenerated.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-          </Typography>
-          <Typography color="textSecondary" variant="body2">
-            Total Generated Income
-          </Typography>
-        </Paper>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6}>
             <StatCard
-              title="Daily"
+              title="Daily Allotted"
               value={`$${incomeData.daily.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+              subtitle="Total daily amount allotted to users"
               icon={TrendingUp}
               color="#1976d2"
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6}>
             <StatCard
-              title="Referral"
+              title="Referral Bonus Allotted"
               value={`$${incomeData.referral.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+              subtitle="Total referral bonus allotted to users"
               icon={People}
               color="#388e3c"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Daily Level"
-              value={`$${incomeData.dailyLevel.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-              icon={TrendingUp}
-              color="#f57c00"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Rank"
-              value={`$${incomeData.rank.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-              icon={EmojiEvents}
-              color="#d32f2f"
             />
           </Grid>
         </Grid>

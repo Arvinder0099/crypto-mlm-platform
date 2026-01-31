@@ -598,14 +598,13 @@ app.post('/api/auth/send-email-otp', rateLimiters.otp, async (req, res) => {
       console.log(`✅ OTP email sent to ${email}`);
     } catch (emailErr) {
       console.error(`⚠️  Email sending failed:`, emailErr.message);
+      // Still log the OTP in console for debugging in development
+      console.log(`📧 Email OTP for ${email}: ${otp} (email send failed)`);
     }
     
-    // For demo mode, return OTP in response
-    const isDemoMode = process.env.DEMO_MODE === 'true' || !process.env.SMTP_HOST;
     res.json({ 
       success: true, 
-      message: 'OTP sent to your email',
-      demoOtp: isDemoMode ? otp : undefined,
+      message: 'OTP sent to your email'
     });
   } catch (error) {
     console.error('❌ Send email OTP error:', error);
@@ -680,14 +679,13 @@ app.post('/api/auth/send-phone-otp', rateLimiters.otp, async (req, res) => {
       console.log(`✅ OTP SMS sent to ${fullPhone}`);
     } catch (smsErr) {
       console.error(`⚠️  SMS sending failed:`, smsErr.message);
+      // Still log the OTP in console for debugging in development
+      console.log(`📱 Phone OTP for ${fullPhone}: ${otp} (SMS send failed)`);
     }
     
-    // For demo mode, return OTP in response
-    const isDemoMode = process.env.DEMO_MODE === 'true' || !process.env.SMS_API_KEY;
     res.json({ 
       success: true, 
-      message: 'OTP sent to your phone',
-      demoOtp: isDemoMode ? otp : undefined,
+      message: 'OTP sent to your phone'
     });
   } catch (error) {
     console.error('❌ Send phone OTP error:', error);
@@ -1135,18 +1133,25 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 // ==================== OTP ROUTES ====================
 
-// Send OTP to phone
+// Send OTP to phone (supports all country codes)
 app.post('/api/otp/send-phone', rateLimiters.otp, async (req, res) => {
   try {
-    const { phone, purpose = 'verification' } = req.body;
-    if (!phone || !validators.phone(phone)) {
-      return res.status(400).json({ message: 'Valid phone number is required' });
+    const { phone, countryCode = '+91', purpose = 'verification' } = req.body;
+    if (!phone) {
+      return res.status(400).json({ success: false, message: 'Phone number is required' });
     }
     
-    const result = await otpService.sendOTP(phone, purpose);
+    // Build full international phone number
+    const cleanPhone = phone.replace(/^0+/, '').replace(/[^0-9]/g, '');
+    const fullPhone = `${countryCode}${cleanPhone}`;
+    
+    console.log(`📱 Sending OTP to: ${fullPhone}`);
+    
+    const result = await otpService.sendOTP(fullPhone, purpose);
     res.json(result);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('OTP send error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to send OTP' });
   }
 });
 
@@ -1155,31 +1160,36 @@ app.post('/api/otp/send-email', rateLimiters.otp, async (req, res) => {
   try {
     const { email, purpose = 'verification' } = req.body;
     if (!email || !validators.email(email)) {
-      return res.status(400).json({ message: 'Valid email is required' });
+      return res.status(400).json({ success: false, message: 'Valid email is required' });
     }
     
     const otp = otpService.generateOTP();
     otpService.storeOTP(email, otp, purpose);
     
-    await emailService.sendOTP(email, { otp, expiresIn: '10' });
+    console.log(`📧 Sending OTP to email: ${email}`);
+    
+    await emailService.sendOTP(email, { otp, expiresIn: '10', purpose });
     
     res.json({ success: true, message: 'OTP sent to email' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Email OTP error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to send OTP' });
   }
 });
 
-// Verify OTP
+// Verify OTP (supports both phone and email)
 app.post('/api/otp/verify', async (req, res) => {
   try {
-    const { identifier, otp, purpose = 'verification' } = req.body;
-    if (!identifier || !otp) {
-      return res.status(400).json({ message: 'Identifier and OTP are required' });
+    const { target, otp, type = 'phone', purpose = 'verification' } = req.body;
+    if (!target || !otp) {
+      return res.status(400).json({ success: false, message: 'Target and OTP are required' });
     }
     
-    const result = otpService.verifyOTP(identifier, otp, purpose);
+    console.log(`🔐 Verifying OTP for: ${target}, type: ${type}`);
     
-    if (result.success) {
+    const result = otpService.verifyOTP(target, otp, purpose);
+    
+    if (result.valid || result.success) {
       // If this is a logged-in user verifying phone/email
       if (req.headers.authorization) {
         const token = req.headers.authorization.split(' ')[1];
@@ -1187,10 +1197,11 @@ app.post('/api/otp/verify', async (req, res) => {
           const decoded = jwt.verify(token, JWT_SECRET);
           const user = await User.findById(decoded.id);
           if (user) {
-            if (validators.email(identifier)) {
+            if (type === 'email') {
               user.emailVerified = true;
-            } else if (validators.phone(identifier)) {
+            } else if (type === 'phone') {
               user.phoneVerified = true;
+              user.phone = target;
             }
             await user.save();
           }
@@ -1198,11 +1209,13 @@ app.post('/api/otp/verify', async (req, res) => {
           // Token invalid, ignore
         }
       }
+      res.json({ success: true, message: 'OTP verified successfully' });
+    } else {
+      res.json({ success: false, message: result.message || 'Invalid OTP' });
     }
-    
-    res.json(result);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('OTP verify error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Verification failed' });
   }
 });
 
@@ -2306,6 +2319,162 @@ app.get('/api/admin/withdrawals', authenticateToken, isAdmin, async (req, res) =
   }
 });
 
+// Get pending withdrawal requests with full details
+app.get('/api/admin/withdrawals/pending', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const pendingWithdrawals = await Withdrawal.find({ status: 'pending' })
+      .populate('userId', 'userId firstName lastName email phone')
+      .sort({ createdAt: -1 });
+    
+    const requests = pendingWithdrawals.map(w => ({
+      id: w._id,
+      date: w.createdAt,
+      userName: w.userId ? `${w.userId.firstName} ${w.userId.lastName}` : 'Unknown',
+      referenceId: w.userId?.userId || 'N/A',
+      phone: w.userId?.phone || 'N/A',
+      email: w.userId?.email || 'N/A',
+      walletType: w.walletType || 'cash',
+      amount: w.amount,
+      walletAddress: w.walletAddress || 'N/A',
+      network: w.network || w.currency || 'USDT',
+      status: w.status
+    }));
+    
+    res.json({ pendingRequests: requests });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching pending withdrawals', error: error.message });
+  }
+});
+
+// Get withdrawal summary statistics
+app.get('/api/admin/withdrawals/summary', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const [pending, approved, rejected, all] = await Promise.all([
+      Withdrawal.aggregate([{ $match: { status: 'pending' } }, { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }]),
+      Withdrawal.aggregate([{ $match: { status: 'approved' } }, { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }]),
+      Withdrawal.aggregate([{ $match: { status: 'rejected' } }, { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }]),
+      Withdrawal.aggregate([{ $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }])
+    ]);
+    
+    res.json({
+      requestSummary: {
+        pending: { amount: pending[0]?.total || 0, count: pending[0]?.count || 0 },
+        approved: { amount: approved[0]?.total || 0, count: approved[0]?.count || 0 },
+        rejected: { amount: rejected[0]?.total || 0, count: rejected[0]?.count || 0 },
+        total: { amount: all[0]?.total || 0, count: all[0]?.count || 0 }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching withdrawal summary', error: error.message });
+  }
+});
+
+// Get datewise withdrawal summary
+app.get('/api/admin/withdrawals/datewise', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const datewiseSummary = await Withdrawal.aggregate([
+      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          requests: { $sum: 1 },
+          amount: { $sum: '$amount' },
+          approved: { $sum: { $cond: [{ $eq: ['$status', 'approved'] }, '$amount', 0] } },
+          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, '$amount', 0] } }
+        }
+      },
+      { $sort: { _id: -1 } },
+      { $limit: 30 }
+    ]);
+    
+    res.json({
+      datewiseSummary: datewiseSummary.map(d => ({
+        date: d._id,
+        requests: d.requests,
+        amount: d.amount,
+        approved: d.approved,
+        pending: d.pending
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching datewise summary', error: error.message });
+  }
+});
+
+// Get recent transactions for admin analytics
+app.get('/api/admin/transactions/recent', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+    
+    // Get recent deposits
+    const deposits = await Deposit.find()
+      .populate('userId', 'userId firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+    
+    // Get recent withdrawals
+    const withdrawals = await Withdrawal.find()
+      .populate('userId', 'userId firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+    
+    // Combine and sort by date
+    const transactions = [
+      ...deposits.map(d => ({
+        id: d._id,
+        type: 'deposit',
+        userName: d.userId ? `${d.userId.firstName} ${d.userId.lastName}` : 'Unknown',
+        referenceId: d.userId?.userId || 'N/A',
+        amount: d.amount,
+        status: d.status,
+        date: d.createdAt,
+        currency: d.currency || 'USDT'
+      })),
+      ...withdrawals.map(w => ({
+        id: w._id,
+        type: 'withdrawal',
+        userName: w.userId ? `${w.userId.firstName} ${w.userId.lastName}` : 'Unknown',
+        referenceId: w.userId?.userId || 'N/A',
+        amount: w.amount,
+        status: w.status,
+        date: w.createdAt,
+        currency: w.currency || 'USDT'
+      }))
+    ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, parseInt(limit));
+    
+    res.json({ transactions });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching recent transactions', error: error.message });
+  }
+});
+
+// Get wallet statistics for admin
+app.get('/api/admin/wallet/stats', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const [totalBalance, totalDeposits, totalWithdrawals, userCount] = await Promise.all([
+      User.aggregate([{ $match: { role: { $ne: 'admin' } } }, { $group: { _id: null, total: { $sum: '$balance' } } }]),
+      Deposit.aggregate([{ $match: { status: 'approved' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+      Withdrawal.aggregate([{ $match: { status: 'approved' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]),
+      User.countDocuments({ role: { $ne: 'admin' } })
+    ]);
+    
+    res.json({
+      walletStats: {
+        totalBalance: totalBalance[0]?.total || 0,
+        totalDeposits: totalDeposits[0]?.total || 0,
+        totalWithdrawals: totalWithdrawals[0]?.total || 0,
+        totalUsers: userCount,
+        avgBalance: userCount > 0 ? (totalBalance[0]?.total || 0) / userCount : 0
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching wallet stats', error: error.message });
+  }
+});
+
 app.put('/api/admin/users/:id/status', authenticateToken, isAdmin, async (req, res) => {
   try {
     const { status } = req.body;
@@ -2517,21 +2686,14 @@ app.get('/api/admin/summary', authenticateToken, isAdmin, async (req, res) => {
       User.aggregate([{ $group: { _id: null, balance: { $sum: '$balance' } } }]),
     ]);
 
-    const [incomeTotals, incomeToday, referralTotals, levelIncomeTotals, rankIncomeTotals] = await Promise.all([
-      Transaction.aggregate([
-        { $match: { type: { $in: ['earning', 'commission'] } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
-      Transaction.aggregate([
-        { $match: { type: { $in: ['earning', 'commission'] }, createdAt: { $gte: startOfToday } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
+    const [dailyAllotted, referralTotals] = await Promise.all([
+      // Total daily return amount allotted to all users
+      User.aggregate([{ $group: { _id: null, total: { $sum: '$dailyReturnAmount' } } }]),
+      // Total referral/commission paid
       Transaction.aggregate([
         { $match: { type: 'commission' } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
-      User.aggregate([{ $group: { _id: null, total: { $sum: '$totalLevelCommission' } } }]),
-      User.aggregate([{ $group: { _id: null, total: { $sum: '$totalRankIncome' } } }]),
     ]);
 
     const memberCounts = await User.aggregate([
@@ -2582,11 +2744,8 @@ app.get('/api/admin/summary', authenticateToken, isAdmin, async (req, res) => {
         directInvestment: getTotal(directInvestmentTotals),
       },
       income: {
-        totalGenerated: getTotal(incomeTotals),
-        daily: getTotal(incomeToday),
+        daily: getTotal(dailyAllotted),
         referral: getTotal(referralTotals),
-        dailyLevel: getTotal(levelIncomeTotals),
-        rank: getTotal(rankIncomeTotals),
       },
       members: {
         total: Object.values(memberCountMap).reduce((a, b) => a + b, 0),

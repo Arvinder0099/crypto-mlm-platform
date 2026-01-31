@@ -79,97 +79,110 @@ const Analytics = () => {
   const [timeRange, setTimeRange] = useState('30d');
   const [selectedMetric, setSelectedMetric] = useState('revenue');
   const [reportDialog, setReportDialog] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Sample data for charts
+  // State for API data
+  const [topPerformers, setTopPerformers] = useState([]);
+  const [kpiMetrics, setKpiMetrics] = useState([
+    { title: 'Total Revenue', value: '$0', change: '0%', trend: 'up', icon: <AttachMoney />, color: 'success' },
+    { title: 'Active Members', value: '0', change: '0%', trend: 'up', icon: <Group />, color: 'primary' },
+    { title: 'Investment Pool', value: '$0', change: '0%', trend: 'up', icon: <AccountBalance />, color: 'info' },
+    { title: 'ROI Average', value: '0%', change: '0%', trend: 'up', icon: <ShowChart />, color: 'warning' }
+  ]);
+
+  // Sample data for charts - these show trends and can remain as visualization examples
   const revenueData = [
-    { month: 'Jan', revenue: 45000, investment: 35000, profit: 10000 },
-    { month: 'Feb', revenue: 52000, investment: 38000, profit: 14000 },
-    { month: 'Mar', revenue: 48000, investment: 36000, profit: 12000 },
-    { month: 'Apr', revenue: 61000, investment: 42000, profit: 19000 },
-    { month: 'May', revenue: 55000, investment: 40000, profit: 15000 },
-    { month: 'Jun', revenue: 67000, investment: 45000, profit: 22000 },
-    { month: 'Jul', revenue: 71000, investment: 48000, profit: 23000 },
-    { month: 'Aug', revenue: 69000, investment: 47000, profit: 22000 },
-    { month: 'Sep', revenue: 78000, investment: 52000, profit: 26000 },
-    { month: 'Oct', revenue: 82000, investment: 55000, profit: 27000 },
-    { month: 'Nov', revenue: 85000, investment: 57000, profit: 28000 },
-    { month: 'Dec', revenue: 92000, investment: 62000, profit: 30000 }
+    { month: 'Jan', revenue: 0, investment: 0, profit: 0 },
+    { month: 'Feb', revenue: 0, investment: 0, profit: 0 },
+    { month: 'Mar', revenue: 0, investment: 0, profit: 0 },
+    { month: 'Apr', revenue: 0, investment: 0, profit: 0 },
+    { month: 'May', revenue: 0, investment: 0, profit: 0 },
+    { month: 'Jun', revenue: 0, investment: 0, profit: 0 }
   ];
 
   const networkGrowthData = [
-    { month: 'Jan', active: 1250, new: 180, inactive: 45 },
-    { month: 'Feb', active: 1380, new: 220, inactive: 90 },
-    { month: 'Mar', active: 1520, new: 195, inactive: 55 },
-    { month: 'Apr', active: 1680, new: 240, inactive: 80 },
-    { month: 'May', active: 1850, new: 210, inactive: 40 },
-    { month: 'Jun', active: 2020, new: 280, inactive: 110 },
-    { month: 'Jul', active: 2180, new: 260, inactive: 100 },
-    { month: 'Aug', active: 2350, new: 290, inactive: 120 },
-    { month: 'Sep', active: 2520, new: 310, inactive: 140 },
-    { month: 'Oct', active: 2680, new: 280, inactive: 120 },
-    { month: 'Nov', active: 2850, new: 320, inactive: 150 },
-    { month: 'Dec', active: 3020, new: 340, inactive: 170 }
+    { month: 'Jan', active: 0, new: 0, inactive: 0 },
+    { month: 'Feb', active: 0, new: 0, inactive: 0 },
+    { month: 'Mar', active: 0, new: 0, inactive: 0 },
+    { month: 'Apr', active: 0, new: 0, inactive: 0 },
+    { month: 'May', active: 0, new: 0, inactive: 0 },
+    { month: 'Jun', active: 0, new: 0, inactive: 0 }
   ];
 
   const investmentDistribution = [
-    { name: 'Bitcoin', value: 35, amount: 245000, color: '#f7931a' },
-    { name: 'Ethereum', value: 25, amount: 175000, color: '#627eea' },
-    { name: 'Binance Coin', value: 15, amount: 105000, color: '#f3ba2f' },
-    { name: 'Cardano', value: 12, amount: 84000, color: '#0033ad' },
-    { name: 'Solana', value: 8, amount: 56000, color: '#9945ff' },
-    { name: 'Others', value: 5, amount: 35000, color: '#8884d8' }
+    { name: 'Bitcoin', value: 0, amount: 0, color: '#f7931a' },
+    { name: 'Ethereum', value: 0, amount: 0, color: '#627eea' },
+    { name: 'USDT', value: 0, amount: 0, color: '#26a17b' },
+    { name: 'Others', value: 0, amount: 0, color: '#8884d8' }
   ];
 
-  const topPerformers = [
-    { name: 'Sarah Johnson', level: 'Diamond', earnings: 15420, growth: 23.5, avatar: 'SJ' },
-    { name: 'Michael Chen', level: 'Platinum', earnings: 12890, growth: 18.2, avatar: 'MC' },
-    { name: 'Lisa Rodriguez', level: 'Gold', earnings: 9650, growth: 15.8, avatar: 'LR' },
-    { name: 'David Kim', level: 'Silver', earnings: 7320, growth: 12.4, avatar: 'DK' },
-    { name: 'Emma Wilson', level: 'Bronze', earnings: 5480, growth: 9.7, avatar: 'EW' }
-  ];
+  // Fetch analytics data from API
+  useEffect(() => {
+    const fetchAnalyticsData = async () => {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-  const kpiMetrics = [
-    {
-      title: 'Total Revenue',
-      value: '$847,250',
-      change: '+12.5%',
-      trend: 'up',
-      icon: <AttachMoney />,
-      color: 'success'
-    },
-    {
-      title: 'Active Members',
-      value: '3,024',
-      change: '+8.3%',
-      trend: 'up',
-      icon: <Group />,
-      color: 'primary'
-    },
-    {
-      title: 'Investment Pool',
-      value: '$1.2M',
-      change: '+15.7%',
-      trend: 'up',
-      icon: <AccountBalance />,
-      color: 'info'
-    },
-    {
-      title: 'ROI Average',
-      value: '24.8%',
-      change: '-2.1%',
-      trend: 'down',
-      icon: <ShowChart />,
-      color: 'warning'
-    }
-  ];
+      try {
+        // Fetch summary for KPIs
+        const summaryResponse = await fetch('/api/admin/summary', { headers });
+        if (summaryResponse.ok) {
+          const summary = await summaryResponse.json();
+          const totalRevenue = summary.creditDebit?.totalCredited || 0;
+          const activeMembers = summary.members?.active || 0;
+          const investmentPool = summary.investments?.totalInvestment || 0;
 
-  const recentTransactions = [
-    { id: 1, user: 'John Doe', type: 'Investment', amount: 5000, status: 'Completed', time: '2 hours ago' },
-    { id: 2, user: 'Jane Smith', type: 'Withdrawal', amount: 1200, status: 'Pending', time: '4 hours ago' },
-    { id: 3, user: 'Mike Johnson', type: 'Commission', amount: 850, status: 'Completed', time: '6 hours ago' },
-    { id: 4, user: 'Sarah Wilson', type: 'Investment', amount: 3500, status: 'Completed', time: '8 hours ago' },
-    { id: 5, user: 'David Brown', type: 'Bonus', amount: 420, status: 'Completed', time: '12 hours ago' }
-  ];
+          setKpiMetrics([
+            { title: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}`, change: '+0%', trend: 'up', icon: <AttachMoney />, color: 'success' },
+            { title: 'Active Members', value: activeMembers.toLocaleString(), change: '+0%', trend: 'up', icon: <Group />, color: 'primary' },
+            { title: 'Investment Pool', value: `$${investmentPool.toLocaleString()}`, change: '+0%', trend: 'up', icon: <AccountBalance />, color: 'info' },
+            { title: 'ROI Average', value: '0%', change: '0%', trend: 'up', icon: <ShowChart />, color: 'warning' }
+          ]);
+        }
+
+        // Fetch top performers (top earners)
+        const membersResponse = await fetch('/api/admin/members?sort=totalEarned&limit=5', { headers });
+        if (membersResponse.ok) {
+          const membersData = await membersResponse.json();
+          setTopPerformers((membersData.members || []).map(m => ({
+            name: `${m.firstName || ''} ${m.lastName || ''}`.trim() || m.userId,
+            level: m.rank || 'Member',
+            earnings: m.totalEarned || 0,
+            growth: 0,
+            avatar: (m.firstName?.[0] || 'U') + (m.lastName?.[0] || '')
+          })));
+        }
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalyticsData();
+  }, []);
+
+  // Recent transactions will be fetched from API - showing empty state initially
+  const [recentTransactions, setRecentTransactions] = useState([]);
+
+  // Fetch recent transactions
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/admin/transactions/recent', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (data.success && data.transactions) {
+          setRecentTransactions(data.transactions);
+        }
+      } catch (error) {
+        console.error('Failed to fetch transactions:', error);
+      }
+    };
+    fetchTransactions();
+  }, []);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);

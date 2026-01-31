@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -64,108 +64,52 @@ const TeamManagement = () => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [recentActivities, setRecentActivities] = useState([]);
 
-  const teamMembers = [
-    {
-      id: 1,
-      name: 'John Smith',
-      email: 'john.smith@email.com',
-      phone: '+1-555-0123',
-      rank: 'Diamond',
-      status: 'Active',
-      joinDate: '2023-01-15',
-      totalEarnings: 15420,
-      monthlyEarnings: 2340,
-      teamSize: 45,
-      directReferrals: 8,
-      avatar: 'https://via.placeholder.com/40?text=JS',
-      performance: 92,
-      lastActivity: '2 hours ago',
-      location: 'New York, USA'
-    },
-    {
-      id: 2,
-      name: 'Sarah Johnson',
-      email: 'sarah.j@email.com',
-      phone: '+1-555-0124',
-      rank: 'Gold',
-      status: 'Active',
-      joinDate: '2023-02-20',
-      totalEarnings: 8750,
-      monthlyEarnings: 1250,
-      teamSize: 28,
-      directReferrals: 5,
-      avatar: 'https://via.placeholder.com/40?text=SJ',
-      performance: 85,
-      lastActivity: '1 day ago',
-      location: 'California, USA'
-    },
-    {
-      id: 3,
-      name: 'Mike Chen',
-      email: 'mike.chen@email.com',
-      phone: '+1-555-0125',
-      rank: 'Silver',
-      status: 'Inactive',
-      joinDate: '2023-03-10',
-      totalEarnings: 4200,
-      monthlyEarnings: 0,
-      teamSize: 12,
-      directReferrals: 3,
-      avatar: 'https://via.placeholder.com/40?text=MC',
-      performance: 45,
-      lastActivity: '2 weeks ago',
-      location: 'Texas, USA'
-    },
-    {
-      id: 4,
-      name: 'Lisa Rodriguez',
-      email: 'lisa.r@email.com',
-      phone: '+1-555-0126',
-      rank: 'Platinum',
-      status: 'Active',
-      joinDate: '2022-12-05',
-      totalEarnings: 22100,
-      monthlyEarnings: 3200,
-      teamSize: 67,
-      directReferrals: 12,
-      avatar: 'https://via.placeholder.com/40?text=LR',
-      performance: 96,
-      lastActivity: '30 minutes ago',
-      location: 'Florida, USA'
-    },
-    {
-      id: 5,
-      name: 'David Wilson',
-      email: 'david.w@email.com',
-      phone: '+1-555-0127',
-      rank: 'Bronze',
-      status: 'Pending',
-      joinDate: '2024-01-08',
-      totalEarnings: 850,
-      monthlyEarnings: 850,
-      teamSize: 3,
-      directReferrals: 1,
-      avatar: 'https://via.placeholder.com/40?text=DW',
-      performance: 68,
-      lastActivity: '5 hours ago',
-      location: 'Nevada, USA'
-    }
-  ];
+  // Fetch team members from API
+  useEffect(() => {
+    const fetchTeamData = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('/api/admin/members', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (data.success && data.members) {
+          setTeamMembers(data.members.map(m => ({
+            id: m._id,
+            name: m.name || m.username,
+            email: m.email,
+            phone: m.phone || 'N/A',
+            rank: m.rank || 'Bronze',
+            status: m.isActive ? 'Active' : 'Inactive',
+            joinDate: new Date(m.createdAt).toISOString().split('T')[0],
+            totalEarnings: m.totalEarnings || 0,
+            monthlyEarnings: m.monthlyEarnings || 0,
+            teamSize: m.downlineUsers?.length || 0,
+            directReferrals: m.directReferrals?.length || 0,
+            avatar: null,
+            performance: 0,
+            lastActivity: 'N/A',
+            location: m.country || 'N/A'
+          })));
+        }
+      } catch (error) {
+        console.error('Failed to fetch team members:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTeamData();
+  }, []);
 
   const teamStats = [
-    { label: 'Total Members', value: 155, change: '+12%', icon: <Group /> },
-    { label: 'Active Members', value: 142, change: '+8%', icon: <CheckCircle /> },
-    { label: 'Monthly Revenue', value: '$45,230', change: '+15%', icon: <MonetizationOn /> },
-    { label: 'Top Performers', value: 23, change: '+5%', icon: <EmojiEvents /> }
-  ];
-
-  const recentActivities = [
-    { type: 'join', member: 'Alex Thompson', action: 'joined the team', time: '2 hours ago' },
-    { type: 'rank', member: 'Sarah Johnson', action: 'achieved Gold rank', time: '1 day ago' },
-    { type: 'sale', member: 'John Smith', action: 'made a $500 sale', time: '3 hours ago' },
-    { type: 'referral', member: 'Lisa Rodriguez', action: 'referred 2 new members', time: '5 hours ago' },
-    { type: 'achievement', member: 'Mike Chen', action: 'completed training module', time: '1 day ago' }
+    { label: 'Total Members', value: teamMembers.length, change: '', icon: <Group /> },
+    { label: 'Active Members', value: teamMembers.filter(m => m.status === 'Active').length, change: '', icon: <CheckCircle /> },
+    { label: 'Monthly Revenue', value: `$${teamMembers.reduce((sum, m) => sum + (m.monthlyEarnings || 0), 0).toLocaleString()}`, change: '', icon: <MonetizationOn /> },
+    { label: 'Top Performers', value: teamMembers.filter(m => m.rank === 'Gold' || m.rank === 'Platinum' || m.rank === 'Diamond').length, change: '', icon: <EmojiEvents /> }
   ];
 
   const handleTabChange = (event, newValue) => {

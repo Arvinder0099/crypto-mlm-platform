@@ -212,9 +212,6 @@ function Sidebar({ open, onToggle }) {
       icon: <ActivationIcon />,
       path: '/activation-options',
       submenu: [
-        { text: 'Admin Activation', path: '/activation-options/admin-activation' },
-        { text: 'Admin Activation Summary', path: '/activation-options/admin-activation-summary' },
-        { text: 'All Activation Summary', path: '/activation-options/all-activation-summary' },
         { text: 'Pending Fund Requests', path: '/activation-options/pending-fund-requests' },
         { text: 'Processed Fund Requests', path: '/activation-options/processed-fund-requests' },
       ],
@@ -248,7 +245,6 @@ function Sidebar({ open, onToggle }) {
         { text: 'ROI SETUP', path: '/admin-settings/roi-setup' },
         { text: 'Deposit Address Setup', path: '/admin-settings/deposit-address-setup' },
         { text: 'Eliminate Specific Condition', path: '/admin-settings/eliminate-specific-condition' },
-        { text: 'Admin Setting', path: '/admin-settings/admin-setting' },
         { text: 'Manage Popup', path: '/admin-settings/manage-popup' },
       ],
     },

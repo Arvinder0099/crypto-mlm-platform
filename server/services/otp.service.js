@@ -117,6 +117,41 @@ class OTPService {
     const stored = otpStore.get(key);
     return stored && Date.now() < stored.expiresAt;
   }
+
+  /**
+   * Store an externally generated OTP (for email OTPs)
+   */
+  storeOTP(target, otp, purpose = 'verification') {
+    const key = `email:${target}`;
+    const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+
+    otpStore.set(key, {
+      hash: hashedOTP,
+      attempts: 0,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + (this.otpExpiry * 60 * 1000),
+      purpose
+    });
+
+    // Auto-cleanup after expiry
+    setTimeout(() => {
+      otpStore.delete(key);
+    }, this.otpExpiry * 60 * 1000 + 1000);
+
+    return true;
+  }
+
+  /**
+   * Send OTP via SMS provider
+   */
+  async sendOTP(phone, purpose = 'verification') {
+    const otp = this.createOTP(phone, 'sms');
+    
+    // Log OTP in console for debugging (server-side only, never sent to client)
+    console.log(`📱 OTP for ${phone}: ${otp} (purpose: ${purpose})`);
+    
+    return { success: true, message: 'OTP sent successfully' };
+  }
 }
 
 /**

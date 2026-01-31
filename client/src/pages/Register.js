@@ -24,12 +24,7 @@ import {
   Fade,
   Zoom,
   CircularProgress,
-  useTheme,
   alpha,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Divider,
   Paper,
   keyframes,
@@ -101,7 +96,6 @@ const COUNTRY_CODES = [
 const steps = ['Account Details', 'Security & Wallet'];
 
 function Register() {
-  const theme = useTheme();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const referralFromUrl = searchParams.get('ref') || '';
@@ -126,12 +120,6 @@ function Register() {
   const [sendingPhoneOtp, setSendingPhoneOtp] = useState(false);
   const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [verifyingPhone, setVerifyingPhone] = useState(false);
-
-  // For demo - store OTP codes
-  const [demoEmailOtp, setDemoEmailOtp] = useState('');
-  const [demoPhoneOtp, setDemoPhoneOtp] = useState('');
-  const [showDemoDialog, setShowDemoDialog] = useState(false);
-  const [demoOtpType, setDemoOtpType] = useState('');
 
   const [formData, setFormData] = useState({
     userId: '',
@@ -255,32 +243,18 @@ function Register() {
     setSendingEmailOtp(true);
     setError('');
     try {
-      const response = await fetchJSON('/api/auth/send-email-otp', {
+      await fetchJSON('/api/auth/send-email-otp', {
         method: 'POST',
         body: JSON.stringify({ email: formData.email }),
       });
       
       setEmailOtpSent(true);
       setEmailTimer(60);
-      
-      if (response.demoOtp) {
-        setDemoEmailOtp(response.demoOtp);
-        setDemoOtpType('email');
-        setShowDemoDialog(true);
-      }
-      
-      setSuccess('✅ OTP sent to your email!');
-      setTimeout(() => setSuccess(''), 3000);
+      setSuccess('✅ OTP sent to your email! Check your inbox.');
+      setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
-      // Demo mode - generate local OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      setDemoEmailOtp(otp);
-      setEmailOtpSent(true);
-      setEmailTimer(60);
-      setDemoOtpType('email');
-      setShowDemoDialog(true);
-      setSuccess('✅ OTP sent! (Demo Mode)');
-      setTimeout(() => setSuccess(''), 3000);
+      setError(err.message || '❌ Failed to send OTP. Please try again.');
+      setTimeout(() => setError(''), 5000);
     } finally {
       setSendingEmailOtp(false);
     }
@@ -296,7 +270,7 @@ function Register() {
     setSendingPhoneOtp(true);
     setError('');
     try {
-      const response = await fetchJSON('/api/auth/send-phone-otp', {
+      await fetchJSON('/api/auth/send-phone-otp', {
         method: 'POST',
         body: JSON.stringify({ 
           phone: formData.phone,
@@ -306,25 +280,11 @@ function Register() {
       
       setPhoneOtpSent(true);
       setPhoneTimer(60);
-      
-      if (response.demoOtp) {
-        setDemoPhoneOtp(response.demoOtp);
-        setDemoOtpType('phone');
-        setShowDemoDialog(true);
-      }
-      
-      setSuccess('✅ OTP sent to your phone!');
-      setTimeout(() => setSuccess(''), 3000);
+      setSuccess('✅ OTP sent to your phone via SMS!');
+      setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
-      // Demo mode - generate local OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      setDemoPhoneOtp(otp);
-      setPhoneOtpSent(true);
-      setPhoneTimer(60);
-      setDemoOtpType('phone');
-      setShowDemoDialog(true);
-      setSuccess('✅ OTP sent! (Demo Mode)');
-      setTimeout(() => setSuccess(''), 3000);
+      setError(err.message || '❌ Failed to send OTP. Please try again.');
+      setTimeout(() => setError(''), 5000);
     } finally {
       setSendingPhoneOtp(false);
     }
@@ -347,15 +307,8 @@ function Register() {
       setSuccess('✅ Email verified successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      // Demo mode - check against local OTP
-      if (emailOtp === demoEmailOtp) {
-        setEmailVerified(true);
-        setSuccess('✅ Email verified successfully!');
-        setTimeout(() => setSuccess(''), 3000);
-      } else {
-        setError('❌ Invalid OTP. Please try again.');
-        setTimeout(() => setError(''), 3000);
-      }
+      setError(err.message || '❌ Invalid OTP. Please try again.');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setVerifyingEmail(false);
     }
@@ -382,15 +335,8 @@ function Register() {
       setSuccess('✅ Phone verified successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      // Demo mode - check against local OTP
-      if (phoneOtp === demoPhoneOtp) {
-        setPhoneVerified(true);
-        setSuccess('✅ Phone verified successfully!');
-        setTimeout(() => setSuccess(''), 3000);
-      } else {
-        setError('❌ Invalid OTP. Please try again.');
-        setTimeout(() => setError(''), 3000);
-      }
+      setError(err.message || '❌ Invalid OTP. Please try again.');
+      setTimeout(() => setError(''), 3000);
     } finally {
       setVerifyingPhone(false);
     }
@@ -1218,44 +1164,6 @@ function Register() {
         </Zoom>
       </Box>
 
-      {/* Demo OTP Dialog */}
-      <Dialog open={showDemoDialog} onClose={() => setShowDemoDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
-          color: '#fff', fontWeight: 700,
-        }}>
-          📱 OTP Code (Demo Mode)
-        </DialogTitle>
-        <DialogContent sx={{ mt: 2, textAlign: 'center' }}>
-          <Typography variant="body1" gutterBottom>
-            Your {demoOtpType === 'email' ? '📧 Email' : '📱 Phone'} OTP Code:
-          </Typography>
-          <Box sx={{ 
-            p: 3, bgcolor: alpha('#F7931A', 0.1), borderRadius: 3, my: 2,
-            border: '2px dashed #F7931A',
-          }}>
-            <Typography variant="h2" fontWeight="900" color="#F7931A" letterSpacing={8}>
-              {demoOtpType === 'email' ? demoEmailOtp : demoPhoneOtp}
-            </Typography>
-          </Box>
-          <Typography variant="caption" color="text.secondary">
-            ⚠️ In production, this OTP will be sent to your actual {demoOtpType === 'email' ? 'email inbox' : 'phone via SMS'}.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button 
-            onClick={() => setShowDemoDialog(false)} 
-            variant="contained"
-            fullWidth
-            sx={{ 
-              py: 1.5, borderRadius: 2, fontWeight: 700,
-              background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
-            }}
-          >
-            Got it! ✓
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
