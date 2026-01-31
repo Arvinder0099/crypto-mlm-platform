@@ -845,6 +845,42 @@ app.post('/api/auth/remove-admin', async (req, res) => {
   }
 });
 
+// List all users (admin endpoint)
+app.post('/api/auth/list-users', async (req, res) => {
+  try {
+    const { secretKey } = req.body;
+    
+    if (secretKey !== 'MAKE_ADMIN_2026_SECRET') {
+      return res.status(403).json({ message: 'Invalid secret key' });
+    }
+    
+    const users = await User.find({}, 'email userId role wallet createdAt').sort({ createdAt: -1 });
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to list users', error: error.message });
+  }
+});
+
+// Delete user (admin endpoint)
+app.post('/api/auth/delete-user', async (req, res) => {
+  try {
+    const { secretKey, email } = req.body;
+    
+    if (secretKey !== 'MAKE_ADMIN_2026_SECRET') {
+      return res.status(403).json({ message: 'Invalid secret key' });
+    }
+    
+    const user = await User.findOneAndDelete({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({ success: true, message: `User ${email} has been deleted` });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete user', error: error.message });
+  }
+});
+
 // Send Email Verification Code
 // Temporary storage for email codes (for new users who haven't registered yet)
 const tempEmailCodes = new Map();
