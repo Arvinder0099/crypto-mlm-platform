@@ -1,16 +1,16 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody, Stack, TextField, FormControl, InputLabel, Select, MenuItem, Button, TablePagination, TableContainer, Alert, CircularProgress } from '@mui/material';
+import { Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody, Stack, TextField, FormControl, InputLabel, Select, MenuItem, Button, TablePagination, TableContainer, Alert, CircularProgress, Card, CardContent, Grid, Chip } from '@mui/material';
+import { TrendingUp, AccountBalanceWallet, CalendarToday } from '@mui/icons-material';
 
 function toCSV(data) {
-  const headers = ['S.No','User ID','Investment ($)','Date','Day','Income %','Daily Income ($)','Credit On','Wallet Type','Status'];
-  const lines = data.map(r => [r.sNo, r.userId, r.investment, r.date, r.day, r.incomePct, r.dailyIncome, r.creditOn, r.walletType, r.status].join(','));
+  const headers = ['S.No','User ID','Plan','Date','Daily Income ($)','Status'];
+  const lines = data.map(r => [r.sNo, r.userId, r.plan, r.date, r.dailyIncome, r.status].join(','));
   return [headers.join(','), ...lines].join('\n');
 }
 
 const DailyIncome = () => {
   const [searchUserId, setSearchUserId] = useState('');
   const [status, setStatus] = useState('All');
-  const [walletType, setWalletType] = useState('All');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(0);
@@ -18,28 +18,49 @@ const DailyIncome = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [summary, setSummary] = useState({ totalEarnings: 0, todayEarnings: 0, activePlans: 0 });
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     setLoading(true);
+    
+    // Fetch daily income data
     fetch('/api/reports/daily-income', {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
       .then(res => res.json())
       .then(data => {
         const items = data.data || [];
-        setRows(items.map((item, idx) => ({
-          sNo: idx + 1,
-          userId: item.userId || '',
-          investment: item.investment || item.packageAmount || 0,
-          date: item.date || item.roiDate || '',
-          day: item.day || '',
-          incomePct: item.incomePct || item.roiRate || 0,
-          dailyIncome: item.dailyIncome || item.roiAmount || 0,
-          creditOn: item.creditOn || item.roiDate || '',
-          walletType: item.walletType || 'Income Wallet',
-          status: item.status || 'Pending'
-        })));
+        const today = new Date().toISOString().split('T')[0];
+        let totalEarnings = 0;
+        let todayEarnings = 0;
+        
+        const formattedRows = items.map((item, idx) => {
+          const date = item.roiDate ? new Date(item.roiDate).toLocaleDateString() : '';
+          const dateStr = item.roiDate ? new Date(item.roiDate).toISOString().split('T')[0] : '';
+          const amount = item.dailyIncome || item.amount || 0;
+          
+          totalEarnings += amount;
+          if (dateStr === today) todayEarnings += amount;
+          
+          return {
+            sNo: idx + 1,
+            userId: item.userId || '',
+            plan: item.plan || 'Investment Plan',
+            percentage: item.percentage || 0.5,
+            date,
+            dateStr,
+            dailyIncome: amount,
+            status: item.status || 'completed'
+          };
+        });
+        
+        setRows(formattedRows);
+        setSummary({
+          totalEarnings,
+          todayEarnings,
+          activePlans: new Set(items.filter(i => i.status === 'completed').map(i => i.plan)).size || 1
+        });
         setLoading(false);
       })
       .catch(err => {
@@ -53,12 +74,11 @@ const DailyIncome = () => {
     return rows.filter(r => {
       const matchUser = searchUserId ? r.userId.toLowerCase().includes(searchUserId.toLowerCase()) : true;
       const matchStatus = status === 'All' ? true : r.status === status;
-      const matchWallet = walletType === 'All' ? true : r.walletType === walletType;
-      const matchStart = startDate ? r.date >= startDate : true;
-      const matchEnd = endDate ? r.date <= endDate : true;
-      return matchUser && matchStatus && matchWallet && matchStart && matchEnd;
+      const matchStart = startDate ? r.dateStr >= startDate : true;
+      const matchEnd = endDate ? r.dateStr <= endDate : true;
+      return matchUser && matchStatus && matchStart && matchEnd;
     });
-  }, [searchUserId, status, walletType, startDate, endDate]);
+  }, [rows, searchUserId, status, startDate, endDate]);
 
   const paginated = useMemo(() => {
     const start = page * rowsPerPage;
@@ -78,12 +98,51 @@ const DailyIncome = () => {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>Daily Income</Typography>
+      <Typography variant="h5" gutterBottom sx={{ fontWeight: 700, color: '#1a237e' }}>Daily Income Report</Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Your daily earnings from active investment plans</Typography>
+      
+      {/* Summary Cards */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <TrendingUp />
+                <Typography variant="body2">Total Earnings</Typography>
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, mt: 1 }}>${summary.totalEarnings.toFixed(2)}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ background: 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CalendarToday />
+                <Typography variant="body2">Today's Earnings</Typography>
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, mt: 1 }}>${summary.todayEarnings.toFixed(2)}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{ background: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)', color: 'white' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AccountBalanceWallet />
+                <Typography variant="body2">Active Plans</Typography>
+              </Box>
+              <Typography variant="h4" sx={{ fontWeight: 800, mt: 1 }}>{summary.activePlans}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+      
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
       ) : rows.length === 0 ? (
-        <Alert severity="info" sx={{ mb: 2 }}>No daily income records found</Alert>
+        <Alert severity="info" sx={{ mb: 2 }}>No daily income records found. Activate an investment plan to start earning!</Alert>
       ) : (
         <>
       <Paper sx={{ p: 2, mb: 2 }}>
@@ -93,15 +152,8 @@ const DailyIncome = () => {
             <InputLabel id="status-label">Status</InputLabel>
             <Select labelId="status-label" label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
               <MenuItem value="All">All</MenuItem>
-              <MenuItem value="Credited">Credited</MenuItem>
-              <MenuItem value="Pending">Pending</MenuItem>
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 160 }}>
-            <InputLabel id="wallet-type-label">Wallet Type</InputLabel>
-            <Select labelId="wallet-type-label" label="Wallet Type" value={walletType} onChange={(e) => setWalletType(e.target.value)}>
-              <MenuItem value="All">All</MenuItem>
-              <MenuItem value="Income Wallet">Income Wallet</MenuItem>
+              <MenuItem value="completed">Completed</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
             </Select>
           </FormControl>
           <TextField label="Start Date" type="date" size="small" InputLabelProps={{ shrink: true }} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -114,32 +166,30 @@ const DailyIncome = () => {
         <TableContainer component={Paper}>
           <Table size="small">
             <TableHead>
-              <TableRow>
-                <TableCell>S.No</TableCell>
-                <TableCell>User ID</TableCell>
-                <TableCell>Investment ($)</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell>Day</TableCell>
-                <TableCell>Income %</TableCell>
-                <TableCell>Daily Income ($)</TableCell>
-                <TableCell>Credit On</TableCell>
-                <TableCell>Wallet Type</TableCell>
-                <TableCell>Status</TableCell>
+              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                <TableCell sx={{ fontWeight: 700 }}>S.No</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>User ID</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Plan</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Daily Income ($)</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {paginated.map((r, i) => (
-                <TableRow key={i}>
+                <TableRow key={i} hover>
                   <TableCell>{r.sNo}</TableCell>
                   <TableCell>{r.userId}</TableCell>
-                  <TableCell>{r.investment}</TableCell>
+                  <TableCell>{r.plan}</TableCell>
                   <TableCell>{r.date}</TableCell>
-                  <TableCell>{r.day}</TableCell>
-                  <TableCell>{r.incomePct}%</TableCell>
-                  <TableCell>{r.dailyIncome}</TableCell>
-                  <TableCell>{r.creditOn}</TableCell>
-                  <TableCell>{r.walletType}</TableCell>
-                  <TableCell>{r.status}</TableCell>
+                  <TableCell sx={{ color: '#4caf50', fontWeight: 600 }}>${r.dailyIncome.toFixed(2)}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={r.status} 
+                      size="small" 
+                      color={r.status === 'completed' ? 'success' : 'warning'}
+                    />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

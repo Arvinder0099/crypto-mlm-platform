@@ -4262,19 +4262,13 @@ app.put('/api/user/profile/update', authenticateToken, upload.single('profileIma
 // Withdrawal Address Management
 app.get('/api/user/withdrawal-addresses', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('walletAddress walletType withdrawalAddresses');
+    const user = await User.findById(req.user.id).select('usdtTrc20Address bnbBep20Address walletAddress walletType withdrawalAddresses');
     
-    // If user has multiple addresses stored, return them; otherwise return the primary
-    const addresses = user.withdrawalAddresses || [];
-    if (user.walletAddress && !addresses.find(a => a.address === user.walletAddress)) {
-      addresses.unshift({
-        id: 'primary',
-        type: user.walletType || 'usdt_trc20',
-        address: user.walletAddress,
-        isPrimary: true,
-        createdAt: user.createdAt
-      });
-    }
+    // Return new format addresses
+    const addresses = {
+      usdtTrc20: user.usdtTrc20Address || user.walletAddress || '',
+      bnbBep20: user.bnbBep20Address || ''
+    };
     
     res.json({ success: true, addresses });
   } catch (error) {
@@ -4284,41 +4278,33 @@ app.get('/api/user/withdrawal-addresses', authenticateToken, async (req, res) =>
 
 app.post('/api/user/withdrawal-addresses', authenticateToken, async (req, res) => {
   try {
-    const { address, type, isPrimary } = req.body;
+    const { usdtTrc20, bnbBep20 } = req.body;
     
-    if (!address || !type) {
-      return res.status(400).json({ success: false, message: 'Address and type are required' });
+    // Validate USDT TRC20 address if provided
+    if (usdtTrc20 && usdtTrc20.length > 0 && !usdtTrc20.startsWith('T')) {
+      return res.status(400).json({ success: false, message: 'Invalid USDT TRC20 address format. Must start with T' });
     }
     
-    // Validate address format
-    if (type === 'usdt_trc20' && !address.startsWith('T')) {
-      return res.status(400).json({ success: false, message: 'Invalid TRC20 address format' });
-    }
-    if ((type === 'bnb_bep20' || type === 'usdt_erc20') && !address.startsWith('0x')) {
-      return res.status(400).json({ success: false, message: 'Invalid address format' });
+    // Validate BNB BEP20 address if provided
+    if (bnbBep20 && bnbBep20.length > 0 && !bnbBep20.startsWith('0x')) {
+      return res.status(400).json({ success: false, message: 'Invalid BNB BEP20 address format. Must start with 0x' });
     }
     
-    const user = await User.findById(req.user.id);
-    
-    if (isPrimary) {
-      user.walletAddress = address;
-      user.walletType = type;
+    const updateData = {};
+    if (usdtTrc20 !== undefined) {
+      updateData.usdtTrc20Address = usdtTrc20;
+      updateData.walletAddress = usdtTrc20; // Set as primary
+      updateData.walletType = 'usdt_trc20';
+    }
+    if (bnbBep20 !== undefined) {
+      updateData.bnbBep20Address = bnbBep20;
     }
     
-    // Add to withdrawal addresses array if it exists
-    if (!user.withdrawalAddresses) user.withdrawalAddresses = [];
-    user.withdrawalAddresses.push({
-      address,
-      type,
-      isPrimary: isPrimary || false,
-      createdAt: new Date()
-    });
+    await User.findByIdAndUpdate(req.user.id, updateData);
     
-    await user.save();
-    
-    res.json({ success: true, message: 'Address added successfully' });
+    res.json({ success: true, message: 'Withdrawal addresses saved successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Error adding address', error: error.message });
+    res.status(500).json({ message: 'Error saving addresses', error: error.message });
   }
 });
 

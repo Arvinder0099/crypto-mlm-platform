@@ -19,11 +19,22 @@ const Activation = () => {
     fetchData();
   }, []);
 
+  // Default plans to show when API has no data
+  const defaultPlans = [
+    { id: 'plan1', name: 'STARTER PLAN', investment: 100, dailyEarn: 0.55, duration: 365, totalReturn: 200.75, roi: 200.75, features: ['Investment: 100 USDT', 'Daily Earning: 0.55 USDT', 'Duration: 365 Days', 'Total Return: 200.75 USDT', 'ROI: 200.75%'] },
+    { id: 'plan2', name: 'BASIC PLAN', investment: 250, dailyEarn: 1.25, duration: 400, totalReturn: 500, roi: 200, features: ['Investment: 250 USDT', 'Daily Earning: 1.25 USDT', 'Duration: 400 Days', 'Total Return: 500 USDT', 'ROI: 200%'] },
+    { id: 'plan3', name: 'BRONZE PLAN', investment: 500, dailyEarn: 2.5, duration: 400, totalReturn: 1000, roi: 200, features: ['Investment: 500 USDT', 'Daily Earning: 2.5 USDT', 'Duration: 400 Days', 'Total Return: 1000 USDT', 'ROI: 200%'] },
+    { id: 'plan4', name: 'SILVER PLAN', investment: 1000, dailyEarn: 5, duration: 400, totalReturn: 2000, roi: 200, features: ['Investment: 1000 USDT', 'Daily Earning: 5 USDT', 'Duration: 400 Days', 'Total Return: 2000 USDT', 'ROI: 200%'] },
+    { id: 'plan5', name: 'GOLD PLAN', investment: 2000, dailyEarn: 10, duration: 400, totalReturn: 4000, roi: 200, features: ['Investment: 2000 USDT', 'Daily Earning: 10 USDT', 'Duration: 400 Days', 'Total Return: 4000 USDT', 'ROI: 200%'] },
+    { id: 'plan6', name: 'PLATINUM PLAN', investment: 5000, dailyEarn: 27.5, duration: 400, totalReturn: 11000, roi: 220, features: ['Investment: 5000 USDT', 'Daily Earning: 27.5 USDT', 'Duration: 400 Days', 'Total Return: 11000 USDT', 'ROI: 220%'] },
+    { id: 'plan7', name: 'DIAMOND PLAN', investment: 10000, dailyEarn: 60, duration: 400, totalReturn: 24000, roi: 240, features: ['Investment: 10000 USDT', 'Daily Earning: 60 USDT', 'Duration: 400 Days', 'Total Return: 24000 USDT', 'ROI: 240%'] },
+  ];
+
   const fetchData = async () => {
     try {
       // Fetch plans from API
       const plansRes = await fetchJSON('/api/plans');
-      if (plansRes.plans) {
+      if (plansRes.plans && plansRes.plans.length > 0) {
         setPlans(plansRes.plans.map(p => ({
           id: p._id,
           name: p.name,
@@ -41,6 +52,9 @@ const Activation = () => {
             `ROI: ${p.roi}%`,
           ],
         })));
+      } else {
+        // No plans in database, use defaults
+        setPlans(defaultPlans);
       }
 
       // Fetch wallet balance
@@ -54,14 +68,16 @@ const Activation = () => {
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
-      // Use fallback plans if API fails
-      setPlans([
-        { id: 1, name: 'INTRODUCTION PLAN', investment: 100, dailyEarn: 0.55, duration: 365, totalReturn: 200.75, roi: 200.75, features: ['Investment: 100 USDT', 'Daily Earning: 0.55 USDT', 'Duration: 365 Days', 'Total Return: 200.75 USDT', 'ROI: 200.75%'] },
-        { id: 2, name: 'BASIC PLAN', investment: 250, dailyEarn: 1.25, duration: 400, totalReturn: 500, roi: 200, features: ['Investment: 250 USDT', 'Daily Earning: 1.25 USDT', 'Duration: 400 Days', 'Total Return: 500 USDT', 'ROI: 200%'] },
-        { id: 3, name: 'BRONZE PLAN', investment: 500, dailyEarn: 2.5, duration: 400, totalReturn: 1000, roi: 200, features: ['Investment: 500 USDT', 'Daily Earning: 2.5 USDT', 'Duration: 400 Days', 'Total Return: 1000 USDT', 'ROI: 200%'] },
-        { id: 4, name: 'SILVER PLAN', investment: 1000, dailyEarn: 5, duration: 400, totalReturn: 2000, roi: 200, features: ['Investment: 1000 USDT', 'Daily Earning: 5 USDT', 'Duration: 400 Days', 'Total Return: 2000 USDT', 'ROI: 200%'] },
-        { id: 5, name: 'GOLD PLAN', investment: 2000, dailyEarn: 10, duration: 400, totalReturn: 4000, roi: 200, features: ['Investment: 2000 USDT', 'Daily Earning: 10 USDT', 'Duration: 400 Days', 'Total Return: 4000 USDT', 'ROI: 200%'] },
-      ]);
+      // Use default plans if API fails
+      setPlans(defaultPlans);
+      
+      // Try to get balance from localStorage
+      try {
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        setWalletBalance(userData.balance || 0);
+      } catch (e) {
+        console.error('Could not get user balance', e);
+      }
     } finally {
       setLoading(false);
     }
