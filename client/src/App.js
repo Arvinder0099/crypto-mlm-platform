@@ -14,6 +14,7 @@ import MLMNetwork from './pages/MLMNetwork';
 import CommissionCalculator from './pages/CommissionCalculator';
 import Wallet from './pages/Wallet';
 import AdminPanel from './pages/AdminPanel';
+import DashboardSettings from './pages/DashboardSettings';
 import SupportHub from './pages/SupportHub';
 import SecuritySettings from './pages/SecuritySettings';
 import LearningCenter from './pages/LearningCenter';
@@ -286,6 +287,7 @@ function AppContent() {
 
                 {/* Admin-Only Routes */}
                 <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/dashboard-settings" element={<DashboardSettings />} />
                 <Route path="/admin/notifications" element={<AdminNotifications />} />
                 <Route path="/admin/referral-bonuses" element={<AdminReferralBonuses />} />
                 <Route path="/admin/points-management" element={<AdminPointsManagement />} />

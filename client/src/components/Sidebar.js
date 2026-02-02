@@ -242,6 +242,7 @@ function Sidebar({ open, onToggle }) {
       icon: <SettingsIcon />,
       path: '/admin-settings',
       submenu: [
+        { text: 'Edit Dashboard', path: '/dashboard-settings' },
         { text: 'ROI SETUP', path: '/admin-settings/roi-setup' },
         { text: 'Deposit Address Setup', path: '/admin-settings/deposit-address-setup' },
         { text: 'Eliminate Specific Condition', path: '/admin-settings/eliminate-specific-condition' },

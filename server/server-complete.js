@@ -616,24 +616,29 @@ app.post('/api/auth/send-email-otp', rateLimiters.otp, async (req, res) => {
 app.post('/api/auth/verify-email-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
-    console.log('📧 Verify pre-registration email OTP:', { email, otp: otp ? '******' : 'missing' });
+    console.log('📧 Verify pre-registration email OTP:', { email, otp });
     
     if (!email || !otp) {
+      console.log('❌ Missing email or OTP');
       return res.status(400).json({ success: false, message: 'Email and OTP are required' });
     }
     
     const stored = preRegEmailOtps.get(email.toLowerCase());
+    console.log('📧 Stored OTP:', stored ? { otp: stored.otp, expires: stored.expires } : 'NOT FOUND');
     
     if (!stored) {
+      console.log('❌ OTP not found in storage');
       return res.status(400).json({ success: false, message: 'OTP expired or not found. Please request a new one.' });
     }
     
     if (stored.expires < new Date()) {
+      console.log('❌ OTP expired');
       preRegEmailOtps.delete(email.toLowerCase());
       return res.status(400).json({ success: false, message: 'OTP expired. Please request a new one.' });
     }
     
     if (stored.otp !== otp) {
+      console.log('❌ OTP mismatch:', { entered: otp, expected: stored.otp });
       return res.status(400).json({ success: false, message: 'Invalid OTP. Please try again.' });
     }
     
@@ -2772,6 +2777,58 @@ app.get('/api/admin/summary', authenticateToken, isAdmin, async (req, res) => {
   } catch (error) {
     console.error('Admin summary error:', error);
     res.status(500).json({ message: 'Error fetching admin summary', error: error.message });
+  }
+});
+
+// Get Dashboard Settings
+app.get('/api/admin/dashboard-settings', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const DashboardSettings = require('./models/DashboardSettings');
+    let settings = await DashboardSettings.findOne({ userId: req.user.id });
+    
+    if (!settings) {
+      settings = new DashboardSettings({
+        userId: req.user.id,
+        widgets: {
+          dailyAllotted: true,
+          referralBonus: true,
+          totalMembers: true,
+          activeMembers: true,
+          investments: true,
+          withdrawals: true,
+          creditDebit: true,
+        }
+      });
+      await settings.save();
+    }
+    
+    res.json({ success: true, widgets: settings.widgets });
+  } catch (error) {
+    console.error('Dashboard settings error:', error);
+    res.status(500).json({ message: 'Error fetching settings' });
+  }
+});
+
+// Update Dashboard Settings
+app.put('/api/admin/dashboard-settings', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const DashboardSettings = require('./models/DashboardSettings');
+    const { widgets } = req.body;
+    
+    let settings = await DashboardSettings.findOne({ userId: req.user.id });
+    
+    if (!settings) {
+      settings = new DashboardSettings({ userId: req.user.id, widgets });
+    } else {
+      settings.widgets = widgets;
+      settings.updatedAt = new Date();
+    }
+    
+    await settings.save();
+    res.json({ success: true, widgets: settings.widgets });
+  } catch (error) {
+    console.error('Dashboard settings update error:', error);
+    res.status(500).json({ message: 'Error updating settings' });
   }
 });
 
