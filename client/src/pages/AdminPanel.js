@@ -62,9 +62,25 @@ const AdminPanel = () => {
     rejectedWithdrawal: 0,
   });
 
+  const [dashboardSettings, setDashboardSettings] = useState({
+    dailyAllotted: true,
+    referralBonus: true,
+    totalMembers: true,
+    activeMembers: true,
+    investments: true,
+    withdrawals: true,
+    creditDebit: true,
+  });
+
   useEffect(() => {
     const loadSummary = async () => {
       try {
+        // Load dashboard settings
+        const settingsData = await fetchWithAuth('/api/admin/dashboard-settings');
+        if (settingsData?.widgets) {
+          setDashboardSettings(settingsData.widgets);
+        }
+
         const data = await fetchWithAuth('/api/admin/summary');
 
         setInvestmentData({
@@ -152,6 +168,7 @@ const AdminPanel = () => {
       </Typography>
 
       {/* 1. Total Investment Section */}
+      {dashboardSettings.investments && (
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
           Total Investment
@@ -191,8 +208,10 @@ const AdminPanel = () => {
           </Grid>
         </Grid>
       </Box>
+      )}
 
       {/* 2. Income Summary Section */}
+      {dashboardSettings.dailyAllotted && dashboardSettings.referralBonus && (
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
           Income Summary
@@ -218,8 +237,10 @@ const AdminPanel = () => {
           </Grid>
         </Grid>
       </Box>
+      )}
 
       {/* 3. Member Count Statistics Section */}
+      {(dashboardSettings.totalMembers || dashboardSettings.activeMembers) && (
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
           Member Count Statistics
@@ -259,38 +280,13 @@ const AdminPanel = () => {
           </Grid>
         </Grid>
       </Box>
+      )}
 
-      {/* 4. Rank Achievers Section */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-          Rank Achievers
-        </Typography>
-        <Paper sx={{ p: 3 }}>
-          <Grid container spacing={2}>
-            {rankAchievers.map((item, index) => (
-              <Grid item xs={12} sm={6} md={3} key={index}>
-                <Box
-                  sx={{
-                    p: 2,
-                    border: '1px solid #e0e0e0',
-                    borderRadius: 1,
-                    textAlign: 'center',
-                  }}
-                >
-                  <Typography variant="body2" color="textSecondary">
-                    {index + 1}. {item.rank}
-                  </Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                    {item.count} Nos
-                  </Typography>
-                </Box>
-              </Grid>
-            ))}
-          </Grid>
-        </Paper>
-      </Box>
+      {/* 4. Rank Achievers Section (removed) */}
+      {/* Rank achievers feature removed in favor of real data widgets */}
 
       {/* 5. Credit/Debit Section */}
+      {dashboardSettings.creditDebit && (
       <Box sx={{ mb: 4 }}>
         <Grid container spacing={3}>
           {/* Total Credited */}
@@ -364,8 +360,10 @@ const AdminPanel = () => {
           </Grid>
         </Grid>
       </Box>
+      )}
 
       {/* 6. Withdrawal Section */}
+      {dashboardSettings.withdrawals && (
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
           Withdrawal Summary
@@ -405,6 +403,7 @@ const AdminPanel = () => {
           </Grid>
         </Grid>
       </Box>
+      )}
     </Box>
   );
 };

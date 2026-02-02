@@ -107,7 +107,7 @@ const AdminReferralBonuses = () => {
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
-    const statusMap = ['', 'pending', 'credited', 'rejected'];
+    const statusMap = ['', 'pending', 'credited'];
     fetchBonuses(statusMap[newValue]);
   };
 
@@ -264,21 +264,6 @@ const AdminReferralBonuses = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'error.light', color: 'white' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography variant="h4" fontWeight="bold">{stats.rejected}</Typography>
-                  <Typography variant="body2">Rejected</Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'error.dark' }}>
-                  <RejectedIcon />
-                </Avatar>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
       </Grid>
 
       {/* Tabs */}
@@ -287,7 +272,6 @@ const AdminReferralBonuses = () => {
           <Tab label={`All (${stats.total})`} />
           <Tab label={`Pending Approval (${stats.pending})`} />
           <Tab label={`Credited (${stats.credited})`} />
-          <Tab label={`Rejected (${stats.rejected})`} />
         </Tabs>
       </Paper>
 

@@ -144,7 +144,6 @@ function Sidebar({ open, onToggle }) {
       path: '/support',
       submenu: [
         { text: 'Messages & Tickets', path: '/support/messages' },
-        { text: 'Notifications', path: '/support/notifications' },
         { text: 'FAQs', path: '/support/faqs' },
       ]
     },
@@ -196,9 +195,6 @@ function Sidebar({ open, onToggle }) {
         { text: 'All In-Active Members', path: '/members-area/inactive-members' },
         { text: 'Wallet Statistics', path: '/members-area/wallet-statistics' },
         { text: 'Members Withdrawal Addresses', path: '/members-area/withdrawal-addresses' },
-        { text: 'Resend Mail', path: '/members-area/resend-mail' },
-        { text: 'Change Sponsor', path: '/members-area/change-sponsor' },
-        { text: 'Change Sponsor Summary', path: '/members-area/change-sponsor-summary' },
       ],
     },
     // KYC Approvals removed (KYC disabled)

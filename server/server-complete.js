@@ -2898,9 +2898,9 @@ app.get('/api/admin/summary', authenticateToken, isAdmin, async (req, res) => {
         yesterdayDebited: getTotal(debitYesterday),
       },
       withdrawals: {
-        totalWithdrawal: getTotal(withdrawalTotals),
+        totalWithdrawal: withdrawalMap.pending ? Object.values(withdrawalMap).reduce((a, b) => a + b, 0) : 0,
         pendingWithdrawal: withdrawalMap.pending || 0,
-        approvedWithdrawal: withdrawalMap.approved || withdrawalMap.completed || 0,
+        approvedWithdrawal: withdrawalMap.approved || 0,
         rejectedWithdrawal: withdrawalMap.rejected || 0,
       },
     });
