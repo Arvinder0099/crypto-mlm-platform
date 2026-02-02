@@ -166,7 +166,9 @@ class TwilioService {
   }
 
   isConfigured() {
-    return !!(this.accountSid && this.authToken && this.phoneNumber);
+    // Check if phoneNumber is a real number (not placeholder)
+    const isRealNumber = this.phoneNumber && !this.phoneNumber.includes('XXXX');
+    return !!(this.accountSid && this.authToken && isRealNumber);
   }
 
   getClient() {

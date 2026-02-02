@@ -111,7 +111,16 @@ class SMTPService {
         to,
         subject,
         text: text || html.replace(/<[^>]*>/g, ''),
-        html
+        html,
+        // Anti-spam headers for better deliverability
+        headers: {
+          'X-Priority': '1',
+          'X-MSMail-Priority': 'High',
+          'Importance': 'high',
+          'X-Mailer': 'MLM Platform Mailer',
+          'X-Entity-Ref-ID': `otp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        },
+        priority: 'high'
       });
 
       return { success: true, messageId: info.messageId };
@@ -532,44 +541,54 @@ class EmailServiceWrapper {
   }
 
   async sendOTP(to, { otp, expiresIn = '10', purpose = 'verification' }) {
-    const subject = `${purpose === 'email verification' ? 'Email' : 'One Time'} Verification Code`;
+    // Clear, urgent subject line helps avoid spam
+    const subject = `🔐 ${otp} - Your Verification Code (Expires in ${expiresIn} min)`;
+    
+    // Plain text version (important for deliverability)
+    const plainText = `Your verification code is: ${otp}\n\nThis code expires in ${expiresIn} minutes.\n\nIf you didn't request this, please ignore this email.\n\n- MLM Platform`;
+    
     const html = `
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
       <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .otp-box { background: white; padding: 20px; border-radius: 5px; margin: 20px 0; text-align: center; }
-          .otp-code { font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 5px; font-family: monospace; }
-          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-        </style>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Verification Code</title>
       </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>${purpose === 'email verification' ? 'Verify Your Email' : 'Your One Time Password'}</h1>
-          </div>
-          <div class="content">
-            <p>Hello,</p>
-            <p>Your verification code is:</p>
-            <div class="otp-box">
-              <div class="otp-code">${otp}</div>
-            </div>
-            <p>This code will expire in <strong>${expiresIn} minutes</strong>.</p>
-            <p>Please do not share this code with anyone. If you didn't request this code, please ignore this email.</p>
-            <p>Best regards,<br/>MLM Platform Team</p>
-          </div>
-          <div class="footer">
-            <p>&copy; 2026 MLM Platform. All rights reserved.</p>
-          </div>
-        </div>
+      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <tr>
+            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">🔐 Verification Code</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="background: #ffffff; padding: 40px 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <p style="margin: 0 0 20px 0; font-size: 16px; color: #333;">Hello,</p>
+              <p style="margin: 0 0 20px 0; font-size: 16px; color: #333;">Use this code to verify your account:</p>
+              
+              <div style="background: #f8f9fa; border: 2px dashed #667eea; border-radius: 10px; padding: 25px; text-align: center; margin: 25px 0;">
+                <span style="font-size: 42px; font-weight: bold; color: #667eea; letter-spacing: 8px; font-family: 'Courier New', monospace;">${otp}</span>
+              </div>
+              
+              <p style="margin: 0 0 10px 0; font-size: 14px; color: #e74c3c; font-weight: bold;">⏰ Expires in ${expiresIn} minutes</p>
+              <p style="margin: 0 0 20px 0; font-size: 14px; color: #666;">Do not share this code with anyone.</p>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+              
+              <p style="margin: 0; font-size: 12px; color: #999;">If you didn't request this code, you can safely ignore this email.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 20px; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #999;">&copy; 2026 MLM Platform. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
     `;
-    return this.sendEmail(to, subject, html);
+    return this.sendEmail(to, subject, html, plainText);
   }
 
   async sendWelcome(to, { name, username, email, referrer, loginUrl }) {
