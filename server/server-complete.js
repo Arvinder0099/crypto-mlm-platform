@@ -744,7 +744,8 @@ app.post('/api/auth/send-email-otp', rateLimiters.otp, async (req, res) => {
     
     res.json({ 
       success: true, 
-      message: 'OTP sent to your email'
+      message: 'OTP sent to your email',
+      demoOtp: otp // For demo/development - remove in production
     });
   } catch (error) {
     console.error('❌ Send email OTP error:', error);
@@ -830,7 +831,8 @@ app.post('/api/auth/send-phone-otp', rateLimiters.otp, async (req, res) => {
     
     res.json({ 
       success: true, 
-      message: 'OTP sent to your phone'
+      message: 'OTP sent to your phone',
+      demoOtp: otp // For demo/development - remove in production
     });
   } catch (error) {
     console.error('❌ Send phone OTP error:', error);

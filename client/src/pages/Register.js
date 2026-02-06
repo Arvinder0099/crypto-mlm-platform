@@ -60,8 +60,8 @@ const float = keyframes`
 `;
 
 const glow = keyframes`
-  0%, 100% { box-shadow: 0 0 20px rgba(247, 147, 26, 0.4); }
-  50% { box-shadow: 0 0 40px rgba(247, 147, 26, 0.7); }
+  0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.7); }
 `;
 
 const pulse = keyframes`
@@ -243,14 +243,20 @@ function Register() {
     setSendingEmailOtp(true);
     setError('');
     try {
-      await fetchJSON('/api/auth/send-email-otp', {
+      const result = await fetchJSON('/api/auth/send-email-otp', {
         method: 'POST',
         body: JSON.stringify({ email: formData.email }),
       });
       
       setEmailOtpSent(true);
       setEmailTimer(60);
-      setSuccess('✅ OTP sent to your email! Check your inbox.');
+      // Auto-fill OTP for demo/development
+      if (result.demoOtp) {
+        setEmailOtp(result.demoOtp);
+        setSuccess('✅ OTP auto-filled! Click Verify to continue.');
+      } else {
+        setSuccess('✅ OTP sent to your email! Check your inbox.');
+      }
       setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
       setError(err.message || '❌ Failed to send OTP. Please try again.');
@@ -270,7 +276,7 @@ function Register() {
     setSendingPhoneOtp(true);
     setError('');
     try {
-      await fetchJSON('/api/auth/send-phone-otp', {
+      const result = await fetchJSON('/api/auth/send-phone-otp', {
         method: 'POST',
         body: JSON.stringify({ 
           phone: formData.phone,
@@ -280,7 +286,13 @@ function Register() {
       
       setPhoneOtpSent(true);
       setPhoneTimer(60);
-      setSuccess('✅ OTP sent to your phone via SMS!');
+      // Auto-fill OTP for demo/development
+      if (result.demoOtp) {
+        setPhoneOtp(result.demoOtp);
+        setSuccess('✅ OTP auto-filled! Click Verify to continue.');
+      } else {
+        setSuccess('✅ OTP sent to your phone via SMS!');
+      }
       setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
       setError(err.message || '❌ Failed to send OTP. Please try again.');
@@ -436,8 +448,8 @@ function Register() {
       sx={{
         p: 2,
         borderRadius: 3,
-        border: `2px solid ${verified ? '#00C853' : '#F7931A'}`,
-        bgcolor: verified ? alpha('#00C853', 0.05) : alpha('#F7931A', 0.05),
+        border: `2px solid ${verified ? '#00C853' : '#10b981'}`,
+        bgcolor: verified ? alpha('#00C853', 0.05) : alpha('#10b981', 0.05),
         transition: 'all 0.3s ease',
       }}
     >
@@ -471,10 +483,10 @@ function Register() {
               sx={{
                 py: 1.2,
                 borderRadius: 2,
-                background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
                 fontWeight: 700,
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #E8820A 0%, #F7931A 100%)',
+                  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
                 },
               }}
             >
@@ -499,7 +511,7 @@ function Register() {
                     fontWeight: 700,
                     textAlign: 'center',
                     letterSpacing: '10px',
-                    border: '2px solid #F7931A',
+                    border: '2px solid #10b981',
                     borderRadius: '8px',
                     outline: 'none',
                   }}
@@ -555,7 +567,7 @@ function Register() {
           <Fade in timeout={500}>
             <Box>
               <Typography variant="h5" fontWeight="800" gutterBottom sx={{ 
-                background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}>
@@ -643,13 +655,13 @@ function Register() {
                     sx={{
                       p: 2,
                       borderRadius: 3,
-                      border: `2px solid ${emailVerified ? '#00C853' : '#F7931A'}`,
-                      bgcolor: emailVerified ? alpha('#00C853', 0.05) : alpha('#F7931A', 0.05),
+                      border: `2px solid ${emailVerified ? '#00C853' : '#10b981'}`,
+                      bgcolor: emailVerified ? alpha('#00C853', 0.05) : alpha('#10b981', 0.05),
                     }}
                   >
                     <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
                       <Box display="flex" alignItems="center" gap={1}>
-                        <Email sx={{ color: emailVerified ? '#00C853' : '#F7931A' }} />
+                        <Email sx={{ color: emailVerified ? '#00C853' : '#10b981' }} />
                         <Typography variant="subtitle1" fontWeight={700} color={emailVerified ? 'success.main' : 'warning.main'}>
                           Email Verification
                         </Typography>
@@ -671,7 +683,7 @@ function Register() {
                             sx={{
                               py: 1.2,
                               borderRadius: 2,
-                              background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                              background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
                               fontWeight: 700,
                             }}
                           >
@@ -695,7 +707,7 @@ function Register() {
                                   fontWeight: 700,
                                   textAlign: 'center',
                                   letterSpacing: '10px',
-                                  border: '2px solid #F7931A',
+                                  border: '2px solid #10b981',
                                   borderRadius: '8px',
                                   outline: 'none',
                                 }}
@@ -781,13 +793,13 @@ function Register() {
                     sx={{
                       p: 2,
                       borderRadius: 3,
-                      border: `2px solid ${phoneVerified ? '#00C853' : '#F7931A'}`,
-                      bgcolor: phoneVerified ? alpha('#00C853', 0.05) : alpha('#F7931A', 0.05),
+                      border: `2px solid ${phoneVerified ? '#00C853' : '#10b981'}`,
+                      bgcolor: phoneVerified ? alpha('#00C853', 0.05) : alpha('#10b981', 0.05),
                     }}
                   >
                     <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
                       <Box display="flex" alignItems="center" gap={1}>
-                        <Sms sx={{ color: phoneVerified ? '#00C853' : '#F7931A' }} />
+                        <Sms sx={{ color: phoneVerified ? '#00C853' : '#10b981' }} />
                         <Typography variant="subtitle1" fontWeight={700} color={phoneVerified ? 'success.main' : 'warning.main'}>
                           Phone Verification
                         </Typography>
@@ -809,7 +821,7 @@ function Register() {
                             sx={{
                               py: 1.2,
                               borderRadius: 2,
-                              background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                              background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
                               fontWeight: 700,
                             }}
                           >
@@ -833,7 +845,7 @@ function Register() {
                                   fontWeight: 700,
                                   textAlign: 'center',
                                   letterSpacing: '10px',
-                                  border: '2px solid #F7931A',
+                                  border: '2px solid #10b981',
                                   borderRadius: '8px',
                                   outline: 'none',
                                 }}
@@ -908,7 +920,7 @@ function Register() {
           <Fade in timeout={500}>
             <Box>
               <Typography variant="h5" fontWeight="800" gutterBottom sx={{ 
-                background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}>
@@ -973,7 +985,7 @@ function Register() {
                     sx={{
                       height: 8,
                       borderRadius: 4,
-                      bgcolor: alpha('#F7931A', 0.1),
+                      bgcolor: alpha('#10b981', 0.1),
                       '& .MuiLinearProgress-bar': {
                         borderRadius: 4,
                         background: formData.password.length >= 8 
@@ -1077,12 +1089,12 @@ function Register() {
                       <Checkbox
                         checked={formData.agreeTerms}
                         onChange={handleChange('agreeTerms')}
-                        sx={{ color: '#F7931A', '&.Mui-checked': { color: '#F7931A' } }}
+                        sx={{ color: '#10b981', '&.Mui-checked': { color: '#10b981' } }}
                       />
                     }
                     label={
                       <Typography variant="body2">
-                        I agree to the <Link to="/terms" style={{ color: '#F7931A' }}>Terms & Conditions</Link> and <Link to="/privacy" style={{ color: '#F7931A' }}>Privacy Policy</Link>
+                        I agree to the <Link to="/terms" style={{ color: '#10b981' }}>Terms & Conditions</Link> and <Link to="/privacy" style={{ color: '#10b981' }}>Privacy Policy</Link>
                       </Typography>
                     }
                   />
@@ -1113,9 +1125,9 @@ function Register() {
       {/* Floating Crypto Icons */}
       <Box sx={{
         position: 'absolute', top: '10%', left: '5%', width: 60, height: 60, borderRadius: '50%',
-        background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+        background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        animation: `${float} 6s ease-in-out infinite`, boxShadow: '0 10px 30px rgba(247,147,26,0.4)',
+        animation: `${float} 6s ease-in-out infinite`, boxShadow: '0 10px 30px rgba(16,185,129,0.4)',
       }}>
         <Typography sx={{ fontSize: 28, fontWeight: 900, color: 'white' }}>₿</Typography>
       </Box>
@@ -1159,29 +1171,29 @@ function Register() {
           <Box textAlign="center" mb={4}>
             <Box sx={{ 
               width: 120, height: 120, borderRadius: '50%', mx: 'auto', mb: 3,
-              background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+              background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               animation: `${glow} 2s ease-in-out infinite`,
             }}>
-              <CurrencyBitcoin sx={{ fontSize: 70, color: 'white' }} />
+              <Security sx={{ fontSize: 70, color: 'white' }} />
             </Box>
             <Typography variant="h2" fontWeight="900" sx={{
-              background: 'linear-gradient(135deg, #fff 0%, #F7931A 50%, #fff 100%)',
+              background: 'linear-gradient(135deg, #fff 0%, #10b981 50%, #fff 100%)',
               backgroundSize: '200% auto',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
-              CryptoMLM
+              5D SOFTWARE
             </Typography>
             <Typography variant="h6" sx={{ opacity: 0.9, mt: 1 }}>
-              Build Your Crypto Empire
+              Power Your Digital Future
             </Typography>
           </Box>
         </Zoom>
 
         <Grid container spacing={2} maxWidth={400}>
           {[
-            { icon: <TrendingUp />, title: 'High Returns', desc: 'Up to 320% ROI' },
+            { icon: <TrendingUp />, title: 'Smart Analytics', desc: 'AI-powered insights' },
             { icon: <Groups />, title: 'Team Bonus', desc: '5 levels deep' },
             { icon: <Security />, title: 'Secure', desc: 'Bank-level security' },
             { icon: <AttachMoney />, title: 'Fast Payouts', desc: 'Instant withdrawals' },
@@ -1192,7 +1204,7 @@ function Register() {
                 border: '1px solid rgba(255,255,255,0.2)', transition: 'all 0.3s',
                 '&:hover': { transform: 'translateY(-5px)', bgcolor: 'rgba(255,255,255,0.15)' },
               }}>
-                <Box sx={{ color: '#F7931A', mb: 1 }}>{item.icon}</Box>
+                <Box sx={{ color: '#10b981', mb: 1 }}>{item.icon}</Box>
                 <Typography variant="subtitle2" fontWeight={700} color="white">{item.title}</Typography>
                 <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>{item.desc}</Typography>
               </Paper>
@@ -1228,10 +1240,10 @@ function Register() {
             <Box sx={{ display: { xs: 'flex', lg: 'none' }, justifyContent: 'center', mb: 2 }}>
               <Box sx={{ 
                 width: 60, height: 60, borderRadius: '50%',
-                background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <CurrencyBitcoin sx={{ fontSize: 35, color: 'white' }} />
+                <Security sx={{ fontSize: 35, color: 'white' }} />
               </Box>
             </Box>
 
@@ -1248,7 +1260,7 @@ function Register() {
                           background: index < activeStep 
                             ? 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)'
                             : index === activeStep 
-                              ? 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)'
+                              ? 'linear-gradient(135deg, #10b981 0%, #34d399 100%)'
                               : '#e0e0e0',
                           color: index <= activeStep ? '#fff' : '#999',
                           fontWeight: 700,
@@ -1296,9 +1308,9 @@ function Register() {
                   endIcon={<ArrowForward />}
                   sx={{
                     flex: 1, py: 1.5, borderRadius: 2, fontWeight: 700,
-                    background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
-                    boxShadow: '0 4px 15px rgba(247, 147, 26, 0.4)',
-                    '&:hover': { background: 'linear-gradient(135deg, #E8820A 0%, #F7931A 100%)' },
+                    background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
+                    '&:hover': { background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' },
                   }}
                 >
                   Continue
@@ -1325,7 +1337,7 @@ function Register() {
             <Box sx={{ textAlign: 'center', mt: 3 }}>
               <Typography variant="body2" color="text.secondary">
                 Already have an account?{' '}
-                <Link to="/login" style={{ color: '#F7931A', fontWeight: 600, textDecoration: 'none' }}>
+                <Link to="/login" style={{ color: '#10b981', fontWeight: 600, textDecoration: 'none' }}>
                   Sign In
                 </Link>
               </Typography>

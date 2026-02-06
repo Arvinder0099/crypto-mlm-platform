@@ -54,8 +54,8 @@ const pulse = keyframes`
 `;
 
 const glow = keyframes`
-  0%, 100% { box-shadow: 0 0 20px rgba(247, 147, 26, 0.5); }
-  50% { box-shadow: 0 0 40px rgba(247, 147, 26, 0.8), 0 0 60px rgba(247, 147, 26, 0.4); }
+  0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
+  50% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.8), 0 0 60px rgba(16, 185, 129, 0.4); }
 `;
 
 const rise = keyframes`
@@ -73,9 +73,9 @@ const shimmer = keyframes`
 const CryptoCoin = ({ type, size = 60, delay = 0, duration = 8, left, top }) => {
   const coins = {
     bitcoin: {
-      bg: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+      bg: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
       icon: '₿',
-      shadow: 'rgba(247, 147, 26, 0.5)',
+      shadow: 'rgba(16, 185, 129, 0.5)',
     },
     ethereum: {
       bg: 'linear-gradient(135deg, #627EEA 0%, #8B9FEF 100%)',
@@ -163,13 +163,13 @@ const SpinningBitcoin = ({ size = 120 }) => (
         width: '100%',
         height: '100%',
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 50%, #F7931A 100%)',
+        background: 'linear-gradient(135deg, #10b981 0%, #34d399 50%, #10b981 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         animation: `${spin} 4s linear infinite`,
         transformStyle: 'preserve-3d',
-        boxShadow: '0 20px 60px rgba(247, 147, 26, 0.6), inset 0 -5px 20px rgba(0,0,0,0.2)',
+        boxShadow: '0 20px 60px rgba(16, 185, 129, 0.6), inset 0 -5px 20px rgba(0,0,0,0.2)',
         position: 'relative',
         '&::before': {
           content: '""',
@@ -180,7 +180,7 @@ const SpinningBitcoin = ({ size = 120 }) => (
         },
       }}
     >
-      <CurrencyBitcoin sx={{ fontSize: size * 0.5, color: 'white', filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))' }} />
+      <Security sx={{ fontSize: size * 0.5, color: 'white', filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))' }} />
     </Box>
   </Box>
 );
@@ -395,18 +395,18 @@ const Login = () => {
     }
     setForgotLoading(true);
     try {
-      const response = await fetch('/api/auth/forgot-password/send-otp', {
+      const data = await fetchJSON('/api/auth/forgot-password/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: forgotData.phone })
       });
-      const data = await response.json();
-      if (response.ok) {
-        setForgotMessage({ text: 'OTP sent to your phone number', type: 'success' });
-        setForgotStep(2);
+      if (data.demoOtp) {
+        setForgotData(prev => ({ ...prev, otp: data.demoOtp }));
+        setForgotMessage({ text: 'OTP auto-filled for demo!', type: 'success' });
       } else {
-        setForgotMessage({ text: data.message || 'Failed to send OTP', type: 'error' });
+        setForgotMessage({ text: 'OTP sent to your phone number', type: 'success' });
       }
+      setForgotStep(2);
     } catch (err) {
       setForgotMessage({ text: 'Failed to send OTP', type: 'error' });
     } finally {
@@ -421,19 +421,14 @@ const Login = () => {
     }
     setForgotLoading(true);
     try {
-      const response = await fetch('/api/auth/forgot-password/verify-otp', {
+      const data = await fetchJSON('/api/auth/forgot-password/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: forgotData.phone, otp: forgotData.otp })
       });
-      const data = await response.json();
-      if (response.ok) {
-        setForgotData({ ...forgotData, resetToken: data.resetToken });
-        setForgotMessage({ text: 'OTP verified successfully', type: 'success' });
-        setForgotStep(3);
-      } else {
-        setForgotMessage({ text: data.message || 'Invalid OTP', type: 'error' });
-      }
+      setForgotData({ ...forgotData, resetToken: data.resetToken });
+      setForgotMessage({ text: 'OTP verified successfully', type: 'success' });
+      setForgotStep(3);
     } catch (err) {
       setForgotMessage({ text: 'Failed to verify OTP', type: 'error' });
     } finally {
@@ -452,7 +447,7 @@ const Login = () => {
     }
     setForgotLoading(true);
     try {
-      const response = await fetch('/api/auth/forgot-password/reset', {
+      const data = await fetchJSON('/api/auth/forgot-password/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -461,18 +456,13 @@ const Login = () => {
           confirmPassword: forgotData.confirmPassword
         })
       });
-      const data = await response.json();
-      if (response.ok) {
-        setForgotMessage({ text: 'Password reset successful! Please login.', type: 'success' });
-        setTimeout(() => {
-          setForgotDialog(false);
-          setForgotStep(1);
-          setForgotData({ phone: '', otp: '', newPassword: '', confirmPassword: '', resetToken: '' });
-          setForgotMessage({ text: '', type: '' });
-        }, 2000);
-      } else {
-        setForgotMessage({ text: data.message || 'Failed to reset password', type: 'error' });
-      }
+      setForgotMessage({ text: 'Password reset successful! Please login.', type: 'success' });
+      setTimeout(() => {
+        setForgotDialog(false);
+        setForgotStep(1);
+        setForgotData({ phone: '', otp: '', newPassword: '', confirmPassword: '', resetToken: '' });
+        setForgotMessage({ text: '', type: '' });
+      }, 2000);
     } catch (err) {
       setForgotMessage({ text: 'Failed to reset password', type: 'error' });
     } finally {
@@ -504,7 +494,7 @@ const Login = () => {
         sx={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(circle at 20% 50%, rgba(247, 147, 26, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(98, 126, 234, 0.15) 0%, transparent 50%)',
+          background: 'radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(98, 126, 234, 0.15) 0%, transparent 50%)',
           animation: `${pulse} 8s ease-in-out infinite`,
         }}
       />
@@ -526,7 +516,7 @@ const Login = () => {
             width: particle.size,
             height: particle.size,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(247,147,26,0.8) 0%, rgba(255,255,255,0.8) 100%)',
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.8) 0%, rgba(255,255,255,0.8) 100%)',
             left: `${particle.left}%`,
             bottom: 0,
             animation: `${rise} ${particle.duration}s ease-in-out infinite`,
@@ -556,10 +546,10 @@ const Login = () => {
             <SpinningBitcoin size={80} />
           </Box>
           <Typography variant="h5" sx={{ fontWeight: 800, color: 'white', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
-            Crypto MLM Platform
+            5D SOFTWARE Platform
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 1 }}>
-            Start Your Journey to Financial Freedom
+            Next-Generation Digital Solutions
           </Typography>
         </Box>
         
@@ -578,17 +568,17 @@ const Login = () => {
                   fontWeight: 900, 
                   mb: 2, 
                   textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-                  background: 'linear-gradient(135deg, #fff 0%, #F7931A 50%, #fff 100%)',
+                  background: 'linear-gradient(135deg, #fff 0%, #10b981 50%, #fff 100%)',
                   backgroundSize: '200% auto',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   animation: `${shimmer} 3s linear infinite`,
                 }}
               >
-                Crypto MLM
+                5D SOFTWARE
               </Typography>
               <Typography variant="h6" sx={{ mb: 3, opacity: 0.9 }}>
-                Start Your Journey to Financial Freedom
+                Next-Generation Digital Solutions
               </Typography>
 
               {/* Animated Chart */}
@@ -596,9 +586,9 @@ const Login = () => {
 
               <Grid container spacing={2}>
                 {[
-                  { icon: <TrendingUp />, title: 'Daily ROI', desc: 'Earn up to 320% returns' },
-                  { icon: <Groups />, title: 'Team Building', desc: 'Build network & earn passive income' },
-                  { icon: <Security />, title: 'Secure Platform', desc: 'Bank-level security with 2FA' },
+                  { icon: <TrendingUp />, title: 'Smart Analytics', desc: 'AI-powered insights' },
+                  { icon: <Groups />, title: 'Team Network', desc: 'Build network & earn passive income' },
+                  { icon: <Security />, title: 'Enterprise Security', desc: 'Bank-level security with 2FA' },
                 ].map((feature, index) => (
                   <Grid item xs={12} key={index}>
                     <Card 
@@ -610,21 +600,21 @@ const Login = () => {
                         '&:hover': {
                           transform: 'translateX(10px)',
                           bgcolor: 'rgba(255,255,255,0.15)',
-                          borderColor: 'rgba(247,147,26,0.5)',
+                          borderColor: 'rgba(16,185,129,0.5)',
                         },
                       }}
                     >
                       <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 2 }}>
                         <Box 
                           sx={{ 
-                            bgcolor: 'rgba(247,147,26,0.3)', 
+                            bgcolor: 'rgba(16,185,129,0.3)', 
                             p: 1.5, 
                             borderRadius: 2,
                             animation: `${pulse} 2s ease-in-out infinite`,
                             animationDelay: `${index * 0.3}s`,
                           }}
                         >
-                          {React.cloneElement(feature.icon, { sx: { fontSize: 28, color: '#F7931A' } })}
+                          {React.cloneElement(feature.icon, { sx: { fontSize: 28, color: '#10b981' } })}
                         </Box>
                         <Box>
                           <Typography variant="subtitle1" sx={{ color: 'white', fontWeight: 700 }}>
@@ -667,7 +657,7 @@ const Login = () => {
                 borderRadius: 4,
                 backdropFilter: 'blur(20px)',
                 bgcolor: 'rgba(255, 255, 255, 0.95)',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(247,147,26,0.1)',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(16,185,129,0.1)',
                 mx: { xs: 1, sm: 0 },
                 border: '1px solid rgba(255,255,255,0.2)',
               }}
@@ -678,16 +668,16 @@ const Login = () => {
                     width: 72,
                     height: 72,
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                    background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     mb: 2,
-                    boxShadow: '0 10px 30px rgba(247, 147, 26, 0.4)',
+                    boxShadow: '0 10px 30px rgba(16, 185, 129, 0.4)',
                     animation: `${glow} 2s ease-in-out infinite`,
                   }}
                 >
-                  <CurrencyBitcoin sx={{ fontSize: 40, color: 'white' }} />
+                  <Security sx={{ fontSize: 40, color: 'white' }} />
                 </Box>
                 
                 <Typography 
@@ -696,7 +686,7 @@ const Login = () => {
                   sx={{ 
                     fontWeight: 800, 
                     mb: 1, 
-                    background: 'linear-gradient(135deg, #302b63 0%, #F7931A 100%)',
+                    background: 'linear-gradient(135deg, #302b63 0%, #10b981 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                   }}
@@ -704,7 +694,7 @@ const Login = () => {
                   Welcome Back
                 </Typography>
                 <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
-                  Sign in to access your crypto portfolio
+                  Sign in to your account
                 </Typography>
 
                 {error && (
@@ -728,8 +718,8 @@ const Login = () => {
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 2,
-                        '&:hover fieldset': { borderColor: '#F7931A' },
-                        '&.Mui-focused fieldset': { borderColor: '#F7931A' },
+                        '&:hover fieldset': { borderColor: '#10b981' },
+                        '&.Mui-focused fieldset': { borderColor: '#10b981' },
                       },
                     }}
                   />
@@ -757,8 +747,8 @@ const Login = () => {
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 2,
-                        '&:hover fieldset': { borderColor: '#F7931A' },
-                        '&.Mui-focused fieldset': { borderColor: '#F7931A' },
+                        '&:hover fieldset': { borderColor: '#10b981' },
+                        '&.Mui-focused fieldset': { borderColor: '#10b981' },
                       },
                     }}
                   />
@@ -774,11 +764,11 @@ const Login = () => {
                       fontSize: '1rem',
                       fontWeight: 700,
                       borderRadius: 2,
-                      background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
-                      boxShadow: '0 4px 20px rgba(247, 147, 26, 0.4)',
+                      background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                      boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)',
                       '&:hover': {
-                        background: 'linear-gradient(135deg, #E8820A 0%, #F7931A 100%)',
-                        boxShadow: '0 6px 30px rgba(247, 147, 26, 0.6)',
+                        background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                        boxShadow: '0 6px 30px rgba(16, 185, 129, 0.6)',
                         transform: 'translateY(-2px)',
                       },
                       transition: 'all 0.3s',
@@ -795,7 +785,7 @@ const Login = () => {
                       onClick={() => navigate('/register')}
                       type="button"
                       sx={{ 
-                        color: '#F7931A',
+                        color: '#10b981',
                         fontWeight: 600,
                         textDecoration: 'none',
                         '&:hover': { textDecoration: 'underline' },
@@ -844,11 +834,11 @@ const Login = () => {
                     <Box sx={{ 
                       mt: 3, 
                       p: 3, 
-                      border: '2px solid #F7931A',
+                      border: '2px solid #10b981',
                       borderRadius: 2,
-                      bgcolor: 'rgba(247, 147, 26, 0.05)',
+                      bgcolor: 'rgba(16, 185, 129, 0.05)',
                     }}>
-                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#F7931A', mb: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: '#10b981', mb: 1 }}>
                         🔐 Two-Factor Authentication
                       </Typography>
                       <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
@@ -869,7 +859,7 @@ const Login = () => {
                         onClick={handleVerify2FA}
                         disabled={loading || !twoFAToken}
                         sx={{
-                          background: 'linear-gradient(135deg, #F7931A 0%, #FFB347 100%)',
+                          background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
                           fontWeight: 700,
                         }}
                       >
