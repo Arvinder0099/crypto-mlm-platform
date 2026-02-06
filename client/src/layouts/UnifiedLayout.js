@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   AppBar,
@@ -20,6 +20,7 @@ import {
   ListItemIcon,
   Collapse,
   Divider,
+  CircularProgress,
 } from '@mui/material';
 import {
   Notifications,
@@ -27,6 +28,7 @@ import {
   Logout as LogoutIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
+  Campaign,
   Dashboard,
   AccountCircle,
   MonetizationOn,
@@ -37,9 +39,13 @@ import {
   ExpandLess,
   ExpandMore,
   ChevronRight,
+  CheckCircle,
+  CardGiftcard,
+  AccountBalanceWallet,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import FloatingChat from '../components/FloatingChat';
 
 const UnifiedLayout = ({ children }) => {
   const theme = useTheme();
@@ -59,6 +65,11 @@ const UnifiedLayout = ({ children }) => {
   const [settingsAnchor, setSettingsAnchor] = useState(null);
   const [adminReportsAnchor, setAdminReportsAnchor] = useState(null);
   
+  // Real notifications state
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  
   // Mobile drawer submenu states
   const [profileOpen, setProfileOpen] = useState(false);
   const [genealogyOpen, setGenealogyOpen] = useState(false);
@@ -70,8 +81,77 @@ const UnifiedLayout = ({ children }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [adminReportsOpen, setAdminReportsOpen] = useState(false);
 
+  // Fetch notifications on mount and periodically
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, [isAdmin]);
+
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return;
+      
+      const endpoint = isAdmin() ? '/api/admin/notifications' : '/api/user/notifications';
+      const response = await fetch(endpoint, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.data || []);
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const markNotificationAsRead = async (notificationId) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const endpoint = isAdmin() 
+        ? `/api/admin/notifications/${notificationId}/read` 
+        : `/api/user/notifications/${notificationId}/read`;
+      
+      await fetch(endpoint, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      // Update local state
+      setNotifications(prev => 
+        prev.map(n => n._id === notificationId ? { ...n, isRead: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const endpoint = isAdmin() 
+        ? '/api/admin/notifications/mark-all-read' 
+        : '/api/user/notifications/mark-all-read';
+      
+      await fetch(endpoint, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
   const handleNotificationClick = (event) => {
     setNotificationAnchor(event.currentTarget);
+    fetchNotifications(); // Refresh when opening
   };
 
   const handleProfileClick = (event) => {
@@ -108,7 +188,9 @@ const UnifiedLayout = ({ children }) => {
   // User Menu Items
   const userMenuItems = [
     { label: 'Dashboard', path: '/dashboard' },
+    { label: 'Announcements', path: '/announcements' },
     { label: 'My Investments', path: '/my-investments' },
+    { label: 'My Wallet', path: '/my-wallet' },
     { label: 'Profile', type: 'dropdown', anchor: profileAnchor, setter: setProfileAnchor },
     { label: 'Deposit', path: '/deposit' },
     { label: 'Activation', path: '/activation' },
@@ -121,8 +203,9 @@ const UnifiedLayout = ({ children }) => {
   // Admin Menu Items
   const adminMenuItems = [
     { label: 'Dashboard', path: '/admin' },
-    { label: 'Notifications', path: '/admin/notifications' },
+    { label: 'Edit Announcement', path: '/admin/announcement' },
     { label: 'Referral Bonuses', path: '/admin/referral-bonuses' },
+    { label: 'Support Chat', path: '/admin/support-chat' },
     { label: 'Members', type: 'dropdown', anchor: membersAnchor, setter: setMembersAnchor },
     { label: 'Activation', type: 'dropdown', anchor: activationAnchor, setter: setActivationAnchor },
     { label: 'Withdrawal', type: 'dropdown', anchor: adminWithdrawalAnchor, setter: setAdminWithdrawalAnchor },
@@ -141,13 +224,12 @@ const UnifiedLayout = ({ children }) => {
       sx={{
         '& .MuiDrawer-paper': {
           width: 280,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
+          // Background handled by theme (emerald green)
         },
       }}
     >
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
           {isAdmin() ? 'ADMIN PANEL' : 'MLM PLATFORM'}
         </Typography>
         <IconButton onClick={() => setMobileDrawerOpen(false)} sx={{ color: 'white' }}>
@@ -163,6 +245,12 @@ const UnifiedLayout = ({ children }) => {
             <ListItemButton onClick={() => handleMobileNavigate('/dashboard')} sx={{ borderRadius: 2, mb: 0.5 }}>
               <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><Dashboard /></ListItemIcon>
               <ListItemText primary="Dashboard" />
+            </ListItemButton>
+
+            {/* Announcements */}
+            <ListItemButton onClick={() => handleMobileNavigate('/announcements')} sx={{ borderRadius: 2, mb: 0.5 }}>
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><Campaign /></ListItemIcon>
+              <ListItemText primary="Announcements" />
             </ListItemButton>
 
             {/* My Investments */}
@@ -197,6 +285,12 @@ const UnifiedLayout = ({ children }) => {
               <ListItemText primary="Deposit" />
             </ListItemButton>
 
+            {/* My Wallet */}
+            <ListItemButton onClick={() => handleMobileNavigate('/my-wallet')} sx={{ borderRadius: 2, mb: 0.5 }}>
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><AccountBalance /></ListItemIcon>
+              <ListItemText primary="My Wallet" />
+            </ListItemButton>
+
             {/* Activation */}
             <ListItemButton onClick={() => handleMobileNavigate('/activation')} sx={{ borderRadius: 2, mb: 0.5 }}>
               <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><ChevronRight /></ListItemIcon>
@@ -211,9 +305,6 @@ const UnifiedLayout = ({ children }) => {
             </ListItemButton>
             <Collapse in={genealogyOpen} timeout="auto" unmountOnExit>
               <List component="div" disablePadding>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/my-direct')}>
-                  <ListItemText primary="My Direct" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/my-downline')}>
                   <ListItemText primary="My Downline" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
@@ -259,7 +350,7 @@ const UnifiedLayout = ({ children }) => {
 
             {/* Referral Bonus */}
             <ListItemButton onClick={() => handleMobileNavigate('/referral-bonus')} sx={{ borderRadius: 2, mb: 0.5 }}>
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><MonetizationOn /></ListItemIcon>
+              <ListItemIcon className="glass-icon"><CardGiftcard /></ListItemIcon>
               <ListItemText primary="Referral Bonus" />
             </ListItemButton>
           </>
@@ -271,16 +362,22 @@ const UnifiedLayout = ({ children }) => {
               <ListItemText primary="Dashboard" />
             </ListItemButton>
 
-            {/* Admin Notifications */}
-            <ListItemButton onClick={() => handleMobileNavigate('/admin/notifications')} sx={{ borderRadius: 2, mb: 0.5 }}>
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><Notifications /></ListItemIcon>
-              <ListItemText primary="Notifications" />
+            {/* Edit Announcement */}
+            <ListItemButton onClick={() => handleMobileNavigate('/admin/announcement')} sx={{ borderRadius: 2, mb: 0.5 }}>
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><Campaign /></ListItemIcon>
+              <ListItemText primary="Edit Announcement" />
             </ListItemButton>
 
             {/* Admin Referral Bonuses */}
             <ListItemButton onClick={() => handleMobileNavigate('/admin/referral-bonuses')} sx={{ borderRadius: 2, mb: 0.5 }}>
               <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><MonetizationOn /></ListItemIcon>
               <ListItemText primary="Referral Bonuses" />
+            </ListItemButton>
+
+            {/* Admin Support Chat */}
+            <ListItemButton onClick={() => handleMobileNavigate('/admin/support-chat')} sx={{ borderRadius: 2, mb: 0.5 }}>
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><People /></ListItemIcon>
+              <ListItemText primary="Support Chat" />
             </ListItemButton>
 
             {/* Members Submenu */}
@@ -309,9 +406,6 @@ const UnifiedLayout = ({ children }) => {
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/members-area/withdrawal-addresses')}>
                   <ListItemText primary="Withdrawal Addresses" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/members-area/resend-mail')}>
-                  <ListItemText primary="Resend Mail" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/members-area/change-sponsor')}>
                   <ListItemText primary="Change Sponsor" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
@@ -333,7 +427,7 @@ const UnifiedLayout = ({ children }) => {
                   <ListItemText primary="Pending Fund Requests" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/activation-options/processed-fund-requests')}>
-                  <ListItemText primary="Processed Fund Requests" primaryTypographyProps={{ fontSize: 14 }} />
+                  <ListItemText primary="User Activation" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
               </List>
             </Collapse>
@@ -366,11 +460,11 @@ const UnifiedLayout = ({ children }) => {
             </ListItemButton>
             <Collapse in={settingsOpen} timeout="auto" unmountOnExit>
               <List component="div" disablePadding>
+                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/dashboard-settings')}>
+                  <ListItemText primary="⚙️ Edit Dashboard" primaryTypographyProps={{ fontSize: 14, fontWeight: 'bold' }} />
+                </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/edit-plans')}>
                   <ListItemText primary="Edit Plans" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/roi-setup')}>
-                  <ListItemText primary="ROI Setup" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/deposit-address-setup')}>
                   <ListItemText primary="💳 Edit Wallet Addresses" primaryTypographyProps={{ fontSize: 14, fontWeight: 'bold' }} />
@@ -378,8 +472,8 @@ const UnifiedLayout = ({ children }) => {
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/eliminate-specific-condition')}>
                   <ListItemText primary="Eliminate Specific Condition" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/manage-popup')}>
-                  <ListItemText primary="Manage Popup" primaryTypographyProps={{ fontSize: 14 }} />
+                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/edit-transaction-summary')}>
+                  <ListItemText primary="✏️ Edit Transaction Summary" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
               </List>
             </Collapse>
@@ -394,15 +488,6 @@ const UnifiedLayout = ({ children }) => {
               <List component="div" disablePadding>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/daily-income-summary')}>
                   <ListItemText primary="Daily Income Summary" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/direct-income-summary')}>
-                  <ListItemText primary="Direct Income Summary" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/daily-level-income-summary')}>
-                  <ListItemText primary="Daily Level Income Summary" primaryTypographyProps={{ fontSize: 14 }} />
-                </ListItemButton>
-                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/rank-income-summary')}>
-                  <ListItemText primary="Rank Income Summary" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/reports/transaction-summary')}>
                   <ListItemText primary="Transaction Summary" primaryTypographyProps={{ fontSize: 14 }} />
@@ -439,8 +524,7 @@ const UnifiedLayout = ({ children }) => {
       <AppBar
         position="fixed"
         sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+          // Background handled by theme overrides (glassmorphism)
           zIndex: theme.zIndex.drawer + 1,
         }}
       >
@@ -474,7 +558,7 @@ const UnifiedLayout = ({ children }) => {
 
           {/* Horizontal Menu - Desktop Only */}
           {!isMobile && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0, ml: 2 }}>
             {menuItems.map((item, index) => (
               item.type === 'dropdown' ? (
                 <React.Fragment key={index}>
@@ -485,6 +569,9 @@ const UnifiedLayout = ({ children }) => {
                     sx={{
                       textTransform: 'none',
                       fontWeight: 500,
+                      px: 1.5,
+                      py: 0.5,
+                      fontSize: '0.875rem',
                       '&:hover': {
                         backgroundColor: 'rgba(255,255,255,0.1)',
                       },
@@ -501,6 +588,9 @@ const UnifiedLayout = ({ children }) => {
                   sx={{
                     textTransform: 'none',
                     fontWeight: 500,
+                    px: 1.5,
+                    py: 0.5,
+                    fontSize: '0.875rem',
                     '&:hover': {
                       backgroundColor: 'rgba(255,255,255,0.1)',
                     },
@@ -519,6 +609,9 @@ const UnifiedLayout = ({ children }) => {
               sx={{
                 textTransform: 'none',
                 fontWeight: 500,
+                px: 1.5,
+                py: 0.5,
+                fontSize: '0.875rem',
                 '&:hover': {
                   backgroundColor: 'rgba(255,255,255,0.1)',
                 },
@@ -532,7 +625,7 @@ const UnifiedLayout = ({ children }) => {
           {/* Right Side Icons */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <IconButton color="inherit" onClick={handleNotificationClick}>
-              <Badge badgeContent={4} color="error">
+              <Badge badgeContent={unreadCount} color="error" max={99}>
                 <Notifications />
               </Badge>
             </IconButton>
@@ -545,16 +638,82 @@ const UnifiedLayout = ({ children }) => {
         anchorEl={notificationAnchor}
         open={Boolean(notificationAnchor)}
         onClose={() => setNotificationAnchor(null)}
+        PaperProps={{
+          sx: {
+            maxHeight: 400,
+            width: 320,
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+          }
+        }}
       >
-        <MenuItem onClick={() => setNotificationAnchor(null)}>
-          New member registered
-        </MenuItem>
-        <MenuItem onClick={() => setNotificationAnchor(null)}>
-          Withdrawal request pending
-        </MenuItem>
-        <MenuItem onClick={() => setNotificationAnchor(null)}>
-          New commission earned
-        </MenuItem>
+        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid rgba(0,0,0,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="subtitle1" fontWeight={600}>Notifications</Typography>
+          {unreadCount > 0 && (
+            <Typography 
+              variant="caption" 
+              sx={{ color: '#10b981', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+              onClick={markAllAsRead}
+            >
+              Mark all as read
+            </Typography>
+          )}
+        </Box>
+        {notificationsLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+            <CircularProgress size={24} sx={{ color: '#10b981' }} />
+          </Box>
+        ) : notifications.length === 0 ? (
+          <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">No notifications yet</Typography>
+          </Box>
+        ) : (
+          notifications.slice(0, 10).map((notification) => (
+            <MenuItem 
+              key={notification._id}
+              onClick={() => {
+                markNotificationAsRead(notification._id);
+                setNotificationAnchor(null);
+              }}
+              sx={{ 
+                py: 1.5, 
+                px: 2,
+                backgroundColor: notification.isRead ? 'transparent' : 'rgba(16,185,129,0.08)',
+                borderLeft: notification.isRead ? 'none' : '3px solid #10b981',
+                '&:hover': { backgroundColor: 'rgba(16,185,129,0.15)' }
+              }}
+            >
+              <Box sx={{ width: '100%' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  {!notification.isRead && (
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#10b981' }} />
+                  )}
+                  <Typography 
+                    variant="body2" 
+                    fontWeight={notification.isRead ? 400 : 600}
+                    sx={{ flex: 1 }}
+                  >
+                    {notification.title}
+                  </Typography>
+                </Box>
+                <Typography 
+                  variant="caption" 
+                  color="text.secondary"
+                  sx={{ display: 'block', whiteSpace: 'normal', lineHeight: 1.4 }}
+                >
+                  {notification.message}
+                </Typography>
+                <Typography 
+                  variant="caption" 
+                  color="text.secondary"
+                  sx={{ display: 'block', mt: 0.5, fontSize: '0.7rem' }}
+                >
+                  {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                </Typography>
+              </Box>
+            </MenuItem>
+          ))
+        )}
       </Menu>
 
       {/* Profile Dropdown (User) */}
@@ -583,9 +742,6 @@ const UnifiedLayout = ({ children }) => {
           open={Boolean(genealogyAnchor)}
           onClose={handleMenuClose(setGenealogyAnchor)}
         >
-          <MenuItem onClick={handleNavigate('/my-direct', setGenealogyAnchor)}>
-            My Direct
-          </MenuItem>
           <MenuItem onClick={handleNavigate('/my-downline', setGenealogyAnchor)}>
             My Downline
           </MenuItem>
@@ -652,9 +808,6 @@ const UnifiedLayout = ({ children }) => {
           <MenuItem onClick={handleNavigate('/members-area/withdrawal-addresses', setMembersAnchor)}>
             Withdrawal Addresses
           </MenuItem>
-          <MenuItem onClick={handleNavigate('/members-area/resend-mail', setMembersAnchor)}>
-            Resend Mail
-          </MenuItem>
           <MenuItem onClick={handleNavigate('/members-area/change-sponsor', setMembersAnchor)}>
             Change Sponsor
           </MenuItem>
@@ -675,7 +828,7 @@ const UnifiedLayout = ({ children }) => {
             Pending Fund Requests
           </MenuItem>
           <MenuItem onClick={handleNavigate('/activation-options/processed-fund-requests', setActivationAnchor)}>
-            Processed Fund Requests
+            User Activation
           </MenuItem>
         </Menu>
       )}
@@ -709,14 +862,14 @@ const UnifiedLayout = ({ children }) => {
           open={Boolean(settingsAnchor)}
           onClose={handleMenuClose(setSettingsAnchor)}
         >
+          <MenuItem onClick={handleNavigate('/dashboard-settings', setSettingsAnchor)} sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+            ⚙️ Edit Dashboard
+          </MenuItem>
           <MenuItem onClick={handleNavigate('/admin/points-management', setSettingsAnchor)} sx={{ fontWeight: 'bold', color: 'success.main' }}>
             💰 Add USDT Points
           </MenuItem>
           <MenuItem onClick={handleNavigate('/admin-settings/edit-plans', setSettingsAnchor)}>
             Edit Plans
-          </MenuItem>
-          <MenuItem onClick={handleNavigate('/admin-settings/roi-setup', setSettingsAnchor)}>
-            ROI Setup
           </MenuItem>
           <MenuItem onClick={handleNavigate('/admin-settings/deposit-address-setup', setSettingsAnchor)} sx={{ fontWeight: 'bold' }}>
             💳 Edit Wallet Addresses
@@ -724,8 +877,8 @@ const UnifiedLayout = ({ children }) => {
           <MenuItem onClick={handleNavigate('/admin-settings/eliminate-specific-condition', setSettingsAnchor)}>
             Eliminate Specific Condition
           </MenuItem>
-          <MenuItem onClick={handleNavigate('/admin-settings/manage-popup', setSettingsAnchor)}>
-            Manage Popup
+          <MenuItem onClick={handleNavigate('/admin-settings/edit-transaction-summary', setSettingsAnchor)}>
+            ✏️ Edit Transaction Summary
           </MenuItem>
         </Menu>
       )}
@@ -740,15 +893,6 @@ const UnifiedLayout = ({ children }) => {
           <MenuItem onClick={handleNavigate('/reports/daily-income-summary', setAdminReportsAnchor)}>
             Daily Income Summary
           </MenuItem>
-          <MenuItem onClick={handleNavigate('/reports/direct-income-summary', setAdminReportsAnchor)}>
-            Direct Income Summary
-          </MenuItem>
-          <MenuItem onClick={handleNavigate('/reports/daily-level-income-summary', setAdminReportsAnchor)}>
-            Daily Level Income Summary
-          </MenuItem>
-          <MenuItem onClick={handleNavigate('/reports/rank-income-summary', setAdminReportsAnchor)}>
-            Rank Income Summary
-          </MenuItem>
           <MenuItem onClick={handleNavigate('/reports/transaction-summary', setAdminReportsAnchor)}>
             Transaction Summary
           </MenuItem>
@@ -762,23 +906,26 @@ const UnifiedLayout = ({ children }) => {
           flexGrow: 1,
           marginTop: { xs: '56px', sm: '64px' },
           minHeight: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 64px)' },
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(145deg, #34d399 0%, #10b981 50%, #059669 100%)',
           padding: { xs: 1.5, sm: 2, md: 3 },
         }}
       >
         <Box
           sx={{
-            background: 'rgba(255, 255, 255, 0.9)',
+            background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(10px)',
             borderRadius: { xs: 2, sm: 3, md: 4 },
             padding: { xs: 1.5, sm: 2, md: 3 },
             minHeight: { xs: 'calc(100vh - 80px)', sm: 'calc(100vh - 100px)', md: 'calc(100vh - 112px)' },
-            boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+            boxShadow: '10px 10px 30px rgba(16, 185, 129, 0.2), -5px -5px 15px rgba(255, 255, 255, 0.8)',
           }}
         >
           {children}
         </Box>
       </Box>
+
+      {/* Floating Chat for non-admin users */}
+      {!isAdmin() && <FloatingChat />}
     </Box>
   );
 };

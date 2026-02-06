@@ -33,6 +33,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import OtpDialog from '../components/OtpDialog';
 import { useAuth } from '../contexts/AuthContext';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
+
 // Default admin deposit addresses (fallback)
 const DEFAULT_ADDRESSES = {
   usdt_trc20: {
@@ -75,7 +77,7 @@ const Deposit = () => {
   useEffect(() => {
     const fetchAdminWallets = async () => {
       try {
-        const response = await fetch('/api/deposit-wallets');
+        const response = await fetch(`${API_BASE}/api/deposit-wallets`);
         const data = await response.json();
         if (data.success && data.wallets) {
           setAdminAddresses(data.wallets);
@@ -92,7 +94,7 @@ const Deposit = () => {
   useEffect(() => {
     const fetchUserWallet = async () => {
       try {
-        const response = await fetch('/api/user/profile', {
+        const response = await fetch(`${API_BASE}/api/user/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -169,7 +171,7 @@ const Deposit = () => {
       formData.append('userWalletAddress', userWallet.address);
       formData.append('slip', form.slip);
 
-      const response = await fetch('/api/deposits', {
+      const response = await fetch(`${API_BASE}/api/deposits`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

@@ -1,55 +1,66 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Grid, Paper, FormControl, InputLabel, Select, MenuItem, Table, TableHead, TableRow, TableCell, TableBody, Chip, Stack, TableContainer, Alert, CircularProgress } from '@mui/material';
+import { Box, Typography, Grid, Paper, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, Alert, CircularProgress, Card, CardContent } from '@mui/material';
+import { Group, MonetizationOn } from '@mui/icons-material';
 
-const StatCard = ({ title, value, color = 'primary' }) => (
-  <Paper elevation={2} sx={{ p: 2 }}>
-    <Typography variant="body2" color="text.secondary">{title}</Typography>
-    <Typography variant="h5" color={color} fontWeight="bold">{value}</Typography>
-  </Paper>
+const StatCard = ({ title, value, icon, color }) => (
+  <Card sx={{ height: '100%', display: 'flex', alignItems: 'center', p: 1 }}>
+    <Box sx={{ p: 2, borderRadius: '50%', backgroundColor: `${color}15`, color: color, mr: 2 }}>
+      {icon}
+    </Box>
+    <CardContent sx={{ p: '16px !important', flexGrow: 1 }}>
+      <Typography variant="body2" color="text.secondary" gutterBottom>
+        {title}
+      </Typography>
+      <Typography variant="h5" component="div" fontWeight="bold">
+        {value}
+      </Typography>
+    </CardContent>
+  </Card>
 );
 
 const MyDownline = () => {
-  const [level, setLevel] = useState(1);
-  const [allRows, setAllRows] = useState([]);
+  const [directs, setDirects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [stats, setStats] = useState({
+    totalMembers: 0,
+    totalInvestment: 0
+  });
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    setLoading(true);
-    fetch('/api/dashboard/my-downline', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
-      .then(res => res.json())
-      .then(data => {
-        const items = data.data || [];
-        setAllRows(items.map((item, idx) => ({
-          sNo: idx + 1,
-          userId: item.userId || '',
-          username: item.username || item.name || '',
-          referredBy: item.referredBy || '',
-          referredByName: item.referredByName || '',
-          investment: item.investment || 0,
-          rank: item.rank || 'New',
-          level: item.level || 1,
-          incomeEligible: item.incomeEligible || false,
-          status: item.status || 'Inactive'
-        })));
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Failed to load downline', err);
+    const fetchDirects = async () => {
+      const token = localStorage.getItem('authToken');
+      setLoading(true);
+      try {
+        // Fetch direct referrals only
+        const res = await fetch('/api/network/directs', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          const directList = data.directs || [];
+          setDirects(directList);
+          
+          // Calculate stats
+          const totalInv = directList.reduce((sum, item) => sum + (item.totalInvested || 0), 0);
+          setStats({
+            totalMembers: directList.length,
+            totalInvestment: totalInv
+          });
+        } else {
+          setError(data.message || 'Failed to fetch direct referrals');
+        }
+      } catch (err) {
+        console.error('Failed to load directs', err);
         setError('Failed to load data');
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchDirects();
   }, []);
-
-  const rows = allRows.filter(r => r.level === level);
-
-  const stats = {
-    levelMembers: rows.length,
-    activeMembers: rows.filter(r => r.status === 'Active').length,
-  };
 
   if (loading) {
     return (
@@ -60,97 +71,76 @@ const MyDownline = () => {
   }
 
   return (
-    <Box className="page-container">
-      <Typography variant="h5" gutterBottom>My Downline</Typography>
-      <Typography variant="body2" color="text.secondary" gutterBottom>
-        Select a level to view downline details.
-      </Typography>
+    <Box className="page-container" sx={{ p: 3 }}>
+      <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>My Direct Downline</Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} md={4}>
-          <FormControl fullWidth>
-            <InputLabel id="level-select-label">Select Level</InputLabel>
-            <Select labelId="level-select-label" value={level} label="Select Level" onChange={(e) => setLevel(Number(e.target.value))}>
-              {[1,2,3,4,5,6,7,8,9,10].map(l => (
-                <MenuItem key={l} value={l}>Level {l}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+      {/* Stats Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={6}>
+          <StatCard 
+            title="Number of Members" 
+            value={stats.totalMembers} 
+            icon={<Group />}
+            color="#10b981"
+          />
         </Grid>
-        <Grid item xs={12} md={4}><StatCard title="Level Members" value={stats.levelMembers} /></Grid>
-        <Grid item xs={12} md={4}><StatCard title="Active in Level" value={stats.activeMembers} color="success" /></Grid>
+        <Grid item xs={12} sm={6} md={6}>
+          <StatCard 
+            title="Investments" 
+            value={`$${stats.totalInvestment.toLocaleString()}`} 
+            icon={<MonetizationOn />}
+            color="#3b82f6"
+          />
+        </Grid>
       </Grid>
 
-      {rows.length === 0 ? (
-        <Alert severity="info">No downline members found at level {level}</Alert>
-      ) : (
-      <>
-      {/* Mobile-friendly cards (show on small screens) */}
-      <Box sx={{ display: { xs: 'block', md: 'none' } }}>
-        <Stack spacing={2}>
-          {rows.map((r) => (
-            <Paper variant="outlined" sx={{ p: 2 }} key={r.sNo}>
-              <Typography variant="subtitle1" fontWeight="bold" className="wrap-text">
-                {r.username} ({r.userId})
-              </Typography>
-              <Typography variant="body2" className="wrap-text">Referred By: {r.referredByName} ({r.referredBy})</Typography>
-              <Typography variant="body2" className="wrap-text">Rank: {r.rank}</Typography>
-              <Typography variant="body2" className="wrap-text">Level: {r.level}</Typography>
-              <Typography variant="body2" className="wrap-text">Investment: ${r.investment}</Typography>
-              <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Chip size="small" label={r.incomeEligible ? 'Income Eligible: Yes' : 'Income Eligible: No'} color={r.incomeEligible ? 'success' : 'default'} />
-                <Chip size="small" label={`Status: ${r.status}`} color={r.status === 'Active' ? 'success' : 'default'} />
-              </Box>
-            </Paper>
-          ))}
-        </Stack>
-      </Box>
-
-      {/* Original table (hide on small screens) */}
-      <Paper elevation={2} sx={{ p: 2, display: { xs: 'none', md: 'block' } }}>
-        <TableContainer component={Paper}>
-          <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>S.No</TableCell>
-                    <TableCell>User ID</TableCell>
-                    <TableCell>Username</TableCell>
-                    <TableCell>Referred By</TableCell>
-                    <TableCell>Referred By Name</TableCell>
-                    <TableCell>Investment</TableCell>
-                    <TableCell>Rank</TableCell>
-                    <TableCell>Level</TableCell>
-                    <TableCell>Income Eligible</TableCell>
-                    <TableCell>Status</TableCell>
+      {/* Directs List Table */}
+      <Paper elevation={0} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        <Typography variant="subtitle1" sx={{ p: 2, fontWeight: 600, borderBottom: '1px solid #eee' }}>
+          History
+        </Typography>
+        <TableContainer>
+          <Table>
+            <TableHead sx={{ bgcolor: 'rgba(0, 0, 0, 0.02)' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600 }}>Member</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Investment Amount</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Date of Activation</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {directs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={3} align="center" sx={{ py: 3 }}>
+                    <Typography color="text.secondary">No direct referrals found</Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                directs.map((member) => (
+                  <TableRow key={member.id} hover>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2" fontWeight={500}>{member.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">ID: {member.id || member.userId || 'N/A'}</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={500} color={member.totalInvested > 0 ? "success.main" : "text.secondary"}>
+                        ${(member.totalInvested || 0).toLocaleString()}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {member.joinDate ? new Date(member.joinDate).toLocaleDateString() : 'N/A'}
+                    </TableCell>
                   </TableRow>
-                </TableHead>
-                <TableBody>
-                  {rows.map((r) => (
-                    <TableRow key={r.sNo}>
-                      <TableCell>{r.sNo}</TableCell>
-                      <TableCell>{r.userId}</TableCell>
-                      <TableCell>{r.username}</TableCell>
-                      <TableCell>{r.referredBy}</TableCell>
-                      <TableCell>{r.referredByName}</TableCell>
-                      <TableCell>${r.investment}</TableCell>
-                      <TableCell>{r.rank}</TableCell>
-                      <TableCell>{r.level}</TableCell>
-                      <TableCell>
-                        <Chip size="small" label={r.incomeEligible ? 'Yes' : 'No'} color={r.incomeEligible ? 'success' : 'default'} />
-                      </TableCell>
-                      <TableCell>
-                        <Chip size="small" label={r.status} color={r.status === 'Active' ? 'success' : 'default'} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-      </>
-      )}
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
     </Box>
   );
 };

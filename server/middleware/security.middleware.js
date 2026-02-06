@@ -73,14 +73,14 @@ const rateLimiters = {
   // General API rate limit
   general: createRateLimiter({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 100,
+    maxRequests: 2000, // Increased for development
     message: 'Too many requests. Please try again in 15 minutes.'
   }),
   
   // Strict rate limit for auth endpoints
   auth: createRateLimiter({
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 100, // Increased for development
+    maxRequests: 500, // Increased for development
     message: 'Too many authentication attempts. Please try again in 1 hour.',
     keyGenerator: (req) => `auth:${req.ip}:${req.body?.email || ''}`
   }),
@@ -88,7 +88,7 @@ const rateLimiters = {
   // Rate limit for OTP requests
   otp: createRateLimiter({
     windowMs: 60 * 1000, // 1 minute
-    maxRequests: 3,
+    maxRequests: 20, // Increased for development
     message: 'Too many OTP requests. Please wait 1 minute.',
     keyGenerator: (req) => `otp:${req.ip}:${req.body?.phone || req.body?.email || ''}`
   }),
@@ -96,7 +96,7 @@ const rateLimiters = {
   // Rate limit for withdrawals
   withdrawal: createRateLimiter({
     windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 5,
+    maxRequests: 50, // Increased for development
     message: 'Too many withdrawal requests. Please try again later.',
     keyGenerator: (req) => `withdraw:${req.user?.id || req.ip}`
   }),

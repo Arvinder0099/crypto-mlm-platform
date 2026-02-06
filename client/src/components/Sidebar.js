@@ -51,6 +51,7 @@ import {
   CheckCircle as ActivationIcon,
   PersonAdd as KYCIcon,
   MoreVert as MoreVertIcon,
+  Campaign as AnnouncementIcon,
 } from '@mui/icons-material';
 
 function Sidebar({ open, onToggle }) {
@@ -107,6 +108,11 @@ function Sidebar({ open, onToggle }) {
       text: 'Dashboard',
       icon: <DashboardIcon />,
       path: '/dashboard',
+    },
+    {
+      text: 'Announcements',
+      icon: <AnnouncementIcon />,
+      path: '/announcements',
     },
     {
       text: 'Profile',
@@ -183,6 +189,11 @@ function Sidebar({ open, onToggle }) {
       text: 'Admin Dashboard',
       icon: <DashboardIcon />,
       path: '/admin',
+    },
+    {
+      text: 'Edit Announcement',
+      icon: <AnnouncementIcon />,
+      path: '/admin/announcement',
     },
     {
       text: 'Members Management',

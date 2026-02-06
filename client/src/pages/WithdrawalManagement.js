@@ -57,6 +57,8 @@ import {
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
+
 const WithdrawalManagement = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -79,7 +81,7 @@ const WithdrawalManagement = () => {
         const token = localStorage.getItem('authToken');
         
         // Fetch pending withdrawals
-        const pendingRes = await fetch('/api/admin/withdrawals/pending', {
+        const pendingRes = await fetch(`${API_BASE}/api/admin/withdrawals/pending`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const pendingData = await pendingRes.json();
@@ -108,7 +110,7 @@ const WithdrawalManagement = () => {
         }
 
         // Fetch summary data
-        const summaryRes = await fetch('/api/admin/withdrawals/summary', {
+        const summaryRes = await fetch(`${API_BASE}/api/admin/withdrawals/summary`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const summaryData = await summaryRes.json();
@@ -129,14 +131,48 @@ const WithdrawalManagement = () => {
     setActiveTab(newValue);
   };
 
-  const handleApprove = (requestId) => {
-    console.log('Approving withdrawal request:', requestId);
-    // Add approval logic here
+  const handleApprove = async (requestId) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_BASE}/api/withdrawals/${requestId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ transactionHash: '' })
+      });
+      const data = await res.json();
+      if (data.withdrawal) {
+        setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+        alert('Withdrawal approved successfully!');
+      } else {
+        alert(data.message || 'Failed to approve withdrawal');
+      }
+    } catch (err) {
+      console.error('Error approving withdrawal:', err);
+      alert('Error approving withdrawal');
+    }
   };
 
-  const handleReject = (requestId) => {
-    console.log('Rejecting withdrawal request:', requestId);
-    // Add rejection logic here
+  const handleReject = async (requestId) => {
+    const reason = prompt('Enter rejection reason:');
+    if (!reason) return;
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_BASE}/api/withdrawals/${requestId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rejectionReason: reason })
+      });
+      const data = await res.json();
+      if (data.withdrawal) {
+        setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+        alert('Withdrawal rejected');
+      } else {
+        alert(data.message || 'Failed to reject withdrawal');
+      }
+    } catch (err) {
+      console.error('Error rejecting withdrawal:', err);
+      alert('Error rejecting withdrawal');
+    }
   };
 
   const getStatusColor = (status) => {

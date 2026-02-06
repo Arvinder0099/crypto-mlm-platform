@@ -48,6 +48,8 @@ import MyDirect from './pages/MyDirect';
 import MyDownline from './pages/MyDownline';
 import GenerationTree from './pages/GenerationTree';
 import DailyIncome from './pages/DailyIncome';
+import UserAnnouncement from './pages/UserAnnouncement';
+import AdminAnnouncement from './pages/AdminAnnouncement';
 import DirectIncome from './pages/DirectIncome';
 import DailyLevelIncome from './pages/DailyLevelIncome';
 import RankIncome from './pages/RankIncome';
@@ -76,6 +78,9 @@ import AllActivationSummary from './pages/AllActivationSummary';
 import PendingFundRequests from './pages/PendingFundRequests';
 import ProcessedFundRequests from './pages/ProcessedFundRequests';
 
+// Import Admin Chat
+import AdminChat from './pages/AdminChat';
+
 // Import Withdrawal Management pages
 import PendingWithdrawalRequests from './pages/PendingWithdrawalRequests';
 import WithdrawalRequestsSummary from './pages/WithdrawalRequestsSummary';
@@ -97,6 +102,7 @@ import DirectIncomeSummary from './pages/DirectIncomeSummary';
 import DailyLevelIncomeSummary from './pages/DailyLevelIncomeSummary';
 import RankIncomeSummary from './pages/RankIncomeSummary';
 import TransactionSummary from './pages/TransactionSummary';
+import EditTransactionSummary from './pages/EditTransactionSummary';
 
 // Import Referral Bonus System pages
 import ReferralBonus from './pages/ReferralBonus';
@@ -105,6 +111,9 @@ import AdminReferralBonuses from './pages/AdminReferralBonuses';
 
 // Import Admin Points Management
 import AdminPointsManagement from './pages/AdminPointsManagement';
+
+// Import My Wallet page
+import MyWallet from './pages/MyWallet';
 
 // Import components
 import UnifiedLayout from './layouts/UnifiedLayout';
@@ -116,17 +125,239 @@ const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#1976d2',
+      main: '#10b981', // Emerald Green
+      light: '#34d399',
+      dark: '#059669',
+      contrastText: '#ffffff',
     },
     secondary: {
-      main: '#dc004e',
+      main: '#3b82f6', // Blue accent
+      light: '#60a5fa',
+      dark: '#2563eb',
     },
     background: {
-      default: '#f5f5f5',
+      default: '#e8f5f0', // Soft green-tinted background
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#1e293b',
+      secondary: '#64748b',
+    },
+    success: {
+      main: '#10b981',
+    },
+    warning: {
+      main: '#f59e0b',
+    },
+    error: {
+      main: '#ef4444',
     },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h1: { fontWeight: 700, color: '#1e293b' },
+    h2: { fontWeight: 600, color: '#1e293b' },
+    h3: { fontWeight: 600, color: '#1e293b' },
+    h4: { fontWeight: 600, color: '#1e293b' },
+    h5: { fontWeight: 600, color: '#1e293b' },
+    h6: { fontWeight: 600, color: '#1e293b' },
+    button: { textTransform: 'none', fontWeight: 600 },
+  },
+  shape: {
+    borderRadius: 16,
+  },
+  components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: {
+          backgroundColor: '#e8f5f0',
+          backgroundImage: 'linear-gradient(145deg, #e8f5f0 0%, #d1fae5 50%, #a7f3d0 100%)',
+          backgroundAttachment: 'fixed',
+          minHeight: '100vh',
+          perspective: '1000px',
+          scrollbarColor: '#10b981 #e2e8f0',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: '#f1f5f9',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: '#10b981',
+            borderRadius: '4px',
+          },
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#ffffff',
+          backgroundImage: 'linear-gradient(145deg, #ffffff 0%, #f8fafb 100%)',
+          border: 'none',
+          boxShadow: '8px 8px 16px rgba(0, 0, 0, 0.08), -4px -4px 12px rgba(255, 255, 255, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          borderRadius: 20,
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+          padding: '12px 24px',
+          fontWeight: 600,
+          boxShadow: '4px 4px 8px rgba(0, 0, 0, 0.1), -2px -2px 6px rgba(255, 255, 255, 0.8)',
+          transition: 'all 0.25s ease-in-out',
+          '&:hover': {
+            transform: 'translateY(-3px) scale(1.02)',
+            boxShadow: '6px 6px 12px rgba(0, 0, 0, 0.15), -3px -3px 8px rgba(255, 255, 255, 0.9)',
+          },
+          '&:active': {
+            transform: 'translateY(0px) scale(0.98)',
+            boxShadow: 'inset 2px 2px 4px rgba(0, 0, 0, 0.1), inset -1px -1px 3px rgba(255, 255, 255, 0.5)',
+          },
+        },
+        containedPrimary: {
+          background: 'linear-gradient(145deg, #34d399 0%, #10b981 50%, #059669 100%)',
+          boxShadow: '4px 4px 10px rgba(16, 185, 129, 0.3), -2px -2px 6px rgba(255, 255, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+          '&:hover': {
+            background: 'linear-gradient(145deg, #10b981 0%, #059669 100%)',
+            boxShadow: '6px 6px 14px rgba(16, 185, 129, 0.4), -3px -3px 8px rgba(255, 255, 255, 0.6)',
+          },
+        },
+        containedSecondary: {
+          background: 'linear-gradient(145deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%)',
+          boxShadow: '4px 4px 10px rgba(59, 130, 246, 0.3), -2px -2px 6px rgba(255, 255, 255, 0.5)',
+          '&:hover': {
+            background: 'linear-gradient(145deg, #3b82f6 0%, #2563eb 100%)',
+          },
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#ffffff',
+          backgroundImage: 'linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%)',
+          border: 'none',
+          borderRadius: 24,
+          boxShadow: '10px 10px 20px rgba(0, 0, 0, 0.08), -5px -5px 15px rgba(255, 255, 255, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
+          transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+          transformStyle: 'preserve-3d',
+          '&:hover': {
+            transform: 'translateY(-8px) rotateX(2deg)',
+            boxShadow: '15px 15px 30px rgba(0, 0, 0, 0.12), -8px -8px 20px rgba(255, 255, 255, 1), 0 20px 40px rgba(16, 185, 129, 0.15)',
+          },
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        root: {
+          borderBottom: '1px solid rgba(16, 185, 129, 0.1)',
+        },
+        head: {
+          color: '#1e293b',
+          fontWeight: 700,
+          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+          textTransform: 'uppercase',
+          fontSize: '0.75rem',
+          letterSpacing: '0.5px',
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          background: 'linear-gradient(145deg, #34d399 0%, #10b981 50%, #059669 100%)',
+          boxShadow: '0 4px 20px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+        },
+      },
+    },
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          background: 'linear-gradient(180deg, #34d399 0%, #10b981 50%, #059669 100%)',
+          boxShadow: '4px 0 20px rgba(16, 185, 129, 0.3)',
+          borderRight: 'none',
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+          margin: '6px 10px',
+          color: '#ffffff',
+          transition: 'all 0.2s ease',
+          '&.Mui-selected': {
+            backgroundColor: 'rgba(255, 255, 255, 0.25)',
+            boxShadow: 'inset 2px 2px 4px rgba(0, 0, 0, 0.1), inset -1px -1px 3px rgba(255, 255, 255, 0.2)',
+            '&:hover': {
+              backgroundColor: 'rgba(255, 255, 255, 0.3)',
+            },
+          },
+          '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            transform: 'translateX(4px)',
+          },
+        },
+      },
+    },
+    MuiListItemIcon: {
+      styleOverrides: {
+        root: {
+          color: '#ffffff',
+        },
+      },
+    },
+    MuiListItemText: {
+      styleOverrides: {
+        primary: {
+          color: '#ffffff',
+          fontWeight: 500,
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            backgroundColor: '#ffffff',
+            borderRadius: 12,
+            boxShadow: 'inset 3px 3px 6px rgba(0, 0, 0, 0.06), inset -2px -2px 4px rgba(255, 255, 255, 0.8)',
+            '& fieldset': {
+              borderColor: 'rgba(16, 185, 129, 0.2)',
+              borderWidth: 2,
+            },
+            '&:hover fieldset': {
+              borderColor: '#10b981',
+            },
+            '&.Mui-focused fieldset': {
+              borderColor: '#059669',
+              boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.15)',
+            },
+          },
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          borderRadius: 10,
+          boxShadow: '2px 2px 4px rgba(0, 0, 0, 0.08), -1px -1px 3px rgba(255, 255, 255, 0.8)',
+        },
+      },
+    },
+    MuiTable: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+          overflow: 'hidden',
+          boxShadow: '6px 6px 12px rgba(0, 0, 0, 0.06), -3px -3px 8px rgba(255, 255, 255, 0.8)',
+        },
+      },
+    },
   },
 });
 
@@ -230,8 +461,7 @@ function AppContent() {
                 
                 {/* User-accessible routes */}
                 <Route path="/investments" element={<InvestmentPlans />} />
-                <Route path="/network" element={<MLMNetwork />} />
-                <Route path="/commissions" element={<CommissionCalculator />} />
+                <Route path="/network" element={<MLMNetwork />} />                  <Route path="/announcements" element={<UserAnnouncement />} />                <Route path="/commissions" element={<CommissionCalculator />} />
                 <Route path="/wallet" element={<Wallet />} />
                 <Route path="/support" element={<SupportHub />} />
                 <Route path="/support/*" element={<SupportHub />} />
@@ -239,8 +469,7 @@ function AppContent() {
                 <Route path="/team-management" element={<TeamManagement />} />
                 <Route path="/products" element={<ProductCatalog />} />
                 
-                {/* Admin-accessible routes (also accessible to users but shown differently in sidebar) */}
-                <Route path="/security" element={<SecuritySettings />} />
+                {/* Admin-accessible routes (also accessible to users but shown differently in sidebar) */}                  <Route path="/admin/announcement" element={<AdminAnnouncement />} />                <Route path="/security" element={<SecuritySettings />} />
                 <Route path="/learning" element={<LearningCenter />} />
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/compensation-plans" element={<CompensationPlans />} />
@@ -263,6 +492,7 @@ function AppContent() {
                 <Route path="/profile/edit" element={<EditProfile />} />
                 <Route path="/profile/withdrawal-address" element={<WithdrawalAddress />} />
                 <Route path="/profile/change-password" element={<ChangePassword />} />
+                <Route path="/my-wallet" element={<MyWallet />} />
                 <Route path="/deposit" element={<Deposit />} />
                 <Route path="/activation" element={<Activation />} />
                 <Route path="/my-direct" element={<MyDirect />} />
@@ -291,6 +521,7 @@ function AppContent() {
                 <Route path="/admin/notifications" element={<AdminNotifications />} />
                 <Route path="/admin/referral-bonuses" element={<AdminReferralBonuses />} />
                 <Route path="/admin/points-management" element={<AdminPointsManagement />} />
+                <Route path="/admin/support-chat" element={<AdminChat />} />
                 <Route path="/activation-options" element={<ActivationOptions />} />
                 
                 {/* Activation Routes */}
@@ -319,6 +550,7 @@ function AppContent() {
                 <Route path="/admin-settings/eliminate-specific-condition" element={<EliminateSpecificCondition />} />
                 <Route path="/admin-settings/admin-setting" element={<AdminSettingPage />} />
                 <Route path="/admin-settings/manage-popup" element={<ManagePopup />} />
+                <Route path="/admin-settings/edit-transaction-summary" element={<EditTransactionSummary />} />
 
                 {/* Admin Reports Routes */}
                 <Route path="/reports/daily-income-summary" element={<DailyIncomeSummary />} />

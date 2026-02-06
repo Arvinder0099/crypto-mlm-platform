@@ -1,30 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Paper, Grid, TextField, Button, Avatar, Chip, CircularProgress, Alert } from '@mui/material';
-
-const NodeCard = ({ node, onClick }) => (
-  <Paper elevation={3} sx={{ p: 2, minWidth: 180, textAlign: 'center', border: node.isActive ? '2px solid #4caf50' : '2px solid #f44336' }} onClick={() => onClick?.(node)}>
-    <Avatar sx={{ mx: 'auto', mb: 1, bgcolor: node.isActive ? '#4caf50' : '#9e9e9e' }}>
-      {node.name ? node.name[0].toUpperCase() : 'U'}
-    </Avatar>
-    <Typography variant="subtitle2" fontWeight="bold">{node.name || node.username}</Typography>
-    <Typography variant="caption" color="text.secondary">ID: {node.referralCode || node.id}</Typography>
-    <Box mt={1}>
-      <Chip size="small" label={node.rank || 'Member'} color="primary" sx={{ mr: 1 }} />
-      <Chip size="small" label={node.isActive ? 'Active' : 'Inactive'} color={node.isActive ? 'success' : 'default'} />
-    </Box>
-  </Paper>
-);
-
-const Connector = ({ vertical = 20, horizontal = 220 }) => (
-  <Box sx={{ mt: 2 }}>
-    <Box sx={{ width: 2, height: vertical, backgroundColor: '#ccc', mx: 'auto' }} />
-    <Box sx={{ height: 2, backgroundColor: '#ccc', width: `${horizontal}px`, mx: 'auto', position: 'relative' }} />
-  </Box>
-);
+import { Box, Typography, Paper, Grid, Button, Avatar, Chip, CircularProgress, Alert, Table, TableHead, TableRow, TableCell, TableBody, TableContainer } from '@mui/material';
+import { Person } from '@mui/icons-material';
 
 const GenerationTree = () => {
-  const [searchId, setSearchId] = useState('');
-  const [treeData, setTreeData] = useState(null);
+  const [flatList, setFlatList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
@@ -56,68 +35,25 @@ const GenerationTree = () => {
       const data = await response.json();
       
       if (data.success && data.downline) {
-        // Build tree with current user as root
-        const tree = {
-          id: profileData.user?._id,
-          name: profileData.user?.name || profileData.user?.username,
-          referralCode: profileData.user?.referralCode,
-          rank: profileData.user?.rank || 'Member',
-          isActive: profileData.user?.isActive !== false,
-          children: data.downline.map(child => formatNode(child))
+        // Flatten the tree
+        const flattened = [];
+        const processNode = (node, level = 1) => {
+          flattened.push({ ...node, level });
+          if (node.children && node.children.length > 0) {
+            node.children.forEach(child => processNode(child, level + 1));
+          }
         };
-        setTreeData(tree);
-      } else {
-        // No downline yet - show just the user
-        if (profileData.user) {
-          setTreeData({
-            id: profileData.user._id,
-            name: profileData.user.name || profileData.user.username,
-            referralCode: profileData.user.referralCode,
-            rank: profileData.user.rank || 'Member',
-            isActive: profileData.user.isActive !== false,
-            children: []
-          });
-        }
+        
+        data.downline.forEach(node => processNode(node)); // These are level 1
+        setFlatList(flattened);
       }
     } catch (err) {
       console.error('Error fetching tree:', err);
-      setError('Failed to load generation tree');
+      setError('Failed to load network data');
     } finally {
       setLoading(false);
     }
   };
-
-  const formatNode = (node) => ({
-    id: node._id || node.id,
-    name: node.name || node.username,
-    referralCode: node.referralCode,
-    rank: node.rank || 'Member',
-    isActive: node.isActive !== false,
-    children: node.children ? node.children.map(c => formatNode(c)) : []
-  });
-
-  const onSearch = () => {
-    // TODO: Implement search to highlight/focus specific member
-    if (searchId) {
-      alert(`Search for ${searchId} - feature coming soon`);
-    }
-  };
-
-  const TreeNode = ({ node }) => (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
-      <NodeCard node={node} />
-      {node.children?.length > 0 && (
-        <>
-          <Connector horizontal={(node.children.length - 1) * 220} />
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
-            {node.children.map((c) => (
-              <TreeNode key={c.id || c.referralCode} node={c} />
-            ))}
-          </Box>
-        </>
-      )}
-    </Box>
-  );
 
   if (loading) {
     return (
@@ -128,43 +64,74 @@ const GenerationTree = () => {
   }
 
   return (
-    <Box>
-      <Typography variant="h5" gutterBottom>Generation Tree</Typography>
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h5" gutterBottom>Generation History</Typography>
       
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
       )}
 
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={6}>
-            <TextField 
-              fullWidth 
-              label="Search by Member ID" 
-              value={searchId} 
-              onChange={(e) => setSearchId(e.target.value)} 
-              placeholder="Enter referral code..."
-            />
-          </Grid>
-          <Grid item xs={12} md={2}>
-            <Button fullWidth variant="contained" onClick={onSearch}>Search</Button>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Button fullWidth variant="outlined" onClick={fetchTreeData}>Refresh Tree</Button>
-          </Grid>
-        </Grid>
+      {/* Top: Current User */}
+      <Paper elevation={0} variant="outlined" sx={{ p: 3, mb: 4, display: 'flex', alignItems: 'center', gap: 3, borderRadius: 2 }}>
+        <Avatar sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: 28 }}>
+          {currentUser ? currentUser.firstName[0] : 'U'}
+        </Avatar>
+        <Box>
+          <Typography variant="h6">{currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'User'}</Typography>
+          <Typography variant="body2" color="text.secondary">ID: {currentUser?.userId}</Typography>
+          <Box mt={1} display="flex" gap={1}>
+             <Chip size="small" label={`Total Network: ${flatList.length}`} color="primary" variant="outlined" />
+             <Button size="small" variant="outlined" onClick={fetchTreeData}>Refresh</Button>
+          </Box>
+        </Box>
       </Paper>
 
-      <Paper elevation={2} sx={{ p: 3, overflow: 'auto', minHeight: 400 }}>
-        {treeData ? (
-          <TreeNode node={treeData} />
-        ) : (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography color="text.secondary">
-              No referral network yet. Share your referral link to build your team!
-            </Typography>
-          </Box>
-        )}
+      {/* Bottom: History List */}
+      <Paper elevation={0} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        <Typography variant="subtitle1" sx={{ p: 2, fontWeight: 600, borderBottom: '1px solid #eee' }}>Network History</Typography>
+        <TableContainer sx={{ maxHeight: 600 }}>
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell>Member Name</TableCell>
+                <TableCell>Investment</TableCell>
+                <TableCell>Date of Activation</TableCell>
+                <TableCell>Level</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {flatList.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                    <Typography color="text.secondary">No network members found</Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                flatList.map((node) => (
+                  <TableRow key={node.id} hover>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2" fontWeight={500}>{node.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">ID: {node.referralCode || node.id || 'N/A'}</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color={node.totalInvested > 0 ? "success.main" : "text.secondary"}>
+                        ${(node.totalInvested || 0).toLocaleString()}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {node.joinDate ? new Date(node.joinDate).toLocaleDateString() : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={`Lvl ${node.level}`} size="small" variant="outlined" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
     </Box>
   );

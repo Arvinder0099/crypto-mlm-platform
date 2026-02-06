@@ -96,34 +96,52 @@ const MLMNetwork = () => {
     const token = localStorage.getItem('authToken');
     setLoading(true);
 
-    Promise.all([
-      fetch('/api/network/referral-data', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      }).then(res => res.json()).catch(() => ({ data: null })),
-      fetch('/api/network/tree', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      }).then(res => res.json()).catch(() => ({ data: null })),
-      fetch('/api/network/commission-history', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      }).then(res => res.json()).catch(() => ({ data: [] }))
-    ])
-      .then(([refData, treeData, commData]) => {
-        if (refData.data) {
-          setReferralData(prev => ({ ...prev, ...refData.data }));
+    const fetchData = async () => {
+      try {
+        // 1. Fetch Network Stats (Stats + Referrals)
+        const statsRes = await fetch('/api/network/stats', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        }).then(res => res.ok ? res.json() : null);
+
+        if (statsRes && statsRes.stats) {
+          setReferralData(prev => ({
+            ...prev,
+            referralCode: statsRes.stats.referralCode || '',
+            referralLink: window.location.origin + '/register?ref=' + (statsRes.stats.referralCode || ''),
+            totalReferrals: statsRes.stats.directReferrals || 0,
+            activeReferrals: statsRes.stats.activeDirects || 0,
+            // Map breakdown to levels
+            levels: {
+              level1: { count: statsRes.stats.levelBreakdown['1'] || 0, commission: 0, volume: 0 },
+              level2: { count: statsRes.stats.levelBreakdown['2'] || 0, commission: 0, volume: 0 },
+              level3: { count: statsRes.stats.levelBreakdown['3'] || 0, commission: 0, volume: 0 },
+              level4: { count: statsRes.stats.levelBreakdown['4'] || 0, commission: 0, volume: 0 },
+              level5: { count: statsRes.stats.levelBreakdown['5'] || 0, commission: 0, volume: 0 }
+            }
+          }));
         }
-        if (treeData.data) {
-          setNetworkTree(treeData.data);
+
+        // 2. Fetch Genealogy Tree
+        const treeRes = await fetch('/api/network/genealogy', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        }).then(res => res.ok ? res.json() : null);
+
+        if (treeRes && treeRes.data) {
+          setNetworkTree(treeRes.data);
         }
-        if (commData.data) {
-          setCommissionHistory(commData.data);
-        }
-        setLoading(false);
-      })
-      .catch(err => {
+
+        // 3. Commission History (Mocked empty for now as API is missing)
+        setCommissionHistory([]);
+
+      } catch (err) {
         console.error('Failed to load network data', err);
         setError('Failed to load network data');
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchData();
   }, []);
 
   const handleTabChange = (event, newValue) => {

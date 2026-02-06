@@ -24,9 +24,32 @@ const { rateLimiters, sanitizeRequestBody, securityHeaders, validateRequest, val
 const app = express();
 
 // ==================== MIDDLEWARE ====================
+// More permissive CORS for development
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is allowed
+    const allowedOrigins = process.env.ALLOWED_ORIGINS 
+      ? process.env.ALLOWED_ORIGINS.split(',') 
+      : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3049', 'http://localhost:3040', 'http://127.0.0.1:3000', 'http://127.0.0.1:3049'];
+    
+    // Always allow localhost in development
+    if (process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
+      callback(null, true);
+    } else {
+      console.log('Blocked by CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -35,6 +58,11 @@ app.use(securityHeaders);
 
 // Serve uploaded files (KYC documents) - with authentication in production
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Health check root route
+app.get('/', (req, res) => {
+  res.send('Backend system is running. API is at /api');
+});
 
 // Apply general rate limiting to all routes
 app.use('/api/', rateLimiters.general);
@@ -92,10 +120,22 @@ const userSchema = new mongoose.Schema({
   twoFactorEnabled: { type: Boolean, default: false },
   twoFactorSecret: String,
   
+  // Password Reset OTP
+  resetPasswordOtp: String,
+  resetPasswordOtpExpiry: Date,
+  
   // Financial
   balance: { type: Number, default: 0, min: 0 },
+  
+  // 3 Wallet System
+  myWallet: { type: Number, default: 0, min: 0 }, // Daily earnings credited here, can withdraw
+  fundWallet: { type: Number, default: 0, min: 0 }, // Deposits go here, used to buy plans
+  utilityWallet: { type: Number, default: 0, min: 0 }, // Referral bonus goes here
+  
   totalInvested: { type: Number, default: 0, min: 0 },
   totalEarned: { type: Number, default: 0, min: 0 },
+  todayEarning: { type: Number, default: 0, min: 0 }, // Today's daily earning
+  lastEarningDate: Date, // Track when last earning was credited
   totalWithdrawn: { type: Number, default: 0, min: 0 },
   pendingWithdrawal: { type: Number, default: 0, min: 0 },
   activeInvestments: { type: Number, default: 0, min: 0 },
@@ -115,6 +155,7 @@ const userSchema = new mongoose.Schema({
   walletAddress: String,
   walletType: { type: String, enum: ['usdt_trc20', 'bnb_bep20'], default: 'usdt_trc20' },
   walletAddressApproved: Boolean,
+  activatedAt: Date, // Date when user first activated a plan
   lastLogin: Date,
   loginAttempts: { type: Number, default: 0 },
   lockedUntil: Date,
@@ -166,7 +207,7 @@ const investmentSchema = new mongoose.Schema({
 // Transaction Schema
 const transactionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  type: { type: String, enum: ['deposit', 'withdrawal', 'investment', 'earning', 'commission', 'refund', 'admin_credit', 'daily_return'], required: true },
+  type: { type: String, enum: ['deposit', 'withdrawal', 'investment', 'earning', 'commission', 'refund', 'admin_credit', 'daily_return', 'bonus', 'referral_bonus'], required: true },
   amount: { type: Number, required: true },
   previousBalance: Number,
   newBalance: Number,
@@ -333,6 +374,66 @@ const adminNotificationSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
+// User Notification Schema - for user-facing notifications
+const userNotificationSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  type: { 
+    type: String, 
+    enum: ['deposit_approved', 'deposit_rejected', 'withdrawal_approved', 'withdrawal_rejected', 
+           'investment_activated', 'commission_received', 'referral_joined', 'referral_bonus',
+           'roi_earned', 'rank_achieved', 'system_message', 'welcome', 'welcome_bonus'], 
+    required: true 
+  },
+  title: { type: String, required: true },
+  message: { type: String, required: true },
+  data: {
+    amount: Number,
+    transactionId: mongoose.Schema.Types.ObjectId,
+    investmentId: mongoose.Schema.Types.ObjectId,
+    referralName: String,
+    planName: String,
+    rank: String,
+  },
+  isRead: { type: Boolean, default: false },
+  readAt: Date,
+  createdAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+// Support Chat Schema - for user-admin messaging
+const supportChatSchema = new mongoose.Schema({
+  ticketId: { type: String, unique: true, required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  subject: { type: String, default: 'Support Request' },
+  status: { type: String, enum: ['open', 'in-progress', 'resolved', 'closed'], default: 'open' },
+  priority: { type: String, enum: ['low', 'normal', 'high', 'urgent'], default: 'normal' },
+  lastMessage: { type: Date, default: Date.now },
+  unreadByAdmin: { type: Number, default: 0 },
+  unreadByUser: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+// Chat Message Schema - individual messages in a chat
+const chatMessageSchema = new mongoose.Schema({
+  chatId: { type: mongoose.Schema.Types.ObjectId, ref: 'SupportChat', required: true },
+  senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  senderType: { type: String, enum: ['user', 'admin'], required: true },
+  message: { type: String, required: true },
+  isRead: { type: Boolean, default: false },
+  readAt: Date,
+  createdAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+// Announcement Schema
+const announcementSchema = new mongoose.Schema({
+  title: { type: String, required: true, default: 'Announcement' },
+  content: { type: String, required: true },
+  imageUrl: { type: String, default: '' },
+  isVisible: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, { timestamps: true });
+
 // Create Models
 const User = mongoose.model('User', userSchema);
 const Plan = mongoose.model('Plan', planSchema);
@@ -344,6 +445,27 @@ const Commission = mongoose.model('Commission', commissionSchema);
 const AdminSettings = mongoose.model('AdminSettings', adminSettingsSchema);
 const ReferralBonus = mongoose.model('ReferralBonus', referralBonusSchema);
 const AdminNotification = mongoose.model('AdminNotification', adminNotificationSchema);
+const UserNotification = mongoose.model('UserNotification', userNotificationSchema);
+const SupportChat = mongoose.model('SupportChat', supportChatSchema);
+const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
+const Announcement = mongoose.model('Announcement', announcementSchema);
+
+// Helper function to create user notification
+const createUserNotification = async (userId, type, title, message, data = {}) => {
+  try {
+    const notification = new UserNotification({
+      userId,
+      type,
+      title,
+      message,
+      data
+    });
+    await notification.save();
+    return notification;
+  } catch (error) {
+    console.error('Error creating user notification:', error);
+  }
+};
 
 // ==================== INITIALIZE SERVICES ====================
 
@@ -475,6 +597,15 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
     });
     
     await user.save();
+
+    // Create welcome notification for new user
+    await createUserNotification(
+      user._id,
+      'welcome',
+      'Welcome to MLM Platform! 🎉',
+      `Hello ${firstName}! Your account has been created successfully. Start investing to earn daily returns!`,
+      {}
+    );
     
     if (referrerId) {
       await User.findByIdAndUpdate(referrerId, {
@@ -483,6 +614,15 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
       
       // Get referrer details
       const referrer = await User.findById(referrerId);
+
+      // Notify the referrer about new referral
+      await createUserNotification(
+        referrerId,
+        'referral_joined',
+        'New Referral Joined! 👥',
+        `${firstName} ${lastName} joined using your referral link. You'll earn a bonus when they make their first investment!`,
+        { referralName: `${firstName} ${lastName}` }
+      );
       
       // Create referral bonus record (10% bonus - will be credited when user makes first deposit/investment)
       const referralBonus = new ReferralBonus({
@@ -762,6 +902,118 @@ app.post('/api/auth/login', rateLimiters.auth, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Login failed', error: error.message });
+  }
+});
+
+// ==================== FORGOT PASSWORD ROUTES ====================
+
+// Step 1: Send OTP to phone for forgot password
+app.post('/api/auth/forgot-password/send-otp', rateLimiters.auth, async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ message: 'Phone number is required' });
+    
+    const user = await User.findOne({ phone });
+    if (!user) return res.status(404).json({ message: 'No account found with this phone number' });
+    
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    
+    // Store OTP in user record
+    user.resetPasswordOtp = otp;
+    user.resetPasswordOtpExpiry = otpExpiry;
+    await user.save();
+    
+    // Send OTP via SMS
+    try {
+      await smsService.sendOTP(phone, otp);
+    } catch (smsError) {
+      console.error('SMS sending failed:', smsError);
+      // Continue anyway for demo purposes
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'OTP sent to your phone number',
+      // For demo, include OTP in response (remove in production)
+      demoOtp: otp
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to send OTP', error: error.message });
+  }
+});
+
+// Step 2: Verify OTP for forgot password
+app.post('/api/auth/forgot-password/verify-otp', rateLimiters.auth, async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) return res.status(400).json({ message: 'Phone and OTP are required' });
+    
+    const user = await User.findOne({ phone });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    if (!user.resetPasswordOtp || user.resetPasswordOtp !== otp) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+    
+    if (user.resetPasswordOtpExpiry < new Date()) {
+      return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
+    }
+    
+    // Generate a reset token
+    const resetToken = jwt.sign({ userId: user._id, phone }, JWT_SECRET, { expiresIn: '15m' });
+    
+    res.json({ 
+      success: true, 
+      message: 'OTP verified successfully',
+      resetToken
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'OTP verification failed', error: error.message });
+  }
+});
+
+// Step 3: Reset password with token
+app.post('/api/auth/forgot-password/reset', rateLimiters.auth, async (req, res) => {
+  try {
+    const { resetToken, newPassword, confirmPassword } = req.body;
+    
+    if (!resetToken || !newPassword || !confirmPassword) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: 'Passwords do not match' });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+    
+    // Verify token
+    let decoded;
+    try {
+      decoded = jwt.verify(resetToken, JWT_SECRET);
+    } catch (err) {
+      return res.status(400).json({ message: 'Invalid or expired reset token. Please try again.' });
+    }
+    
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    // Update password and clear OTP
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.resetPasswordOtp = undefined;
+    user.resetPasswordOtpExpiry = undefined;
+    await user.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Password reset successful. Please login with your new password.'
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Password reset failed', error: error.message });
   }
 });
 
@@ -1325,6 +1577,57 @@ app.post('/api/admin/kyc/:userId/reject', authenticateToken, isAdmin, async (req
   }
 });
 
+// Alternative KYC Approve endpoint (for frontend compatibility)
+app.patch('/api/users/:userId/approve-kyc', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    user.kycStatus = 'approved';
+    user.kycApprovedBy = req.user.id;
+    user.kycApprovedAt = new Date();
+    await user.save();
+    
+    // Send email notification
+    if (user.email) {
+      emailService.sendKYCApproved(user.email, { name: user.firstName || user.username }).catch(console.error);
+    }
+    
+    res.json({ success: true, message: 'KYC approved successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Alternative KYC Reject endpoint (for frontend compatibility)
+app.patch('/api/users/:userId/reject-kyc', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    
+    user.kycStatus = 'rejected';
+    user.kycRejectedBy = req.user.id;
+    user.kycRejectedAt = new Date();
+    user.kycRejectionReason = reason || 'No reason provided';
+    await user.save();
+    
+    // Send email notification
+    if (user.email) {
+      emailService.sendKYCRejected(user.email, { name: user.firstName || user.username, reason: reason || 'No reason provided' }).catch(console.error);
+    }
+    
+    res.json({ success: true, message: 'KYC rejected successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ==================== USER ROUTES ====================
 
 app.get('/api/user/profile', authenticateToken, async (req, res) => {
@@ -1371,12 +1674,113 @@ app.get('/api/user/dashboard', authenticateToken, async (req, res) => {
     const recentTransactions = await Transaction.find({ userId: req.user.id }).sort({ createdAt: -1 }).limit(10);
     
     res.json({
-      balance: user.balance, totalInvested: user.totalInvested, totalEarned: user.totalEarned, totalWithdrawn: user.totalWithdrawn,
-      activeInvestments: activeInvestments.length, pendingWithdrawals: pendingWithdrawals.length, totalReferrals: user.directReferrals.length,
-      investments: activeInvestments, recentTransactions,
+      balance: user.balance, 
+      myWallet: user.myWallet || 0,
+      fundWallet: user.fundWallet || 0,
+      utilityWallet: user.utilityWallet || 0,
+      totalInvested: user.totalInvested, 
+      totalEarned: user.totalEarned, 
+      todayEarning: user.todayEarning || 0,
+      totalWithdrawn: user.totalWithdrawn,
+      activeInvestments: activeInvestments.length, 
+      pendingWithdrawals: pendingWithdrawals.length, 
+      totalReferrals: user.directReferrals.length,
+      investments: activeInvestments, 
+      recentTransactions,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching dashboard', error: error.message });
+  }
+});
+
+// ==================== WALLET TRANSFER ROUTES ====================
+
+// Get all wallet balances
+app.get('/api/user/wallets', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.json({
+      myWallet: user.myWallet || 0,
+      fundWallet: user.fundWallet || 0,
+      utilityWallet: user.utilityWallet || 0,
+      totalInvested: user.totalInvested || 0,
+      totalEarned: user.totalEarned || 0,
+      todayEarning: user.todayEarning || 0,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching wallets', error: error.message });
+  }
+});
+
+// Transfer from Utility Wallet to My Wallet
+app.post('/api/user/transfer/utility-to-mywallet', authenticateToken, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ message: 'Invalid amount' });
+    
+    const user = await User.findById(req.user.id);
+    if ((user.utilityWallet || 0) < amount) {
+      return res.status(400).json({ message: 'Insufficient balance in Utility Wallet' });
+    }
+    
+    user.utilityWallet = (user.utilityWallet || 0) - amount;
+    user.myWallet = (user.myWallet || 0) + amount;
+    await user.save();
+    
+    // Create transaction record
+    await Transaction.create({
+      userId: user._id,
+      type: 'commission',
+      amount: amount,
+      description: 'Transfer from Utility Wallet to My Wallet',
+      status: 'completed',
+      previousBalance: user.utilityWallet + amount,
+      newBalance: user.utilityWallet,
+    });
+    
+    res.json({ 
+      message: 'Transfer successful', 
+      myWallet: user.myWallet, 
+      utilityWallet: user.utilityWallet 
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error transferring funds', error: error.message });
+  }
+});
+
+// Transfer from My Wallet to Fund Wallet
+app.post('/api/user/transfer/mywallet-to-fund', authenticateToken, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ message: 'Invalid amount' });
+    
+    const user = await User.findById(req.user.id);
+    if ((user.myWallet || 0) < amount) {
+      return res.status(400).json({ message: 'Insufficient balance in My Wallet' });
+    }
+    
+    user.myWallet = (user.myWallet || 0) - amount;
+    user.fundWallet = (user.fundWallet || 0) + amount;
+    await user.save();
+    
+    // Create transaction record
+    await Transaction.create({
+      userId: user._id,
+      type: 'commission',
+      amount: amount,
+      description: 'Transfer from My Wallet to Fund Wallet',
+      status: 'completed',
+      previousBalance: user.myWallet + amount,
+      newBalance: user.myWallet,
+    });
+    
+    res.json({ 
+      message: 'Transfer successful', 
+      myWallet: user.myWallet, 
+      fundWallet: user.fundWallet 
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error transferring funds', error: error.message });
   }
 });
 
@@ -1686,8 +2090,9 @@ app.post('/api/investments', authenticateToken, async (req, res) => {
     const plan = await Plan.findById(planId);
     if (!plan || !plan.isActive) return res.status(404).json({ message: 'Plan not found' });
     
-    if (user.balance < plan.investment) {
-      return res.status(400).json({ message: 'Insufficient balance. Please deposit funds.' });
+    // Use Fund Wallet for plan activation
+    if ((user.fundWallet || 0) < plan.investment) {
+      return res.status(400).json({ message: 'Insufficient balance in Fund Wallet. Please deposit funds or transfer from My Wallet.' });
     }
     
     // Check if this is the user's first investment (for referral bonus)
@@ -1701,59 +2106,126 @@ app.post('/api/investments', authenticateToken, async (req, res) => {
     
     await investment.save();
     
-    user.balance -= plan.investment;
+    // Deduct from Fund Wallet instead of main balance
+    user.fundWallet = (user.fundWallet || 0) - plan.investment;
     user.totalInvested += plan.investment;
     user.activeInvestments += 1;
     user.totalInvestmentCount += 1;
+    
+    // Set activatedAt on first investment (Date of Activation)
+    if (!user.activatedAt) {
+      user.activatedAt = new Date();
+      user.status = 'active';
+    }
+    
     await user.save();
     
     const transaction = new Transaction({
       userId: req.user.id, type: 'investment', amount: -plan.investment,
-      previousBalance: user.balance + plan.investment, newBalance: user.balance, status: 'completed',
-      description: `Investment in ${plan.name}`, investmentId: investment._id,
+      previousBalance: (user.fundWallet || 0) + plan.investment, newBalance: user.fundWallet || 0, status: 'completed',
+      description: `Investment in ${plan.name} - Deducted from Fund Wallet`, investmentId: investment._id,
     });
     
     await transaction.save();
+
+    // Create user notification for investment activation
+    await createUserNotification(
+      req.user.id,
+      'investment_activated',
+      'Investment Activated! 🚀',
+      `Your ${plan.name} investment of $${plan.investment} is now active. Daily earning: $${plan.dailyEarn}`,
+      { amount: plan.investment, investmentId: investment._id, planName: plan.name }
+    );
     
-    // Credit referral bonus on first investment (10% of investment amount) - REQUIRES ADMIN APPROVAL
-    if (isFirstInvestment && user.referredBy) {
-      const referralBonus = await ReferralBonus.findOne({ 
-        referredUserId: user._id, 
-        referrerId: user.referredBy,
-        status: 'pending'
+    // Create admin notification for plan activation
+    await AdminNotification.create({
+      type: 'investment',
+      title: 'New Plan Activated',
+      message: `${user.firstName} ${user.lastName} has activated the ${plan.name} plan worth $${plan.investment}`,
+      userId: user._id,
+      data: {
+        userName: `${user.firstName} ${user.lastName}`,
+        userEmail: user.email,
+        planName: plan.name,
+        planAmount: plan.investment,
+        investmentId: investment._id.toString()
+      },
+      priority: 'high',
+    });
+    
+    // Credit Referral Bonus & Welcome Bonus on First Investment
+    if (isFirstInvestment) {
+      // 1. Welcome Bonus (5%) to User's Utility Wallet
+      const welcomeBonus = plan.investment * 0.05;
+      user.utilityWallet = (user.utilityWallet || 0) + welcomeBonus;
+      user.totalEarned = (user.totalEarned || 0) + welcomeBonus;
+      await user.save();
+
+      await Transaction.create({
+        userId: user._id,
+        type: 'bonus', // New type for welcome bonus
+        amount: welcomeBonus,
+        description: `Welcome Bonus (5%) for activating ${plan.name}`,
+        status: 'completed',
+        previousBalance: (user.utilityWallet || 0) - welcomeBonus,
+        newBalance: user.utilityWallet,
+        investmentId: investment._id
       });
       
-      if (referralBonus) {
-        const bonusAmount = plan.investment * 0.10; // 10% bonus
-        
-        // Update bonus amount but keep status as pending (requires admin approval)
-        referralBonus.bonusAmount = bonusAmount;
-        referralBonus.investmentId = investment._id;
-        referralBonus.investmentAmount = plan.investment;
-        await referralBonus.save();
-        
-        // Create admin notification for pending bonus approval
+      // Notify User
+      await createUserNotification(
+        user._id,
+        'welcome_bonus',
+        'Welcome Bonus! 🎁',
+        `You received $${welcomeBonus} Welcome Bonus in your Utility Wallet.`,
+        { amount: welcomeBonus }
+      );
+
+      // 2. Referral Bonus (5%) to Referrer's Utility Wallet
+      if (user.referredBy) {
         const referrer = await User.findById(user.referredBy);
-        const bonusNotification = new AdminNotification({
-          type: 'referral_bonus_pending',
-          title: 'Referral Bonus Pending Approval',
-          message: `$${bonusAmount.toFixed(2)} referral bonus waiting for approval. ${referrer.firstName} ${referrer.lastName} referred ${user.firstName} ${user.lastName} who made first investment of $${plan.investment}`,
-          userId: user._id,
-          referrerId: user.referredBy,
-          data: {
-            referrerName: `${referrer.firstName} ${referrer.lastName}`,
-            referrerEmail: referrer.email,
-            newUserName: `${user.firstName} ${user.lastName}`,
-            newUserEmail: user.email,
-            bonusAmount: bonusAmount,
-            investmentAmount: plan.investment,
-            referralBonusId: referralBonus._id.toString()
-          },
-          priority: 'high',
-        });
-        await bonusNotification.save();
-        
-        console.log(`⏳ Referral bonus of $${bonusAmount} pending admin approval for ${referrer.firstName} ${referrer.lastName}`);
+        if (referrer) {
+           const refBonus = plan.investment * 0.05;
+           referrer.utilityWallet = (referrer.utilityWallet || 0) + refBonus;
+           referrer.totalEarned = (referrer.totalEarned || 0) + refBonus;
+           await referrer.save();
+
+           await Transaction.create({
+             userId: referrer._id,
+             type: 'referral_bonus',
+             amount: refBonus,
+             description: `Referral Bonus (5%) from ${user.firstName} ${user.lastName}`,
+             status: 'completed',
+             previousBalance: (referrer.utilityWallet || 0) - refBonus,
+             newBalance: referrer.utilityWallet,
+             investmentId: investment._id
+           });
+           
+           // Notify Referrer
+           await createUserNotification(
+            referrer._id,
+            'referral_bonus',
+            'Referral Bonus! 🤝',
+            `You earned $${refBonus} (5%) bonus from ${user.firstName}'s investment.`,
+            { amount: refBonus }
+           );
+
+           // Update pending ReferralBonus record if exists
+           const referralBonusRecord = await ReferralBonus.findOne({ 
+             referredUserId: user._id, 
+             referrerId: user.referredBy,
+             status: 'pending'
+           });
+           
+           if (referralBonusRecord) {
+             referralBonusRecord.bonusAmount = refBonus;
+             referralBonusRecord.investmentId = investment._id;
+             referralBonusRecord.investmentAmount = plan.investment;
+             referralBonusRecord.status = 'approved';
+             referralBonusRecord.approvedAt = new Date();
+             await referralBonusRecord.save();
+           }
+        }
       }
     }
     
@@ -1836,13 +2308,13 @@ cron.schedule('0 * * * *', async () => {
           investment.lastEarningDate = new Date();
           await investment.save();
           
-          user.balance += dailyEarning;
+          user.utilityWallet = (user.utilityWallet || 0) + dailyEarning;
           user.totalEarned += dailyEarning;
           await user.save();
           
           const transaction = new Transaction({
-            userId: user._id, type: 'earning', amount: dailyEarning, previousBalance: user.balance - dailyEarning,
-            newBalance: user.balance, status: 'completed', description: `Daily earning from ${plan.name}`, investmentId: investment._id,
+            userId: user._id, type: 'earning', amount: dailyEarning, previousBalance: (user.utilityWallet || 0) - dailyEarning,
+            newBalance: user.utilityWallet, status: 'completed', description: `Daily earning from ${plan.name}`, investmentId: investment._id,
           });
           await transaction.save();
           
@@ -2100,10 +2572,10 @@ app.post('/api/admin/deposits/:id/approve', authenticateToken, isAdmin, async (r
     deposit.adminNotes = adminNotes;
     await deposit.save();
 
-    // Credit user's balance
+    // Credit user's Fund Wallet (not main balance)
     const user = await User.findById(deposit.userId);
     if (user) {
-      user.balance = (user.balance || 0) + deposit.amount;
+      user.fundWallet = (user.fundWallet || 0) + deposit.amount;
       await user.save();
 
       // Create transaction record
@@ -2113,16 +2585,25 @@ app.post('/api/admin/deposits/:id/approve', authenticateToken, isAdmin, async (r
         amount: deposit.amount,
         currency: deposit.network === 'usdt_trc20' ? 'USDT' : 'BNB',
         status: 'completed',
-        description: `Deposit via ${deposit.network.toUpperCase()}`,
+        description: `Deposit via ${deposit.network.toUpperCase()} - Credited to Fund Wallet`,
         transactionId: deposit.transactionHash,
-        balanceAfter: user.balance
+        balanceAfter: user.fundWallet
       });
       await transaction.save();
+
+      // Create user notification for approved deposit
+      await createUserNotification(
+        user._id,
+        'deposit_approved',
+        'Deposit Approved! 💰',
+        `Your deposit of $${deposit.amount} has been approved and credited to your Fund Wallet.`,
+        { amount: deposit.amount, transactionId: transaction._id }
+      );
     }
 
     res.json({ 
       success: true, 
-      message: `Deposit of $${deposit.amount} approved and credited to user's wallet`,
+      message: `Deposit of $${deposit.amount} approved and credited to user's Fund Wallet`,
       deposit
     });
   } catch (error) {
@@ -2150,6 +2631,15 @@ app.post('/api/admin/deposits/:id/reject', authenticateToken, isAdmin, async (re
     deposit.rejectionReason = reason;
     deposit.adminNotes = adminNotes;
     await deposit.save();
+
+    // Create user notification for rejected deposit
+    await createUserNotification(
+      deposit.userId,
+      'deposit_rejected',
+      'Deposit Rejected ❌',
+      `Your deposit of $${deposit.amount} was rejected. Reason: ${reason || 'Not specified'}`,
+      { amount: deposit.amount }
+    );
 
     res.json({ 
       success: true, 
@@ -2198,6 +2688,15 @@ app.post('/api/withdrawals/:id/approve', authenticateToken, isAdmin, async (req,
       txHash: transactionHash,
       network: 'TRC20'
     }).catch(console.error);
+
+    // Create user notification for approved withdrawal
+    await createUserNotification(
+      user._id,
+      'withdrawal_approved',
+      'Withdrawal Approved! ✅',
+      `Your withdrawal of $${withdrawal.amount} has been processed and sent to your wallet.`,
+      { amount: withdrawal.amount, transactionId: transaction._id }
+    );
     
     res.json({ message: 'Withdrawal approved', withdrawal });
   } catch (error) {
@@ -2222,6 +2721,15 @@ app.post('/api/withdrawals/:id/reject', authenticateToken, isAdmin, async (req, 
       amount: withdrawal.amount,
       reason: rejectionReason
     }).catch(console.error);
+
+    // Create user notification for rejected withdrawal
+    await createUserNotification(
+      user._id,
+      'withdrawal_rejected',
+      'Withdrawal Rejected ❌',
+      `Your withdrawal request of $${withdrawal.amount} was rejected. Reason: ${rejectionReason || 'Not specified'}`,
+      { amount: withdrawal.amount }
+    );
     
     res.json({ message: 'Withdrawal rejected', withdrawal });
   } catch (error) {
@@ -2614,6 +3122,169 @@ app.post('/api/admin/settings/config', authenticateToken, isAdmin, async (req, r
   }
 });
 
+// ROI Settings - GET
+app.get('/api/admin/settings/roi', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) {
+      settings = new AdminSettings({ key: 'platform-settings' });
+      await settings.save();
+    }
+    res.json({ 
+      success: true, 
+      data: {
+        dailyROI: settings.dailyROI || 0.5,
+        minInvestment: settings.minInvestment || 100,
+        maxInvestment: settings.maxInvestment || 100000,
+        roiDuration: settings.roiDuration || 365,
+        roiEnabled: settings.roiEnabled !== false
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching ROI settings', error: error.message });
+  }
+});
+
+// ROI Settings - PUT
+app.put('/api/admin/settings/roi', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) settings = new AdminSettings({ key: 'platform-settings' });
+    
+    const { dailyROI, minInvestment, maxInvestment, roiDuration, roiEnabled } = req.body;
+    if (dailyROI !== undefined) settings.dailyROI = dailyROI;
+    if (minInvestment !== undefined) settings.minInvestment = minInvestment;
+    if (maxInvestment !== undefined) settings.maxInvestment = maxInvestment;
+    if (roiDuration !== undefined) settings.roiDuration = roiDuration;
+    if (roiEnabled !== undefined) settings.roiEnabled = roiEnabled;
+    
+    settings.updatedBy = req.user.id;
+    settings.updatedAt = new Date();
+    await settings.save();
+    res.json({ success: true, message: 'ROI settings updated', data: settings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating ROI settings', error: error.message });
+  }
+});
+
+// Deposit Addresses - GET
+app.get('/api/admin/settings/deposit-addresses', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) {
+      settings = new AdminSettings({ key: 'platform-settings' });
+      await settings.save();
+    }
+    const addresses = settings.depositAddresses || [
+      { id: 1, coin: 'USDT', network: 'TRC20', address: settings.depositWallets?.usdt_trc20?.address || '', enabled: true },
+      { id: 2, coin: 'BNB', network: 'BEP20', address: settings.depositWallets?.bnb_bep20?.address || '', enabled: true }
+    ];
+    res.json({ success: true, data: addresses });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching deposit addresses', error: error.message });
+  }
+});
+
+// Deposit Addresses - PUT
+app.put('/api/admin/settings/deposit-addresses', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) settings = new AdminSettings({ key: 'platform-settings' });
+    
+    settings.depositAddresses = req.body.addresses || req.body;
+    settings.updatedBy = req.user.id;
+    settings.updatedAt = new Date();
+    await settings.save();
+    res.json({ success: true, message: 'Deposit addresses updated', data: settings.depositAddresses });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating deposit addresses', error: error.message });
+  }
+});
+
+// Elimination Conditions - GET
+app.get('/api/admin/settings/elimination-conditions', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) {
+      settings = new AdminSettings({ key: 'platform-settings' });
+      await settings.save();
+    }
+    const conditions = settings.eliminationConditions || [];
+    res.json({ success: true, data: conditions });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching elimination conditions', error: error.message });
+  }
+});
+
+// Elimination Conditions - PUT
+app.put('/api/admin/settings/elimination-conditions', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) settings = new AdminSettings({ key: 'platform-settings' });
+    
+    settings.eliminationConditions = req.body.conditions || req.body;
+    settings.updatedBy = req.user.id;
+    settings.updatedAt = new Date();
+    await settings.save();
+    res.json({ success: true, message: 'Elimination conditions updated', data: settings.eliminationConditions });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating elimination conditions', error: error.message });
+  }
+});
+
+// Popups - GET
+app.get('/api/admin/settings/popups', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) {
+      settings = new AdminSettings({ key: 'platform-settings' });
+      await settings.save();
+    }
+    const popups = settings.popups || [];
+    res.json({ success: true, data: popups });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching popups', error: error.message });
+  }
+});
+
+// Popups - PUT
+app.put('/api/admin/settings/popups', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) settings = new AdminSettings({ key: 'platform-settings' });
+    
+    settings.popups = req.body.popups || req.body;
+    settings.updatedBy = req.user.id;
+    settings.updatedAt = new Date();
+    await settings.save();
+    res.json({ success: true, message: 'Popups updated', data: settings.popups });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating popups', error: error.message });
+  }
+});
+
+// Popups - POST (add new popup)
+app.post('/api/admin/settings/popups', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    let settings = await AdminSettings.findOne({});
+    if (!settings) settings = new AdminSettings({ key: 'platform-settings' });
+    
+    if (!settings.popups) settings.popups = [];
+    const newPopup = {
+      id: Date.now(),
+      ...req.body,
+      createdAt: new Date()
+    };
+    settings.popups.push(newPopup);
+    settings.updatedBy = req.user.id;
+    settings.updatedAt = new Date();
+    await settings.save();
+    res.json({ success: true, message: 'Popup added', data: newPopup });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error adding popup', error: error.message });
+  }
+});
+
 // ==================== ADMIN WALLET MANAGEMENT ====================
 
 // Get admin deposit wallet addresses (public - for users to see)
@@ -2962,6 +3633,157 @@ app.put('/api/admin/dashboard-settings', authenticateToken, isAdmin, async (req,
   }
 });
 
+// ==================== DASHBOARD VALUES API ====================
+
+// Get Dashboard Values (editable values for admin dashboard)
+app.get('/api/admin/dashboard-values', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const DashboardValues = require('./models/DashboardValues');
+    
+    let values = await DashboardValues.findOne({});
+    
+    if (!values) {
+      // Create default values if not exist
+      values = new DashboardValues({
+        totalInvestment: 0,
+        adminInvestment: 0,
+        walletInvestment: 0,
+        directInvestment: 0,
+        dailyAllotted: 0,
+        referralBonusAllotted: 0,
+        totalMembers: 0,
+        activeMembers: 0,
+        inactiveMembers: 0,
+        suspendedMembers: 0,
+        totalCredited: 0,
+        todayCredited: 0,
+        yesterdayCredited: 0,
+        totalDebited: 0,
+        todayDebited: 0,
+        yesterdayDebited: 0,
+        totalWithdrawal: 0,
+        pendingWithdrawal: 0,
+        approvedWithdrawal: 0,
+        rejectedWithdrawal: 0,
+      });
+      await values.save();
+    }
+    
+    res.json({ 
+      success: true, 
+      values: {
+        totalInvestment: values.totalInvestment || 0,
+        adminInvestment: values.adminInvestment || 0,
+        walletInvestment: values.walletInvestment || 0,
+        directInvestment: values.directInvestment || 0,
+        dailyAllotted: values.dailyAllotted || 0,
+        referralBonusAllotted: values.referralBonusAllotted || 0,
+        totalMembers: values.totalMembers || 0,
+        activeMembers: values.activeMembers || 0,
+        inactiveMembers: values.inactiveMembers || 0,
+        suspendedMembers: values.suspendedMembers || 0,
+        totalCredited: values.totalCredited || 0,
+        todayCredited: values.todayCredited || 0,
+        yesterdayCredited: values.yesterdayCredited || 0,
+        totalDebited: values.totalDebited || 0,
+        todayDebited: values.todayDebited || 0,
+        yesterdayDebited: values.yesterdayDebited || 0,
+        totalWithdrawal: values.totalWithdrawal || 0,
+        pendingWithdrawal: values.pendingWithdrawal || 0,
+        approvedWithdrawal: values.approvedWithdrawal || 0,
+        rejectedWithdrawal: values.rejectedWithdrawal || 0,
+      }
+    });
+  } catch (error) {
+    console.error('Dashboard values fetch error:', error);
+    res.status(500).json({ message: 'Error fetching dashboard values' });
+  }
+});
+
+// Update single Dashboard Value
+app.put('/api/admin/dashboard-values', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const DashboardValues = require('./models/DashboardValues');
+    const { field, value } = req.body;
+    
+    const allowedFields = [
+      'totalInvestment', 'adminInvestment', 'walletInvestment', 'directInvestment',
+      'dailyAllotted', 'referralBonusAllotted',
+      'totalMembers', 'activeMembers', 'inactiveMembers', 'suspendedMembers',
+      'totalCredited', 'todayCredited', 'yesterdayCredited',
+      'totalDebited', 'todayDebited', 'yesterdayDebited',
+      'totalWithdrawal', 'pendingWithdrawal', 'approvedWithdrawal', 'rejectedWithdrawal'
+    ];
+    
+    if (!allowedFields.includes(field)) {
+      return res.status(400).json({ message: 'Invalid field' });
+    }
+    
+    let values = await DashboardValues.findOne({});
+    
+    if (!values) {
+      values = new DashboardValues({});
+    }
+    
+    values[field] = value;
+    await values.save();
+    
+    res.json({ success: true, field, value });
+  } catch (error) {
+    console.error('Dashboard value update error:', error);
+    res.status(500).json({ message: 'Error updating dashboard value' });
+  }
+});
+
+// Update all Dashboard Values at once
+app.put('/api/admin/dashboard-values/all', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const DashboardValues = require('./models/DashboardValues');
+    const { values } = req.body;
+    
+    console.log('Received values:', req.body);
+    
+    if (!values || typeof values !== 'object') {
+      return res.status(400).json({ message: 'Invalid values provided' });
+    }
+    
+    let dashboardValues = await DashboardValues.findOne({});
+    
+    if (!dashboardValues) {
+      dashboardValues = new DashboardValues(values);
+    } else {
+      // Update each field
+      if (values.totalInvestment !== undefined) dashboardValues.totalInvestment = values.totalInvestment;
+      if (values.adminInvestment !== undefined) dashboardValues.adminInvestment = values.adminInvestment;
+      if (values.walletInvestment !== undefined) dashboardValues.walletInvestment = values.walletInvestment;
+      if (values.directInvestment !== undefined) dashboardValues.directInvestment = values.directInvestment;
+      if (values.dailyAllotted !== undefined) dashboardValues.dailyAllotted = values.dailyAllotted;
+      if (values.referralBonusAllotted !== undefined) dashboardValues.referralBonusAllotted = values.referralBonusAllotted;
+      if (values.totalMembers !== undefined) dashboardValues.totalMembers = values.totalMembers;
+      if (values.activeMembers !== undefined) dashboardValues.activeMembers = values.activeMembers;
+      if (values.inactiveMembers !== undefined) dashboardValues.inactiveMembers = values.inactiveMembers;
+      if (values.suspendedMembers !== undefined) dashboardValues.suspendedMembers = values.suspendedMembers;
+      if (values.totalCredited !== undefined) dashboardValues.totalCredited = values.totalCredited;
+      if (values.todayCredited !== undefined) dashboardValues.todayCredited = values.todayCredited;
+      if (values.yesterdayCredited !== undefined) dashboardValues.yesterdayCredited = values.yesterdayCredited;
+      if (values.totalDebited !== undefined) dashboardValues.totalDebited = values.totalDebited;
+      if (values.todayDebited !== undefined) dashboardValues.todayDebited = values.todayDebited;
+      if (values.yesterdayDebited !== undefined) dashboardValues.yesterdayDebited = values.yesterdayDebited;
+      if (values.totalWithdrawal !== undefined) dashboardValues.totalWithdrawal = values.totalWithdrawal;
+      if (values.pendingWithdrawal !== undefined) dashboardValues.pendingWithdrawal = values.pendingWithdrawal;
+      if (values.approvedWithdrawal !== undefined) dashboardValues.approvedWithdrawal = values.approvedWithdrawal;
+      if (values.rejectedWithdrawal !== undefined) dashboardValues.rejectedWithdrawal = values.rejectedWithdrawal;
+    }
+    
+    await dashboardValues.save();
+    
+    res.json({ success: true, values: dashboardValues });
+  } catch (error) {
+    console.error('Dashboard values update error:', error);
+    res.status(500).json({ message: 'Error updating dashboard values' });
+  }
+});
+
 // ==================== ADMIN MEMBERS API ====================
 
 // Get all members with optional status filter
@@ -3162,12 +3984,12 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
     const activeIncome = referralEarnings;
     const passiveIncome = investmentEarnings + (user.totalDailyReturnsReceived || 0);
 
-    // Wallet data
+    // Wallet data - using 3 wallet system
     const walletData = {
-      myWallet: user.balance || 0,
+      myWallet: user.myWallet || 0,
       fundWallet: user.fundWallet || 0,
       utilityWallet: user.utilityWallet || 0,
-      totalBalance: (user.balance || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0)
+      totalBalance: (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0)
     };
 
     res.json({
@@ -4375,6 +5197,90 @@ app.get('/api/reports/transactions', authenticateToken, async (req, res) => {
   }
 });
 
+// ==================== ADMIN TRANSACTION MANAGEMENT ====================
+
+// Admin: Get all transactions with full details for editing
+app.get('/api/admin/transactions', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { type, status, userId, page = 1, limit = 50 } = req.query;
+    const filter = {};
+    if (type) filter.type = type;
+    if (status) filter.status = status;
+    if (userId) {
+      const user = await User.findOne({ userId: userId });
+      if (user) filter.userId = user._id;
+    }
+
+    const total = await Transaction.countDocuments(filter);
+    const transactions = await Transaction.find(filter)
+      .populate('userId', 'userId firstName lastName email')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+
+    res.json({
+      success: true,
+      data: transactions.map(t => ({
+        _id: t._id,
+        userId: t.userId?.userId || 'N/A',
+        userName: t.userId ? `${t.userId.firstName || ''} ${t.userId.lastName || ''}`.trim() : 'Unknown',
+        userEmail: t.userId?.email || 'N/A',
+        type: t.type,
+        amount: t.amount,
+        status: t.status,
+        description: t.description || '',
+        adminNotes: t.adminNotes || '',
+        transactionHash: t.transactionHash || '',
+        balanceAfter: t.balanceAfter || 0,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      })),
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit))
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching transactions', error: error.message });
+  }
+});
+
+// Admin: Update a transaction
+app.put('/api/admin/transactions/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { amount, status, description, adminNotes } = req.body;
+    const transaction = await Transaction.findById(req.params.id);
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    if (amount !== undefined) transaction.amount = amount;
+    if (status) transaction.status = status;
+    if (description !== undefined) transaction.description = description;
+    if (adminNotes !== undefined) transaction.adminNotes = adminNotes;
+    transaction.updatedAt = new Date();
+    await transaction.save();
+
+    res.json({ success: true, message: 'Transaction updated successfully', transaction });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating transaction', error: error.message });
+  }
+});
+
+// Admin: Delete a transaction
+app.delete('/api/admin/transactions/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const transaction = await Transaction.findByIdAndDelete(req.params.id);
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+    res.json({ success: true, message: 'Transaction deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting transaction', error: error.message });
+  }
+});
+
+// ==================== END ADMIN TRANSACTION MANAGEMENT ====================
+
 app.get('/api/reports/registrations-datewise', authenticateToken, isAdmin, async (req, res) => {
   try {
     const { year } = req.query;
@@ -4689,10 +5595,10 @@ app.post('/api/admin/referral-bonuses/:id/approve', authenticateToken, isAdmin, 
     if (adminNotes) bonus.adminNotes = adminNotes;
     await bonus.save();
     
-    // Update referrer's balance and stats
+    // Update referrer's Utility Wallet (not main balance) and stats
     await User.findByIdAndUpdate(bonus.referrerId._id, {
       $inc: { 
-        balance: bonusAmount,
+        utilityWallet: bonusAmount,
         totalReferralBonus: bonusAmount,
         referralBonusCount: 1,
         totalEarned: bonusAmount
@@ -4705,12 +5611,21 @@ app.post('/api/admin/referral-bonuses/:id/approve', authenticateToken, isAdmin, 
       type: 'commission',
       amount: bonusAmount,
       status: 'completed',
-      description: `Referral bonus (${bonus.bonusPercentage}%) for referring ${bonus.referredUserId.firstName} ${bonus.referredUserId.lastName}`,
+      description: `Referral bonus (${bonus.bonusPercentage}%) for referring ${bonus.referredUserId.firstName} ${bonus.referredUserId.lastName} - Credited to Utility Wallet`,
       referredUserId: bonus.referredUserId._id
     });
     await transaction.save();
     
-    // Create notification for the referrer
+    // Create user notification for referrer
+    await createUserNotification(
+      bonus.referrerId._id,
+      'referral_bonus',
+      'Referral Bonus Received! 🎉',
+      `You earned $${bonusAmount.toFixed(2)} referral bonus for referring ${bonus.referredUserId.firstName}. Credited to your Utility Wallet.`,
+      { amount: bonusAmount, referredUserId: bonus.referredUserId._id }
+    );
+    
+    // Create admin notification
     await AdminNotification.create({
       type: 'other',
       title: 'Referral Bonus Credited',
@@ -4801,10 +5716,10 @@ app.post('/api/admin/referral-bonuses/:id/credit', authenticateToken, isAdmin, a
     bonus.creditedAt = new Date();
     await bonus.save();
     
-    // Update referrer's balance and stats
+    // Update referrer's Utility Wallet and stats
     await User.findByIdAndUpdate(bonus.referrerId._id, {
       $inc: { 
-        balance: bonusAmount,
+        utilityWallet: bonusAmount,
         totalReferralBonus: bonusAmount,
         referralBonusCount: 1,
         totalEarned: bonusAmount
@@ -4817,12 +5732,21 @@ app.post('/api/admin/referral-bonuses/:id/credit', authenticateToken, isAdmin, a
       type: 'commission',
       amount: bonusAmount,
       status: 'completed',
-      description: `Referral bonus for referring ${bonus.referredUserId.firstName} ${bonus.referredUserId.lastName}`,
+      description: `Referral bonus for referring ${bonus.referredUserId.firstName} ${bonus.referredUserId.lastName} - Credited to Utility Wallet`,
       referredUserId: bonus.referredUserId._id
     });
     await transaction.save();
     
-    res.json({ success: true, message: 'Referral bonus credited successfully', bonus });
+    // Create user notification for referrer
+    await createUserNotification(
+      bonus.referrerId._id,
+      'referral_bonus',
+      'Referral Bonus Received! 🎉',
+      `You earned $${bonusAmount.toFixed(2)} referral bonus. Credited to your Utility Wallet.`,
+      { amount: bonusAmount }
+    );
+    
+    res.json({ success: true, message: 'Referral bonus credited to Utility Wallet successfully', bonus });
   } catch (error) {
     console.error('Credit referral bonus error:', error);
     res.status(500).json({ message: 'Error crediting bonus', error: error.message });
@@ -4910,6 +5834,75 @@ app.delete('/api/admin/notifications/:id', authenticateToken, isAdmin, async (re
     res.json({ success: true, message: 'Notification deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting notification', error: error.message });
+  }
+});
+
+// ==================== USER NOTIFICATIONS ROUTES ====================
+
+// Get user notifications
+app.get('/api/user/notifications', authenticateToken, async (req, res) => {
+  try {
+    const { limit = 20, page = 1 } = req.query;
+    
+    const notifications = await UserNotification.find({ userId: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
+    
+    const total = await UserNotification.countDocuments({ userId: req.user.id });
+    const unreadCount = await UserNotification.countDocuments({ userId: req.user.id, isRead: false });
+    
+    res.json({
+      success: true,
+      data: notifications,
+      unreadCount,
+      pagination: { total, page: parseInt(page), limit: parseInt(limit), pages: Math.ceil(total / parseInt(limit)) }
+    });
+  } catch (error) {
+    console.error('Get user notifications error:', error);
+    res.status(500).json({ message: 'Error fetching notifications', error: error.message });
+  }
+});
+
+// Get unread notification count for user
+app.get('/api/user/notifications/unread-count', authenticateToken, async (req, res) => {
+  try {
+    const count = await UserNotification.countDocuments({ userId: req.user.id, isRead: false });
+    res.json({ success: true, count });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching count', error: error.message });
+  }
+});
+
+// Mark user notification as read
+app.put('/api/user/notifications/:id/read', authenticateToken, async (req, res) => {
+  try {
+    const notification = await UserNotification.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      { isRead: true, readAt: new Date() },
+      { new: true }
+    );
+    
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+    
+    res.json({ success: true, notification });
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking notification as read', error: error.message });
+  }
+});
+
+// Mark all user notifications as read
+app.put('/api/user/notifications/mark-all-read', authenticateToken, async (req, res) => {
+  try {
+    await UserNotification.updateMany(
+      { userId: req.user.id, isRead: false },
+      { isRead: true, readAt: new Date() }
+    );
+    res.json({ success: true, message: 'All notifications marked as read' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking notifications as read', error: error.message });
   }
 });
 
@@ -5482,13 +6475,14 @@ app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Plan not found or inactive' });
     }
     
-    if (user.balance < plan.investment) {
+    // Use Fund Wallet for plan purchase
+    if ((user.fundWallet || 0) < plan.investment) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Insufficient balance',
+        message: 'Insufficient balance in Fund Wallet. Please deposit or transfer funds.',
         required: plan.investment,
-        available: user.balance,
-        shortfall: plan.investment - user.balance
+        available: user.fundWallet || 0,
+        shortfall: plan.investment - (user.fundWallet || 0)
       });
     }
     
@@ -5510,11 +6504,18 @@ app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
     });
     await investment.save();
     
-    // Deduct from wallet
-    const previousBalance = user.balance;
-    user.balance -= plan.investment;
+    // Deduct from Fund Wallet
+    const previousBalance = user.fundWallet || 0;
+    user.fundWallet = previousBalance - plan.investment;
     user.totalInvested += plan.investment;
     user.activeInvestments += 1;
+    
+    // Set activatedAt on first investment
+    if (!user.activatedAt) {
+      user.activatedAt = new Date();
+      user.status = 'active';
+    }
+    
     await user.save();
     
     // Create transaction
@@ -5523,45 +6524,90 @@ app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
       type: 'investment',
       amount: -plan.investment,
       balanceBefore: previousBalance,
-      balanceAfter: user.balance,
+      balanceAfter: user.fundWallet,
       status: 'completed',
-      description: `Invested in ${plan.name}`,
+      description: `Invested in ${plan.name} - Deducted from Fund Wallet`,
       investmentId: investment._id
     });
     await transaction.save();
+    
+    // Create admin notification for plan activation
+    await AdminNotification.create({
+      type: 'investment',
+      title: 'New Plan Activated',
+      message: `${user.firstName} ${user.lastName} has activated the ${plan.name} plan worth $${plan.investment}`,
+      userId: user._id,
+      data: {
+        userName: `${user.firstName} ${user.lastName}`,
+        userEmail: user.email,
+        planName: plan.name,
+        planAmount: plan.investment,
+        investmentId: investment._id.toString()
+      },
+      priority: 'high',
+    });
     
     // Credit referral bonus if first investment and user was referred
     if (isFirstInvestment && user.referredBy) {
       const referrer = await User.findById(user.referredBy);
       if (referrer) {
-        const settings = await AdminSettings.findOne({});
-        const bonusPercent = settings?.directCommissionRate || 10;
-        const bonusAmount = (plan.investment * bonusPercent) / 100;
+        // 5% referral bonus to referrer's utility wallet
+        const bonusAmount = plan.investment * 0.05;
         
-        // Create referral bonus (pending admin approval)
-        const referralBonus = new ReferralBonus({
-          referrerId: referrer._id,
-          referredUserId: user._id,
-          bonusPercentage: bonusPercent,
-          bonusAmount,
-          investmentId: investment._id,
-          investmentAmount: plan.investment,
-          status: 'pending'
+        referrer.utilityWallet = (referrer.utilityWallet || 0) + bonusAmount;
+        referrer.totalEarned = (referrer.totalEarned || 0) + bonusAmount;
+        await referrer.save();
+        
+        // Create transaction for referrer
+        await Transaction.create({
+          userId: referrer._id,
+          type: 'referral_bonus',
+          amount: bonusAmount,
+          description: `Referral Bonus (5%) from ${user.firstName} ${user.lastName}'s investment`,
+          status: 'completed',
+          balanceAfter: referrer.utilityWallet
         });
-        await referralBonus.save();
+        
+        // Update referral bonus record
+        await ReferralBonus.findOneAndUpdate(
+          { referrerId: referrer._id, referredUserId: user._id },
+          { 
+            bonusAmount,
+            investmentId: investment._id,
+            investmentAmount: plan.investment,
+            status: 'credited',
+            creditedAt: new Date()
+          },
+          { upsert: true }
+        );
         
         // Create admin notification
-        const notification = new AdminNotification({
-          type: 'referral_bonus',
-          title: 'New Referral Bonus Pending',
-          message: `${referrer.firstName} ${referrer.lastName} earned $${bonusAmount} referral bonus from ${user.firstName} ${user.lastName}'s first investment`,
+        await AdminNotification.create({
+          type: 'referral_bonus_pending',
+          title: 'Referral Bonus Credited',
+          message: `${referrer.firstName} ${referrer.lastName} earned $${bonusAmount} referral bonus from ${user.firstName} ${user.lastName}'s investment`,
           userId: referrer._id,
           referrerId: referrer._id,
-          amount: bonusAmount,
-          relatedId: referralBonus._id
+          data: { bonusAmount, investmentAmount: plan.investment }
         });
-        await notification.save();
       }
+    }
+    
+    // 5% Welcome bonus to user's utility wallet on first investment
+    if (isFirstInvestment) {
+      const welcomeBonus = plan.investment * 0.05;
+      user.utilityWallet = (user.utilityWallet || 0) + welcomeBonus;
+      user.totalEarned = (user.totalEarned || 0) + welcomeBonus;
+      await user.save();
+      
+      await Transaction.create({
+        userId: user._id,
+        type: 'bonus',
+        amount: welcomeBonus,
+        description: `Welcome Bonus (5%) for activating ${plan.name}`,
+        status: 'completed',
+        balanceAfter: user.utilityWallet
+      });
     }
     
     res.json({
@@ -5577,11 +6623,633 @@ app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
         startDate: investment.startDate,
         endDate: investment.endDate
       },
-      newBalance: user.balance
+      newBalance: user.fundWallet
     });
   } catch (error) {
     console.error('Plan purchase error:', error);
     res.status(500).json({ message: 'Error purchasing plan', error: error.message });
+  }
+});
+
+// ==================== LEARNING CENTER APIs ====================
+
+// Get learning courses
+app.get('/api/learning/courses', authenticateToken, async (req, res) => {
+  try {
+    const courses = [
+      { id: 1, title: 'Introduction to Crypto MLM', description: 'Learn the basics of crypto MLM', duration: '2 hours', level: 'Beginner', progress: 0 },
+      { id: 2, title: 'Advanced Trading Strategies', description: 'Master trading techniques', duration: '4 hours', level: 'Advanced', progress: 0 },
+      { id: 3, title: 'Building Your Network', description: 'Grow your referral network effectively', duration: '3 hours', level: 'Intermediate', progress: 0 }
+    ];
+    res.json({ success: true, data: courses });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching courses', error: error.message });
+  }
+});
+
+// Get tutorials
+app.get('/api/learning/tutorials', authenticateToken, async (req, res) => {
+  try {
+    const tutorials = [
+      { id: 1, title: 'How to Make a Deposit', category: 'Deposits', videoUrl: '#', duration: '5 min' },
+      { id: 2, title: 'Withdrawing Funds', category: 'Withdrawals', videoUrl: '#', duration: '5 min' },
+      { id: 3, title: 'Inviting Referrals', category: 'Referrals', videoUrl: '#', duration: '10 min' }
+    ];
+    res.json({ success: true, data: tutorials });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching tutorials', error: error.message });
+  }
+});
+
+// Get learning FAQs
+app.get('/api/learning/faqs', authenticateToken, async (req, res) => {
+  try {
+    const faqs = [
+      { id: 1, question: 'How do I start earning?', answer: 'Make an initial investment and your ROI will start calculating daily.' },
+      { id: 2, question: 'How do referral bonuses work?', answer: 'When someone you refer makes an investment, you earn a percentage as bonus.' },
+      { id: 3, question: 'What are the minimum withdrawal limits?', answer: 'The minimum withdrawal amount is $10 USDT.' }
+    ];
+    res.json({ success: true, data: faqs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching FAQs', error: error.message });
+  }
+});
+
+// ==================== SUPPORT HUB APIs ====================
+
+// Get support tickets
+app.get('/api/support/tickets', authenticateToken, async (req, res) => {
+  try {
+    // Return user's tickets (empty for new users)
+    res.json({ success: true, data: [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching tickets', error: error.message });
+  }
+});
+
+// Create support ticket
+app.post('/api/support/tickets', authenticateToken, async (req, res) => {
+  try {
+    const { subject, message, category } = req.body;
+    // In production, save to database
+    res.json({ 
+      success: true, 
+      message: 'Ticket created successfully',
+      data: { id: Date.now(), subject, message, category, status: 'open', createdAt: new Date() }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error creating ticket', error: error.message });
+  }
+});
+
+// Get support FAQs
+app.get('/api/support/faqs', authenticateToken, async (req, res) => {
+  try {
+    const faqs = [
+      { id: 1, question: 'How do I reset my password?', answer: 'Go to Settings > Security > Change Password.' },
+      { id: 2, question: 'Why is my withdrawal pending?', answer: 'Withdrawals are processed within 24-48 hours after admin approval.' },
+      { id: 3, question: 'How to contact support?', answer: 'Create a support ticket or email support@cryptomlm.com.' }
+    ];
+    res.json({ success: true, data: faqs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching FAQs', error: error.message });
+  }
+});
+
+// Get knowledge base articles
+app.get('/api/support/knowledge-base', authenticateToken, async (req, res) => {
+  try {
+    const articles = [
+      { id: 1, title: 'Getting Started Guide', category: 'Basics', content: 'Welcome to our platform...' },
+      { id: 2, title: 'Investment Plans Explained', category: 'Investments', content: 'Our investment plans offer...' },
+      { id: 3, title: 'Security Best Practices', category: 'Security', content: 'Keep your account safe by...' }
+    ];
+    res.json({ success: true, data: articles });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching knowledge base', error: error.message });
+  }
+});
+
+// Get support metrics (for support page display)
+app.get('/api/support/metrics', authenticateToken, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        avgResponseTime: '< 24 hours',
+        satisfactionRate: '98%',
+        activeAgents: 5
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching metrics', error: error.message });
+  }
+});
+
+// ==================== SUPPORT CHAT SYSTEM ====================
+
+// Generate unique ticket ID
+const generateTicketId = () => {
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `TKT-${timestamp}-${random}`;
+};
+
+// USER: Start new chat or get existing chat
+app.post('/api/chat/start', authenticateToken, async (req, res) => {
+  try {
+    const { subject } = req.body;
+    const userId = req.user.id;
+    
+    // Check if user has an open chat
+    let chat = await SupportChat.findOne({ 
+      userId, 
+      status: { $in: ['open', 'in-progress'] } 
+    });
+    
+    if (!chat) {
+      chat = new SupportChat({
+        ticketId: generateTicketId(),
+        userId,
+        subject: subject || 'Support Request',
+        status: 'open'
+      });
+      await chat.save();
+    }
+    
+    // Get messages for this chat
+    const messages = await ChatMessage.find({ chatId: chat._id })
+      .sort({ createdAt: 1 })
+      .populate('senderId', 'name email');
+    
+    res.json({
+      success: true,
+      chat: {
+        id: chat._id,
+        ticketId: chat.ticketId,
+        subject: chat.subject,
+        status: chat.status,
+        unreadCount: chat.unreadByUser
+      },
+      messages: messages.map(m => ({
+        id: m._id,
+        message: m.message,
+        senderType: m.senderType,
+        senderName: m.senderType === 'admin' ? 'Support Team' : m.senderId?.name || 'You',
+        isRead: m.isRead,
+        createdAt: m.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Chat start error:', error);
+    res.status(500).json({ success: false, message: 'Error starting chat', error: error.message });
+  }
+});
+
+// USER: Send message in chat
+app.post('/api/chat/send', authenticateToken, async (req, res) => {
+  try {
+    console.log('📨 HEADERS:', req.headers);
+    console.log('📨 BODY RAW:', req.body);
+    
+    const { chatId, message } = req.body;
+    const userId = req.user.id;
+    
+    console.log('📨 Chat send request:', { chatId, message, userId });
+    
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: 'Message is required' });
+    }
+    
+    // Find chat
+    let chat;
+    if (chatId) {
+      chat = await SupportChat.findOne({ _id: chatId, userId });
+      console.log('📋 Found chat by ID:', chat?._id);
+    } else {
+      // Get or create chat
+      chat = await SupportChat.findOne({ 
+        userId, 
+        status: { $in: ['open', 'in-progress'] } 
+      });
+      
+      console.log('📋 Found existing chat:', chat?._id);
+      
+      if (!chat) {
+        chat = new SupportChat({
+          ticketId: generateTicketId(),
+          userId,
+          subject: 'Support Request',
+          status: 'open'
+        });
+        await chat.save();
+        console.log('📋 Created new chat:', chat._id, 'Ticket:', chat.ticketId);
+      }
+    }
+    
+    if (!chat) {
+      console.log('❌ Chat not found for user:', userId);
+      return res.status(404).json({ success: false, message: 'Chat not found' });
+    }
+    
+    // Create message
+    const chatMessage = new ChatMessage({
+      chatId: chat._id,
+      senderId: userId,
+      senderType: 'user',
+      message: message.trim()
+    });
+    await chatMessage.save();
+    console.log('✅ Message saved:', chatMessage._id);
+    
+    // Update chat
+    chat.lastMessage = new Date();
+    chat.unreadByAdmin += 1;
+    if (chat.status === 'open') {
+      chat.status = 'in-progress';
+    }
+    await chat.save();
+    console.log('✅ Chat updated, unreadByAdmin:', chat.unreadByAdmin);
+    
+    res.json({
+      success: true,
+      message: {
+        id: chatMessage._id,
+        message: chatMessage.message,
+        senderType: 'user',
+        senderName: 'You',
+        isRead: false,
+        createdAt: chatMessage.createdAt
+      },
+      chatId: chat._id,
+      ticketId: chat.ticketId
+    });
+  } catch (error) {
+    console.error('Chat send error:', error);
+    res.status(500).json({ success: false, message: 'Error sending message', error: error.message });
+  }
+});
+
+// USER: Get chat messages
+app.get('/api/chat/messages', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Find user's active chat
+    const chat = await SupportChat.findOne({ 
+      userId, 
+      status: { $in: ['open', 'in-progress'] } 
+    });
+    
+    if (!chat) {
+      return res.json({
+        success: true,
+        chat: null,
+        messages: []
+      });
+    }
+    
+    // Mark all admin messages as read
+    await ChatMessage.updateMany(
+      { chatId: chat._id, senderType: 'admin', isRead: false },
+      { isRead: true, readAt: new Date() }
+    );
+    chat.unreadByUser = 0;
+    await chat.save();
+    
+    const messages = await ChatMessage.find({ chatId: chat._id })
+      .sort({ createdAt: 1 });
+    
+    res.json({
+      success: true,
+      chat: {
+        id: chat._id,
+        ticketId: chat.ticketId,
+        subject: chat.subject,
+        status: chat.status
+      },
+      messages: messages.map(m => ({
+        id: m._id,
+        message: m.message,
+        senderType: m.senderType,
+        senderName: m.senderType === 'admin' ? 'Support Team' : 'You',
+        isRead: m.isRead,
+        createdAt: m.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Chat messages error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching messages', error: error.message });
+  }
+});
+
+// USER: Get chat history (all past chats)
+app.get('/api/chat/history', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const chats = await SupportChat.find({ userId })
+      .sort({ lastMessage: -1 })
+      .limit(20);
+    
+    const chatsWithLastMessage = await Promise.all(chats.map(async (chat) => {
+      const lastMsg = await ChatMessage.findOne({ chatId: chat._id })
+        .sort({ createdAt: -1 });
+      
+      return {
+        id: chat._id,
+        ticketId: chat.ticketId,
+        subject: chat.subject,
+        status: chat.status,
+        lastMessage: lastMsg?.message?.substring(0, 50) + (lastMsg?.message?.length > 50 ? '...' : '') || 'No messages',
+        lastMessageTime: chat.lastMessage,
+        unreadCount: chat.unreadByUser,
+        createdAt: chat.createdAt
+      };
+    }));
+    
+    res.json({
+      success: true,
+      chats: chatsWithLastMessage
+    });
+  } catch (error) {
+    console.error('Chat history error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching chat history', error: error.message });
+  }
+});
+
+// USER: Close chat
+app.post('/api/chat/close', authenticateToken, async (req, res) => {
+  try {
+    const { chatId } = req.body;
+    const userId = req.user.id;
+    
+    const chat = await SupportChat.findOne({ _id: chatId, userId });
+    
+    if (!chat) {
+      return res.status(404).json({ success: false, message: 'Chat not found' });
+    }
+    
+    chat.status = 'closed';
+    await chat.save();
+    
+    res.json({
+      success: true,
+      message: 'Chat closed successfully'
+    });
+  } catch (error) {
+    console.error('Chat close error:', error);
+    res.status(500).json({ success: false, message: 'Error closing chat', error: error.message });
+  }
+});
+
+// ADMIN: Get all chats
+app.get('/api/admin/chats', authenticateToken, async (req, res) => {
+  try {
+    console.log('📥 Admin chats request, user role:', req.user.role);
+    
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+    
+    const { status, page = 1, limit = 20 } = req.query;
+    console.log('📋 Query params:', { status, page, limit });
+    
+    let query = {};
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    
+    const total = await SupportChat.countDocuments(query);
+    console.log('📊 Total chats found:', total);
+    
+    const chats = await SupportChat.find(query)
+      .populate('userId', 'firstName lastName email phone userId')
+      .sort({ lastMessage: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+    
+    const chatsWithDetails = await Promise.all(chats.map(async (chat) => {
+      const lastMsg = await ChatMessage.findOne({ chatId: chat._id })
+        .sort({ createdAt: -1 });
+      const messageCount = await ChatMessage.countDocuments({ chatId: chat._id });
+      
+      return {
+        id: chat._id,
+        ticketId: chat.ticketId,
+        user: {
+          id: chat.userId?._id,
+          name: chat.userId ? `${chat.userId.firstName || ''} ${chat.userId.lastName || ''}`.trim() : 'Unknown',
+          email: chat.userId?.email || 'N/A',
+          phone: chat.userId?.phone || 'N/A',
+          userId: chat.userId?.userId || 'N/A'
+        },
+        subject: chat.subject,
+        status: chat.status,
+        priority: chat.priority,
+        lastMessage: lastMsg?.message?.substring(0, 100) + (lastMsg?.message?.length > 100 ? '...' : '') || 'No messages',
+        lastMessageTime: chat.lastMessage,
+        unreadCount: chat.unreadByAdmin,
+        messageCount,
+        createdAt: chat.createdAt
+      };
+    }));
+    
+    // Get stats
+    const stats = {
+      total: await SupportChat.countDocuments({}),
+      open: await SupportChat.countDocuments({ status: 'open' }),
+      inProgress: await SupportChat.countDocuments({ status: 'in-progress' }),
+      resolved: await SupportChat.countDocuments({ status: 'resolved' }),
+      closed: await SupportChat.countDocuments({ status: 'closed' }),
+      unread: await SupportChat.aggregate([
+        { $group: { _id: null, total: { $sum: '$unreadByAdmin' } } }
+      ]).then(r => r[0]?.total || 0)
+    };
+    
+    res.json({
+      success: true,
+      chats: chatsWithDetails,
+      stats,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Admin chats error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching chats', error: error.message });
+  }
+});
+
+// ADMIN: Get specific chat messages
+app.get('/api/admin/chats/:chatId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+    
+    const { chatId } = req.params;
+    
+    const chat = await SupportChat.findById(chatId)
+      .populate('userId', 'firstName lastName email phone userId');
+    
+    if (!chat) {
+      return res.status(404).json({ success: false, message: 'Chat not found' });
+    }
+    
+    // Mark all user messages as read
+    await ChatMessage.updateMany(
+      { chatId: chat._id, senderType: 'user', isRead: false },
+      { isRead: true, readAt: new Date() }
+    );
+    chat.unreadByAdmin = 0;
+    await chat.save();
+    
+    const messages = await ChatMessage.find({ chatId: chat._id })
+      .sort({ createdAt: 1 })
+      .populate('senderId', 'firstName lastName');
+    
+    res.json({
+      success: true,
+      chat: {
+        id: chat._id,
+        ticketId: chat.ticketId,
+        user: {
+          id: chat.userId?._id,
+          name: chat.userId ? `${chat.userId.firstName || ''} ${chat.userId.lastName || ''}`.trim() : 'Unknown',
+          email: chat.userId?.email || 'N/A',
+          phone: chat.userId?.phone || 'N/A',
+          userId: chat.userId?.userId || 'N/A'
+        },
+        subject: chat.subject,
+        status: chat.status,
+        priority: chat.priority,
+        createdAt: chat.createdAt
+      },
+      messages: messages.map(m => ({
+        id: m._id,
+        message: m.message,
+        senderType: m.senderType,
+        senderName: m.senderType === 'admin' ? 'Admin' : (m.senderId ? `${m.senderId.firstName || ''} ${m.senderId.lastName || ''}`.trim() : 'User'),
+        isRead: m.isRead,
+        createdAt: m.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error('Admin chat messages error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching chat', error: error.message });
+  }
+});
+
+// ADMIN: Reply to chat
+app.post('/api/admin/chats/:chatId/reply', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+    
+    const { chatId } = req.params;
+    const { message } = req.body;
+    
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: 'Message is required' });
+    }
+    
+    const chat = await SupportChat.findById(chatId);
+    
+    if (!chat) {
+      return res.status(404).json({ success: false, message: 'Chat not found' });
+    }
+    
+    // Create admin message
+    const chatMessage = new ChatMessage({
+      chatId: chat._id,
+      senderId: req.user.id,
+      senderType: 'admin',
+      message: message.trim()
+    });
+    await chatMessage.save();
+    
+    // Update chat
+    chat.lastMessage = new Date();
+    chat.unreadByUser += 1;
+    if (chat.status === 'open') {
+      chat.status = 'in-progress';
+    }
+    await chat.save();
+    
+    res.json({
+      success: true,
+      message: {
+        id: chatMessage._id,
+        message: chatMessage.message,
+        senderType: 'admin',
+        senderName: 'Admin',
+        isRead: false,
+        createdAt: chatMessage.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Admin reply error:', error);
+    res.status(500).json({ success: false, message: 'Error sending reply', error: error.message });
+  }
+});
+
+// ADMIN: Update chat status
+app.patch('/api/admin/chats/:chatId/status', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+    
+    const { chatId } = req.params;
+    const { status, priority } = req.body;
+    
+    const chat = await SupportChat.findById(chatId);
+    
+    if (!chat) {
+      return res.status(404).json({ success: false, message: 'Chat not found' });
+    }
+    
+    if (status) chat.status = status;
+    if (priority) chat.priority = priority;
+    await chat.save();
+    
+    res.json({
+      success: true,
+      message: 'Chat updated successfully',
+      chat: {
+        id: chat._id,
+        ticketId: chat.ticketId,
+        status: chat.status,
+        priority: chat.priority
+      }
+    });
+  } catch (error) {
+    console.error('Admin update chat error:', error);
+    res.status(500).json({ success: false, message: 'Error updating chat', error: error.message });
+  }
+});
+
+// Get unread chat count for user (for floating badge)
+app.get('/api/chat/unread-count', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const chat = await SupportChat.findOne({ 
+      userId, 
+      status: { $in: ['open', 'in-progress'] } 
+    });
+    
+    res.json({
+      success: true,
+      unreadCount: chat?.unreadByUser || 0
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching unread count' });
   }
 });
 
@@ -5591,6 +7259,79 @@ app.use((err, req, res, next) => {
   console.error('Global error:', err);
   res.status(500).json({ message: 'Internal server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Server error' });
 });
+
+// ==================== ANNOUNCEMENT ROUTES ====================
+
+// Get Announcement (User/Public)
+app.get('/api/announcement', async (req, res) => {
+  try {
+    // Return the specific announcement or the latest one
+    const announcement = await Announcement.findOne().sort({ updatedAt: -1 });
+    res.json(announcement || { title: 'No Announcement', content: '', isVisible: false });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching announcement', error: error.message });
+  }
+});
+
+// Update Announcement (Admin)
+app.put('/api/admin/announcement', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { title, content, imageUrl, isVisible } = req.body;
+    let announcement = await Announcement.findOne();
+    
+    if (announcement) {
+      announcement.title = title;
+      announcement.content = content;
+      if (imageUrl !== undefined) announcement.imageUrl = imageUrl;
+      announcement.isVisible = isVisible;
+      announcement.updatedAt = Date.now();
+      await announcement.save();
+    } else {
+      announcement = await Announcement.create({ title, content, imageUrl, isVisible });
+    }
+    
+    res.json({ success: true, message: 'Announcement updated successfully', announcement });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating announcement', error: error.message });
+  }
+});
+
+// Initialize Default Announcement
+const initializeAnnouncement = async () => {
+  try {
+    const count = await Announcement.countDocuments();
+    if (count === 0) {
+      const defaultContent = `ULTIMATE REWARD ANNOUNCEMENT – FREE 1000 USDT
+
+We are excited to announce an exclusive opportunity for our top performers
+
+BONUS REWARD OF 1000 USDT
+Refer new users to our platform the total investment made by YOU OR your referred users must reach 15,000 USDT
+Only successful and completed investments will be counted
+
+Important Notes:
+Only investments made through your referral link are valid
+Once your referral volume reaches 15,000 USDT, you qualify for the BONUS REWARD OF 1000 USDT AND WILL BE CREDITED IN YOUR UTILITY WALLET
+Start referring. Build your network. Claim your reward
+Refer users.
+Let their total investment reach 15,000 USDT.
+No CAPPING limit on number of referrals
+Reach 15,000 USDT → Win 1000 USDT
+This is your Golden Chance. Don’t miss it.`;
+      
+      await Announcement.create({
+        title: 'ULTIMATE REWARD ANNOUNCEMENT – FREE 1000 USDT',
+        content: defaultContent,
+        imageUrl: '', // Can be updated by admin
+        isVisible: true
+      });
+      console.log('✅ Initialized default announcement');
+    }
+  } catch (error) {
+    console.error('Error initializing announcement:', error);
+  }
+};
+initializeAnnouncement();
 
 // ==================== SERVER START ====================
 

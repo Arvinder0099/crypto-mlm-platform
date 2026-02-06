@@ -14,6 +14,8 @@ import {
 } from '@mui/material';
 import { Description as ExcelIcon, Print as PrintIcon, CalendarToday as CalendarIcon } from '@mui/icons-material';
 
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
+
 const DailyIncomeSummary = () => {
   const [filters, setFilters] = useState({
     date: '',
@@ -25,7 +27,7 @@ const DailyIncomeSummary = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    fetch('/api/reports/daily-income', {
+    fetch(`${API_BASE}/api/reports/daily-income`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
       .then(res => res.json())

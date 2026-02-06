@@ -11,31 +11,65 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Chip,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
+import { Refresh as RefreshIcon } from '@mui/icons-material';
+
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
 
 const ProcessedFundRequests = () => {
   const [filters, setFilters] = useState({
     memberId: '',
     username: '',
-    shows: '',
   });
 
-  const [processedRequests, setProcessedRequests] = useState([]);
+  const [activations, setActivations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const fetchActivations = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_BASE}/api/admin/activations`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      const data = await response.json();
+      if (data.data) {
+        setActivations(data.data);
+      } else {
+        setActivations([]);
+      }
+    } catch (err) {
+      console.error('Failed to load user activations', err);
+      setError('Failed to load user activations');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    fetch('/api/admin/fund-requests/processed', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
-      .then(res => res.json())
-      .then(data => {
-        setProcessedRequests(data.data || []);
-      })
-      .catch(err => console.error('Failed to load processed fund requests', err));
+    fetchActivations();
   }, []);
 
-  const handleSearch = () => {
-    console.log('Search with filters:', filters);
+  const filteredActivations = activations.filter(row => {
+    const matchId = !filters.memberId || (row.userId || '').toLowerCase().includes(filters.memberId.toLowerCase());
+    const matchName = !filters.username || (row.userName || '').toLowerCase().includes(filters.username.toLowerCase());
+    return matchId && matchName;
+  });
+
+  const getStatusChip = (status) => {
+    const config = {
+      active: { color: 'success', label: 'Active' },
+      completed: { color: 'info', label: 'Completed' },
+      expired: { color: 'default', label: 'Expired' },
+      cancelled: { color: 'error', label: 'Cancelled' },
+    };
+    const c = config[status] || { color: 'default', label: status || 'Unknown' };
+    return <Chip label={c.label} color={c.color} size="small" />;
   };
 
   return (
@@ -43,25 +77,32 @@ const ProcessedFundRequests = () => {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-          PROCESSED FUND REQUEST SUMMARY
+          USER ACTIVATION
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Subscription - Processed Fund Request Summary
-        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={fetchActivations}
+          disabled={loading}
+        >
+          Refresh
+        </Button>
       </Box>
+
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Paper sx={{ p: 3 }}>
         {/* Search Filters */}
         <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
           <TextField
-            placeholder="Member ID"
+            placeholder="User ID"
             value={filters.memberId}
             onChange={(e) => setFilters({ ...filters, memberId: e.target.value })}
             size="small"
             sx={{ minWidth: 180 }}
           />
           <TextField
-            placeholder="Username Like"
+            placeholder="User Name"
             value={filters.username}
             onChange={(e) => setFilters({ ...filters, username: e.target.value })}
             size="small"
@@ -69,21 +110,19 @@ const ProcessedFundRequests = () => {
           />
           <Button
             variant="contained"
-            onClick={handleSearch}
+            onClick={() => {}}
             sx={{ textTransform: 'none' }}
           >
             Search
           </Button>
-          <TextField
-            placeholder="Shows"
-            value={filters.shows}
-            onChange={(e) => setFilters({ ...filters, shows: e.target.value })}
-            size="small"
-            sx={{ minWidth: 150 }}
-          />
         </Box>
 
         {/* Table */}
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
         <TableContainer>
           <Table>
             <TableHead>
@@ -93,27 +132,44 @@ const ProcessedFundRequests = () => {
                 }}
               >
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>#</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>User ID</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>User Name</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Member ID</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Payment mode</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Payment Address</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Plan Selected</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Amount</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Activated On</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Expires On</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Reference ID</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {processedRequests.map((row) => (
-                <TableRow key={row.id} sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
-                  <TableCell>{row.id}</TableCell>
-                  <TableCell>{row.userName}</TableCell>
-                  <TableCell>{row.memberId}</TableCell>
-                  <TableCell>{row.paymentMode}</TableCell>
-                  <TableCell sx={{ fontSize: '0.85rem' }}>{row.paymentAddress}</TableCell>
-                  <TableCell>$ {row.amount.toFixed(2)}</TableCell>
+              {filteredActivations.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    No user activations found
+                  </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredActivations.map((row, index) => (
+                  <TableRow key={row.referenceId || index} sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>{row.userId}</TableCell>
+                    <TableCell>{row.userName}</TableCell>
+                    <TableCell>
+                      <Chip label={row.plan || 'N/A'} color="primary" variant="outlined" size="small" />
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>$ {(row.amount || 0).toFixed(2)}</TableCell>
+                    <TableCell>{getStatusChip(row.status)}</TableCell>
+                    <TableCell>{row.activatedOn ? new Date(row.activatedOn).toLocaleDateString() : 'N/A'}</TableCell>
+                    <TableCell>{row.expiresOn ? new Date(row.expiresOn).toLocaleDateString() : 'N/A'}</TableCell>
+                    <TableCell sx={{ fontSize: '0.85rem' }}>{row.referenceId || 'N/A'}</TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
+        )}
       </Paper>
     </Box>
   );

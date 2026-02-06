@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, TextField, Button, Grid, Snackbar, Alert, Paper, Select, FormControl, MenuItem, InputLabel, Card, CardContent, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip } from '@mui/material';
-import { fetchJSON } from '../utils/api';
+import { fetchJSON, fetchWithAuth } from '../utils/api';
 import { Warning, Info } from '@mui/icons-material';
 import OtpDialog from '../components/OtpDialog';
+
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
 
 const Activation = () => {
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [activationType, setActivationType] = useState('self');
   const [selectedWallet, setSelectedWallet] = useState('fund');
   const [form, setForm] = useState({ otp: '' });
-  const [walletBalance, setWalletBalance] = useState(0);
+  const [fundWalletBalance, setFundWalletBalance] = useState(0);
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [plans, setPlans] = useState([]);
@@ -42,7 +44,7 @@ const Activation = () => {
           if (name.toUpperCase().includes('PLATINUM')) return 'Coming Soon';
           return '50 USDT';
         };
-        setPlans(plansRes.plans.map(p => ({
+        const mappedPlans = plansRes.plans.map(p => ({
           id: p._id,
           name: p.name,
           investment: p.investment,
@@ -51,26 +53,28 @@ const Activation = () => {
           totalReturn: p.totalReturn,
           roi: p.roi,
           minWithdraw: getMinWithdraw(p.name),
-        })));
+        }));
+        // Show all plans including Platinum
+        setPlans(mappedPlans);
       } else {
         setPlans(defaultPlans);
       }
 
-      // Fetch wallet balance
+      // Fetch Fund Wallet balance
       const token = localStorage.getItem('authToken');
-      const profileRes = await fetch('/api/user/profile', {
+      const walletsRes = await fetch(`${API_BASE}/api/user/wallets`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const profileData = await profileRes.json();
-      if (profileData.user) {
-        setWalletBalance(profileData.user.balance || 0);
+      const walletsData = await walletsRes.json();
+      if (walletsData) {
+        setFundWalletBalance(walletsData.fundWallet || 0);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
       setPlans(defaultPlans);
       try {
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
-        setWalletBalance(userData.balance || 0);
+        setFundWalletBalance(userData.fundWallet || 0);
       } catch (e) {
         console.error('Could not get user balance', e);
       }
@@ -90,8 +94,8 @@ const Activation = () => {
       setSnack({ open: true, message: 'Please verify OTP first', severity: 'error' });
       return;
     }
-    if (walletBalance < selectedPlan.investment) {
-      setSnack({ open: true, message: `Insufficient balance. You need ${selectedPlan.investment} USDT but have ${walletBalance.toFixed(2)} USDT.`, severity: 'error' });
+    if (fundWalletBalance < selectedPlan.investment) {
+      setSnack({ open: true, message: `Insufficient Fund Wallet balance. You need ${selectedPlan.investment} USDT but have ${fundWalletBalance.toFixed(2)} USDT. Please deposit or transfer funds.`, severity: 'error' });
       return;
     }
     setConfirmDialog({ open: true, plan: selectedPlan });
@@ -103,7 +107,7 @@ const Activation = () => {
     
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/plans/purchase', {
+      const response = await fetch(`${API_BASE}/api/plans/purchase`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +124,7 @@ const Activation = () => {
           message: `Successfully invested in ${data.investment.planName}! Your daily earning: ${data.investment.dailyReturn} USDT`, 
           severity: 'success' 
         });
-        setWalletBalance(data.newBalance);
+        setFundWalletBalance(data.newBalance);
         setSelectedPlanId('');
         setForm({ otp: '' });
       } else {
@@ -152,7 +156,7 @@ const Activation = () => {
   }
 
   return (
-    <Box sx={{ p: 2, bgcolor: '#f5f5f5', minHeight: '100vh' }}>
+    <Box sx={{ p: 2, minHeight: '100vh' }}>
       {/* Plan Cards - Horizontal Scroll */}
       <Box sx={{ mb: 3, overflowX: 'auto', pb: 2 }}>
         <Grid container spacing={2} sx={{ flexWrap: 'nowrap', minWidth: 'max-content' }}>
@@ -163,15 +167,15 @@ const Activation = () => {
                   borderRadius: 3,
                   overflow: 'hidden',
                   cursor: 'pointer',
-                  border: selectedPlanId === plan.id ? '3px solid #4caf50' : '1px solid #e0e0e0',
-                  transition: 'transform 0.2s',
-                  '&:hover': { transform: 'scale(1.02)' }
+                  border: selectedPlanId === plan.id ? '3px solid #10b981' : '1px solid #e2e8f0',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': { transform: 'scale(1.02)', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.15)' }
                 }}
                 onClick={() => setSelectedPlanId(plan.id)}
               >
-                {/* Plan Name Header - Blue */}
+                {/* Plan Name Header - Green */}
                 <Box sx={{ 
-                  bgcolor: '#1976d2', 
+                  backgroundColor: '#10b981', 
                   color: 'white', 
                   py: 1, 
                   px: 1, 
@@ -182,9 +186,9 @@ const Activation = () => {
                   </Typography>
                 </Box>
 
-                {/* Daily Earning - Green */}
+                {/* Daily Earning - Light Green */}
                 <Box sx={{ 
-                  bgcolor: '#4caf50', 
+                  backgroundColor: '#34d399', 
                   color: 'white', 
                   py: 1.5, 
                   px: 2, 
@@ -263,24 +267,23 @@ const Activation = () => {
 
       {/* Activation Details Form */}
       <Paper sx={{ p: 3, borderRadius: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: '#333' }}>
+        <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: 'text.primary' }}>
           Activation Details
         </Typography>
 
         <Grid container spacing={3}>
-          {/* Activation For */}
+          {/* Activation For - Read Only */}
           <Grid item xs={12}>
-            <FormControl fullWidth>
-              <InputLabel>Activation For</InputLabel>
-              <Select
-                value={activationType}
-                label="Activation For"
-                onChange={(e) => setActivationType(e.target.value)}
-              >
-                <MenuItem value="self">Self Activation</MenuItem>
-                <MenuItem value="downline">Downline Activation</MenuItem>
-              </Select>
-            </FormControl>
+            <TextField
+              fullWidth
+              label="Activation For"
+              value="Self Activation"
+              InputProps={{ 
+                readOnly: true,
+                sx: { fontWeight: 500 }
+              }}
+              helperText="Only self activation is currently available"
+            />
           </Grid>
 
           {/* Investment Selection */}
@@ -302,28 +305,14 @@ const Activation = () => {
             </FormControl>
           </Grid>
 
-          {/* Wallet Selection */}
-          <Grid item xs={12}>
-            <FormControl fullWidth>
-              <InputLabel>Wallet</InputLabel>
-              <Select
-                value={selectedWallet}
-                label="Wallet"
-                onChange={(e) => setSelectedWallet(e.target.value)}
-              >
-                <MenuItem value="fund">Fund Wallet</MenuItem>
-                <MenuItem value="income">Income Wallet</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-
-          {/* Wallet Balance Display */}
+          {/* Fund Wallet Balance Display */}
           <Grid item xs={12}>
             <TextField
               fullWidth
-              label="Wallet Balance"
-              value={`$ ${walletBalance.toFixed(2)}`}
+              label="Fund Wallet"
+              value={`$ ${fundWalletBalance.toFixed(2)}`}
               InputProps={{ readOnly: true }}
+              helperText="Only Fund Wallet balance can be used to activate plans"
               sx={{ 
                 '& .MuiInputBase-input': { 
                   fontWeight: 600,

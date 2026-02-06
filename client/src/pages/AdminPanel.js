@@ -62,65 +62,63 @@ const AdminPanel = () => {
     rejectedWithdrawal: 0,
   });
 
-  const [dashboardSettings, setDashboardSettings] = useState({
-    dailyAllotted: true,
-    referralBonus: true,
-    totalMembers: true,
-    activeMembers: true,
-    investments: true,
-    withdrawals: true,
-    creditDebit: true,
-  });
-
   useEffect(() => {
     const loadSummary = async () => {
       try {
-        // Load dashboard settings
-        const settingsData = await fetchWithAuth('/api/admin/dashboard-settings');
-        if (settingsData?.widgets) {
-          setDashboardSettings(settingsData.widgets);
+        // Load editable dashboard values
+        console.log('AdminPanel: Fetching dashboard values...');
+        const dashboardData = await fetchWithAuth('/api/admin/dashboard-values');
+        console.log('AdminPanel: Received data:', dashboardData);
+        
+        if (dashboardData?.values) {
+          const values = dashboardData.values;
+          console.log('AdminPanel: Setting values:', values);
+          
+          setInvestmentData({
+            totalInvestment: values.totalInvestment || 0,
+            adminInvestment: values.adminInvestment || 0,
+            walletInvestment: values.walletInvestment || 0,
+            directInvestment: values.directInvestment || 0,
+          });
+
+          setIncomeData({
+            daily: values.dailyAllotted || 0,
+            referral: values.referralBonusAllotted || 0,
+          });
+
+          setMemberStats({
+            totalMembers: values.totalMembers || 0,
+            activeMembers: values.activeMembers || 0,
+            inactiveMembers: values.inactiveMembers || 0,
+            suspendedMembers: values.suspendedMembers || 0,
+          });
+
+          setCreditDebitData({
+            totalCredited: values.totalCredited || 0,
+            todayCredited: values.todayCredited || 0,
+            yesterdayCredited: values.yesterdayCredited || 0,
+            totalDebited: values.totalDebited || 0,
+            todayDebited: values.todayDebited || 0,
+            yesterdayDebited: values.yesterdayDebited || 0,
+          });
+
+          setWithdrawalData({
+            totalWithdrawal: values.totalWithdrawal || 0,
+            pendingWithdrawal: values.pendingWithdrawal || 0,
+            approvedWithdrawal: values.approvedWithdrawal || 0,
+            rejectedWithdrawal: values.rejectedWithdrawal || 0,
+          });
         }
 
-        const data = await fetchWithAuth('/api/admin/summary');
-
-        setInvestmentData({
-          totalInvestment: data.investments?.totalInvestment || 0,
-          adminInvestment: data.investments?.adminInvestment || 0,
-          walletInvestment: data.investments?.walletInvestment || 0,
-          directInvestment: data.investments?.directInvestment || 0,
-        });
-
-        setIncomeData({
-          daily: data.income?.daily || 0,
-          referral: data.income?.referral || 0,
-        });
-
-        setMemberStats({
-          totalMembers: data.members?.total || 0,
-          activeMembers: data.members?.active || 0,
-          inactiveMembers: data.members?.inactive || 0,
-          suspendedMembers: data.members?.suspended || 0,
-        });
-
-        setRankAchievers(data.rankAchievers || []);
-
-        setCreditDebitData({
-          totalCredited: data.creditDebit?.totalCredited || 0,
-          todayCredited: data.creditDebit?.todayCredited || 0,
-          yesterdayCredited: data.creditDebit?.yesterdayCredited || 0,
-          totalDebited: data.creditDebit?.totalDebited || 0,
-          todayDebited: data.creditDebit?.todayDebited || 0,
-          yesterdayDebited: data.creditDebit?.yesterdayDebited || 0,
-        });
-
-        setWithdrawalData({
-          totalWithdrawal: data.withdrawals?.totalWithdrawal || 0,
-          pendingWithdrawal: data.withdrawals?.pendingWithdrawal || 0,
-          approvedWithdrawal: data.withdrawals?.approvedWithdrawal || 0,
-          rejectedWithdrawal: data.withdrawals?.rejectedWithdrawal || 0,
-        });
+        // Also try to load rank achievers from summary
+        try {
+          const data = await fetchWithAuth('/api/admin/summary');
+          setRankAchievers(data.rankAchievers || []);
+        } catch (err) {
+          console.log('Could not load rank achievers');
+        }
       } catch (error) {
-        console.error('Failed to load admin summary', error);
+        console.error('Failed to load dashboard values', error);
       }
     };
 
@@ -168,13 +166,12 @@ const AdminPanel = () => {
       </Typography>
 
       {/* 1. Total Investment Section */}
-      {dashboardSettings.investments && (
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
           Total Investment
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={6}>
             <StatCard
               title="Total Investment"
               value={`$${investmentData.totalInvestment.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
@@ -182,36 +179,18 @@ const AdminPanel = () => {
               color="#1976d2"
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={6}>
             <StatCard
-              title="Admin Investment"
-              value={`$${investmentData.adminInvestment.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-              icon={MonetizationOn}
-              color="#388e3c"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Wallet Investment"
+              title="My Wallet"
               value={`$${investmentData.walletInvestment.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
               icon={AccountBalance}
               color="#f57c00"
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Direct Investment"
-              value={`$${investmentData.directInvestment.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-              icon={TrendingUp}
-              color="#d32f2f"
-            />
-          </Grid>
         </Grid>
       </Box>
-      )}
 
       {/* 2. Income Summary Section */}
-      {dashboardSettings.dailyAllotted && dashboardSettings.referralBonus && (
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
           Income Summary
@@ -237,10 +216,8 @@ const AdminPanel = () => {
           </Grid>
         </Grid>
       </Box>
-      )}
 
       {/* 3. Member Count Statistics Section */}
-      {(dashboardSettings.totalMembers || dashboardSettings.activeMembers) && (
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
           Member Count Statistics
@@ -280,13 +257,11 @@ const AdminPanel = () => {
           </Grid>
         </Grid>
       </Box>
-      )}
 
       {/* 4. Rank Achievers Section (removed) */}
       {/* Rank achievers feature removed in favor of real data widgets */}
 
       {/* 5. Credit/Debit Section */}
-      {dashboardSettings.creditDebit && (
       <Box sx={{ mb: 4 }}>
         <Grid container spacing={3}>
           {/* Total Credited */}
@@ -360,10 +335,8 @@ const AdminPanel = () => {
           </Grid>
         </Grid>
       </Box>
-      )}
 
       {/* 6. Withdrawal Section */}
-      {dashboardSettings.withdrawals && (
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
           Withdrawal Summary
@@ -403,7 +376,6 @@ const AdminPanel = () => {
           </Grid>
         </Grid>
       </Box>
-      )}
     </Box>
   );
 };

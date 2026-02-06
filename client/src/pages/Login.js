@@ -15,6 +15,11 @@ import {
   CardContent,
   Chip,
   keyframes,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
 } from '@mui/material';
 import { 
   Visibility, 
@@ -256,6 +261,13 @@ const Login = () => {
   const [twoFAToken, setTwoFAToken] = useState('');
   const [particles, setParticles] = useState([]);
   
+  // Forgot Password State
+  const [forgotDialog, setForgotDialog] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1);
+  const [forgotData, setForgotData] = useState({ phone: '', otp: '', newPassword: '', confirmPassword: '', resetToken: '' });
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState({ text: '', type: '' });
+  
   const navigate = useNavigate();
   const { login, ROLES } = useAuth();
 
@@ -369,6 +381,110 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Forgot Password Handlers
+  const handleForgotChange = (e) => {
+    setForgotData({ ...forgotData, [e.target.name]: e.target.value });
+  };
+
+  const handleSendOTP = async () => {
+    if (!forgotData.phone) {
+      setForgotMessage({ text: 'Please enter your phone number', type: 'error' });
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const response = await fetch('/api/auth/forgot-password/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: forgotData.phone })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setForgotMessage({ text: 'OTP sent to your phone number', type: 'success' });
+        setForgotStep(2);
+      } else {
+        setForgotMessage({ text: data.message || 'Failed to send OTP', type: 'error' });
+      }
+    } catch (err) {
+      setForgotMessage({ text: 'Failed to send OTP', type: 'error' });
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!forgotData.otp) {
+      setForgotMessage({ text: 'Please enter the OTP', type: 'error' });
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const response = await fetch('/api/auth/forgot-password/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: forgotData.phone, otp: forgotData.otp })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setForgotData({ ...forgotData, resetToken: data.resetToken });
+        setForgotMessage({ text: 'OTP verified successfully', type: 'success' });
+        setForgotStep(3);
+      } else {
+        setForgotMessage({ text: data.message || 'Invalid OTP', type: 'error' });
+      }
+    } catch (err) {
+      setForgotMessage({ text: 'Failed to verify OTP', type: 'error' });
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (forgotData.newPassword !== forgotData.confirmPassword) {
+      setForgotMessage({ text: 'Passwords do not match', type: 'error' });
+      return;
+    }
+    if (forgotData.newPassword.length < 6) {
+      setForgotMessage({ text: 'Password must be at least 6 characters', type: 'error' });
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const response = await fetch('/api/auth/forgot-password/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resetToken: forgotData.resetToken,
+          newPassword: forgotData.newPassword,
+          confirmPassword: forgotData.confirmPassword
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setForgotMessage({ text: 'Password reset successful! Please login.', type: 'success' });
+        setTimeout(() => {
+          setForgotDialog(false);
+          setForgotStep(1);
+          setForgotData({ phone: '', otp: '', newPassword: '', confirmPassword: '', resetToken: '' });
+          setForgotMessage({ text: '', type: '' });
+        }, 2000);
+      } else {
+        setForgotMessage({ text: data.message || 'Failed to reset password', type: 'error' });
+      }
+    } catch (err) {
+      setForgotMessage({ text: 'Failed to reset password', type: 'error' });
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const openForgotDialog = () => {
+    setForgotStep(1);
+    setForgotData({ phone: '', otp: '', newPassword: '', confirmPassword: '', resetToken: '' });
+    setForgotMessage({ text: '', type: '' });
+    setForgotDialog(true);
   };
 
   return (
@@ -687,6 +803,22 @@ const Login = () => {
                     >
                       Don't have an account? Sign Up
                     </Link>
+                    <Box sx={{ mt: 1 }}>
+                      <Link
+                        component="button"
+                        variant="body2"
+                        onClick={openForgotDialog}
+                        type="button"
+                        sx={{ 
+                          color: '#10b981',
+                          fontWeight: 500,
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                      >
+                        Forgot Password?
+                      </Link>
+                    </Box>
                   </Box>
 
                   {/* Trust badges */}
@@ -751,6 +883,103 @@ const Login = () => {
           </Grid>
         </Grid>
       </Container>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={forgotDialog} onClose={() => setForgotDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 600, color: '#1e3a5f' }}>
+          Forgot Password
+          {forgotStep > 1 && (
+            <Typography variant="caption" sx={{ ml: 2, color: '#10b981' }}>
+              Step {forgotStep} of 3
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            {forgotMessage.text && (
+              <Alert severity={forgotMessage.type === 'error' ? 'error' : 'success'} sx={{ mb: 2 }}>
+                {forgotMessage.text}
+              </Alert>
+            )}
+            {forgotStep === 1 && (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Enter your registered phone number with country code.
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="Phone Number"
+                  name="phone"
+                  value={forgotData.phone}
+                  onChange={handleForgotChange}
+                  placeholder="+1234567890"
+                />
+              </>
+            )}
+            {forgotStep === 2 && (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Enter the 6-digit OTP sent to your phone.
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="OTP"
+                  name="otp"
+                  value={forgotData.otp}
+                  onChange={handleForgotChange}
+                  placeholder="Enter 6-digit OTP"
+                  inputProps={{ maxLength: 6 }}
+                />
+              </>
+            )}
+            {forgotStep === 3 && (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Enter your new password.
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="New Password"
+                  name="newPassword"
+                  type="password"
+                  value={forgotData.newPassword}
+                  onChange={handleForgotChange}
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  fullWidth
+                  label="Confirm New Password"
+                  name="confirmPassword"
+                  type="password"
+                  value={forgotData.confirmPassword}
+                  onChange={handleForgotChange}
+                />
+              </>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setForgotDialog(false)} disabled={forgotLoading}>Cancel</Button>
+          {forgotStep === 1 && (
+            <Button variant="contained" onClick={handleSendOTP} disabled={forgotLoading}
+              sx={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+              {forgotLoading ? <CircularProgress size={24} color="inherit" /> : 'Send OTP'}
+            </Button>
+          )}
+          {forgotStep === 2 && (
+            <Button variant="contained" onClick={handleVerifyOTP} disabled={forgotLoading}
+              sx={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+              {forgotLoading ? <CircularProgress size={24} color="inherit" /> : 'Verify OTP'}
+            </Button>
+          )}
+          {forgotStep === 3 && (
+            <Button variant="contained" onClick={handleResetPassword} disabled={forgotLoading}
+              sx={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+              {forgotLoading ? <CircularProgress size={24} color="inherit" /> : 'Reset Password'}
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

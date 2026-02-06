@@ -320,7 +320,6 @@ const AdminActivation = () => {
                 size="small"
               >
                 <MenuItem value="Actual Investment">Actual Investment</MenuItem>
-                <MenuItem value="Demo Investment">Demo Investment</MenuItem>
               </TextField>
             </Grid>
 

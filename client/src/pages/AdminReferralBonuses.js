@@ -41,7 +41,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
 
 const AdminReferralBonuses = () => {
   const { token } = useAuth();
@@ -288,28 +288,42 @@ const AdminReferralBonuses = () => {
         ) : (
           <Table>
             <TableHead>
-              <TableRow sx={{ bgcolor: 'grey.100' }}>
-                <TableCell><strong>Referrer</strong></TableCell>
-                <TableCell><strong>Referred User</strong></TableCell>
-                <TableCell><strong>Investment</strong></TableCell>
-                <TableCell><strong>Bonus (10%)</strong></TableCell>
-                <TableCell><strong>Status</strong></TableCell>
-                <TableCell><strong>Date</strong></TableCell>
-                <TableCell align="center"><strong>Actions</strong></TableCell>
+              <TableRow sx={{ background: 'linear-gradient(90deg, #7b2ff7 0%, #f107a3 100%)' }}>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>#</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>User ID (Referrer)</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Referrer Name</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Referral To Whom ID</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Referred User Name</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Investment</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Bonus Amount</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }} align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredBonuses.map((bonus) => (
+              {filteredBonuses.map((bonus, index) => (
                 <TableRow key={bonus.id} hover>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight="bold" color="primary">
+                      {bonus.referrer.oderId || 'N/A'}
+                    </Typography>
+                  </TableCell>
                   <TableCell>
                     <Box>
-                      <Typography variant="body2" fontWeight="bold">{bonus.referrer.name}</Typography>
+                      <Typography variant="body2">{bonus.referrer.name}</Typography>
                       <Typography variant="caption" color="text.secondary">{bonus.referrer.email}</Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
+                    <Typography variant="body2" fontWeight="bold" color="secondary">
+                      {bonus.referredUser.oderId || 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
                     <Box>
-                      <Typography variant="body2" fontWeight="bold">{bonus.referredUser.name}</Typography>
+                      <Typography variant="body2">{bonus.referredUser.name}</Typography>
                       <Typography variant="caption" color="text.secondary">{bonus.referredUser.email}</Typography>
                     </Box>
                   </TableCell>

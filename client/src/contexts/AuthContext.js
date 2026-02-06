@@ -33,6 +33,8 @@ export const AuthProvider = ({ children }) => {
         const token = localStorage.getItem('authToken');
         const userData = localStorage.getItem('userData');
 
+        console.log('Auth Init - Token exists:', !!token, 'UserData exists:', !!userData);
+
         if (token && userData) {
           // Try to parse stored user data (plaintext expected)
           let parsedUser = null;
@@ -40,27 +42,19 @@ export const AuthProvider = ({ children }) => {
             parsedUser = JSON.parse(userData);
           } catch (error) {
             // Malformed or encrypted legacy data; clear and treat as unauthenticated
+            console.log('Failed to parse userData, clearing...');
             localStorage.removeItem('authToken');
             localStorage.removeItem('userData');
             parsedUser = null;
           }
 
           if (parsedUser) {
-            // Verify token with backend; if invalid, clear storage
-            try {
-              const res = await fetchWithAuth('/api/users/profile/me');
-              const verifiedUser = res?.data || parsedUser;
-              if (!isMounted) return;
-              setUser(verifiedUser);
-              setIsAuthenticated(true);
-            } catch (err) {
-              // Token invalid or backend unreachable; clear and require login
-              localStorage.removeItem('authToken');
-              localStorage.removeItem('userData');
-              if (!isMounted) return;
-              setUser(null);
-              setIsAuthenticated(false);
-            }
+            // Trust the stored token and user data without backend verification
+            // This keeps the user logged in on refresh
+            console.log('Using stored user data:', parsedUser.email, parsedUser.role);
+            if (!isMounted) return;
+            setUser(parsedUser);
+            setIsAuthenticated(true);
           } else {
             if (!isMounted) return;
             setUser(null);

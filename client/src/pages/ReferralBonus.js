@@ -164,7 +164,7 @@ const ReferralBonus = () => {
           Referral Bonus
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Earn 10% bonus for every user who registers using your referral link!
+          Earn 5% bonus for every user who registers using your referral link!
         </Typography>
       </Box>
 
@@ -180,9 +180,8 @@ const ReferralBonus = () => {
         <Typography variant="body2" component="div">
           <ol style={{ margin: 0, paddingLeft: '1.2rem' }}>
             <li>Share your referral link with friends</li>
-            <li>When they register and make their first investment, you earn 10% of their investment as bonus</li>
-            <li>Admin will review and approve the bonus</li>
-            <li>Once approved, the bonus will be credited to your wallet</li>
+            <li>When they register and make their first investment, you earn 5% of their investment as bonus and new user will also get 5% welcome bonus as per their investment.</li>
+            <li>Bonus is credited to your Utility Wallet instantly.</li>
           </ol>
         </Typography>
       </Alert>
@@ -221,7 +220,7 @@ const ReferralBonus = () => {
 
       {/* Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
             title="Total Referrals"
             value={summary.totalReferrals}
@@ -230,7 +229,7 @@ const ReferralBonus = () => {
             color="#1976d2"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
             title="Total Bonus"
             value={`$${(summary.totalBonus || 0).toFixed(2)}`}
@@ -239,22 +238,13 @@ const ReferralBonus = () => {
             color="#388e3c"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={4}>
           <StatCard
             title="Credited Bonus"
             value={`$${(summary.creditedBonus || 0).toFixed(2)}`}
             subtitle="Already received"
             icon={CheckCircle}
             color="#7b1fa2"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Pending Bonus"
-            value={`$${(summary.pendingBonus || 0).toFixed(2)}`}
-            subtitle="Waiting for activation"
-            icon={TrendingUp}
-            color="#f57c00"
           />
         </Grid>
       </Grid>
@@ -293,9 +283,9 @@ const ReferralBonus = () => {
                 <Avatar sx={{ bgcolor: '#fff3e0', width: 64, height: 64, mx: 'auto', mb: 2 }}>
                   <CardGiftcard sx={{ color: '#f57c00', fontSize: 32 }} />
                 </Avatar>
-                <Typography variant="subtitle1" fontWeight="bold">3. Earn 10% Bonus</Typography>
+                <Typography variant="subtitle1" fontWeight="bold">3. Earn 5% Bonus</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  You earn 10% bonus when your referral makes their first investment
+                  You earn 5% bonus and they get 5% welcome bonus when they invest!
                 </Typography>
               </Box>
             </Grid>

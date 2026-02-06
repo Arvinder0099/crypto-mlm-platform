@@ -10,7 +10,7 @@ import {
   Person, ContentCopy, WhatsApp, Telegram, LinkedIn, Link as LinkIcon, Share, Group
 } from '@mui/icons-material';
 
-const API_BASE = '';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
 
 const fetchJSON = async (url) => {
   const token = localStorage.getItem('authToken');
@@ -19,14 +19,9 @@ const fetchJSON = async (url) => {
   return res.data;
 };
 
-const cardBorder = {
-  borderRadius: 4,
-  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-  border: '1px solid rgba(102,126,234,0.1)',
-};
-
+// Using global theme card styles
 const SectionCard = ({ children, sx = {} }) => (
-  <Card sx={{ ...cardBorder, height: '100%', ...sx }}>
+  <Card sx={{ height: '100%', ...sx }}>
     <CardContent sx={{ p: { xs: 2, sm: 3 } }}>{children}</CardContent>
   </Card>
 );
@@ -177,10 +172,10 @@ const Dashboard = () => {
         <Grid container spacing={{ xs: 2, sm: 2, md: 3 }}>
           {/* Crypto User Info Card */}
           <Grid item xs={12} md={4}>
-            <Card sx={{ ...cardBorder, overflow: 'hidden' }}>
+            <Card sx={{ overflow: 'hidden' }}>
               <Box
                 sx={{
-                  background: 'linear-gradient(135deg,#7F00FF 0%, #E100FF 100%)',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                   color: '#fff',
                   p: { xs: 2, sm: 3 },
                   minHeight: { xs: 'auto', sm: 300 },
@@ -202,8 +197,6 @@ const Dashboard = () => {
                   <InfoLine label="Email ID" value={dashboardData.email || 'N/A'} light />
                   <InfoLine label="Date of Registration" value={formatDate(dashboardData.dateOfRegistration)} light />
                   <InfoLine label="Date of Activation" value={formatDate(dashboardData.dateOfActivation)} light />
-                  <InfoLine label="Rank" value={dashboardData.rank} light />
-                  <InfoLine label="Rank Achieved On" value={formatDate(dashboardData.rankAchievedOn)} light />
                 </Box>
               </Box>
             </Card>
