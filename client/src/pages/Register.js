@@ -914,28 +914,8 @@ function Register() {
                     sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                   />
                 </Grid>
-              </Grid>
-            </Box>
-          </Fade>
-        );
 
-      case 1:
-        return (
-          <Fade in timeout={500}>
-            <Box>
-              <Typography variant="h5" fontWeight="800" gutterBottom sx={{ 
-                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
-                Security & Wallet
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mb={3}>
-                Set your password and add wallet for withdrawals
-              </Typography>
-
-              <Grid container spacing={2}>
-                {/* Password Fields */}
+                {/* Password Fields (Moved to Step 1) */}
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
@@ -1004,10 +984,27 @@ function Register() {
                     Password Strength: {formData.password.length >= 8 ? '💪 Strong' : formData.password.length >= 6 ? '👍 Good' : '⚠️ Weak'}
                   </Typography>
                 </Grid>
+              </Grid>
+            </Box>
+          </Fade>
+        );
 
-                <Grid item xs={12}>
-                  <Divider sx={{ my: 1 }} />
-                </Grid>
+      case 1:
+        return (
+          <Fade in timeout={500}>
+            <Box>
+              <Typography variant="h5" fontWeight="800" gutterBottom sx={{ 
+                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}>
+                Wallet Setup
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={3}>
+                Add your wallet for withdrawals
+              </Typography>
+
+              <Grid container spacing={2}>
 
                 {/* Wallet Setup */}
                 <Grid item xs={12}>
