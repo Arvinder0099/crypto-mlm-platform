@@ -215,7 +215,7 @@ class TwilioService {
    * @param {string} otp - OTP code
    * @param {string} appName - Application name for message
    */
-  async sendOTP(phone, otp, appName = 'MLM Platform') {
+  async sendOTP(phone, otp, appName = 'Hexanova') {
     const message = `Your ${appName} verification code is: ${otp}. Valid for 10 minutes. Do not share this code with anyone.`;
     return this.sendSMS(phone, message);
   }
@@ -306,7 +306,7 @@ class MSG91Service {
     }
   }
 
-  async sendOTP(phone, otp, appName = 'MLM Platform') {
+  async sendOTP(phone, otp, appName = 'Hexanova') {
     return this.sendSMS(phone, otp);
   }
 }

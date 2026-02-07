@@ -602,7 +602,7 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
     await createUserNotification(
       user._id,
       'welcome',
-      'Welcome to MLM Platform! 🎉',
+      'Welcome to Hexanova! 🎉',
       `Hello ${firstName}! Your account has been created successfully. Start investing to earn daily returns!`,
       {}
     );
@@ -821,7 +821,7 @@ app.post('/api/auth/send-phone-otp', rateLimiters.otp, async (req, res) => {
     // Try to send SMS
     try {
       const smsService = SMSServiceFactory.getService();
-      await smsService.sendOTP(fullPhone, otp, 'CryptoMLM');
+      await smsService.sendOTP(fullPhone, otp, 'Hexanova');
       console.log(`✅ OTP SMS sent to ${fullPhone}`);
     } catch (smsErr) {
       console.error(`⚠️  SMS sending failed:`, smsErr.message);
@@ -1261,7 +1261,7 @@ app.post('/api/auth/send-phone-otp', rateLimiters.otp, async (req, res) => {
     try {
       // Get SMS service and send OTP
       const smsService = SMSServiceFactory.getService();
-      const smsResult = await smsService.sendOTP(phoneNumber, code, 'MLM Platform');
+      const smsResult = await smsService.sendOTP(phoneNumber, code, 'Hexanova');
       console.log('✅ SMS sent successfully:', smsResult);
     } catch (smsError) {
       console.error('❌ SMS sending failed:', smsError.message);
@@ -6639,8 +6639,9 @@ app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
 app.get('/api/learning/courses', authenticateToken, async (req, res) => {
   try {
     const courses = [
-      { id: 1, title: 'Introduction to Crypto MLM', description: 'Learn the basics of crypto MLM', duration: '2 hours', level: 'Beginner', progress: 0 },
+      { id: 1, title: 'Introduction to Hexanova', description: 'Learn the basics of crypto MLM', duration: '2 hours', level: 'Beginner', progress: 0 },
       { id: 2, title: 'Advanced Trading Strategies', description: 'Master trading techniques', duration: '4 hours', level: 'Advanced', progress: 0 },
+
       { id: 3, title: 'Building Your Network', description: 'Grow your referral network effectively', duration: '3 hours', level: 'Intermediate', progress: 0 }
     ];
     res.json({ success: true, data: courses });
@@ -6709,7 +6710,7 @@ app.get('/api/support/faqs', authenticateToken, async (req, res) => {
   try {
     const faqs = [
       { id: 1, question: 'How do I reset my password?', answer: 'Go to Settings > Security > Change Password.' },
-      { id: 2, question: 'Why is my withdrawal pending?', answer: 'Withdrawals are processed within 24-48 hours after admin approval.' },
+      { id: 2, question: 'Why is my withdrawal pending?', answer: 'Withdrawals are processed within 24hexanova after admin approval.' },
       { id: 3, question: 'How to contact support?', answer: 'Create a support ticket or email support@cryptomlm.com.' }
     ];
     res.json({ success: true, data: faqs });
@@ -7342,7 +7343,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`
     =====================================
-    🚀 MLM Platform Server Running
+    🚀 Hexanova Server Running
     =====================================
     📍 Port: ${PORT}
     🔐 JWT Secret: ${JWT_SECRET.substring(0, 5)}...

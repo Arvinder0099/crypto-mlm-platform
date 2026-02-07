@@ -23,8 +23,8 @@ const nodemailer = require('nodemailer');
 class SendGridService {
   constructor() {
     this.apiKey = process.env.SENDGRID_API_KEY || '';
-    this.fromEmail = process.env.EMAIL_FROM || 'noreply@yourmlm.com';
-    this.fromName = process.env.EMAIL_FROM_NAME || 'MLM Platform';
+    this.fromEmail = process.env.EMAIL_FROM || 'noreply@hexanova.com';
+    this.fromName = process.env.EMAIL_FROM_NAME || 'Hexanova';
     this.sgMail = null;
   }
 
@@ -74,8 +74,8 @@ class SMTPService {
     this.secure = process.env.SMTP_SECURE === 'true';
     this.user = process.env.SMTP_USER || '';
     this.pass = process.env.SMTP_PASS || '';
-    this.fromEmail = process.env.EMAIL_FROM || this.user || 'noreply@yourmlm.com';
-    this.fromName = process.env.EMAIL_FROM_NAME || 'MLM Platform';
+    this.fromEmail = process.env.EMAIL_FROM || this.user || 'noreply@hexanova.com';
+    this.fromName = process.env.EMAIL_FROM_NAME || 'Hexanova';
     this.transporter = null;
   }
 
@@ -117,7 +117,7 @@ class SMTPService {
           'X-Priority': '1',
           'X-MSMail-Priority': 'High',
           'Importance': 'high',
-          'X-Mailer': 'MLM Platform Mailer',
+          'X-Mailer': 'Hexanova Mailer',
           'X-Entity-Ref-ID': `otp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
         },
         priority: 'high'
@@ -178,7 +178,7 @@ class EmailServiceFactory {
 const EmailTemplates = {
   // Welcome Email
   welcome: (userName, loginUrl) => ({
-    subject: 'Welcome to MLM Platform! 🎉',
+    subject: 'Welcome to Hexanova! 🎉',
     html: `
       <!DOCTYPE html>
       <html>
@@ -195,7 +195,7 @@ const EmailTemplates = {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Welcome to MLM Platform!</h1>
+            <h1>Welcome to Hexanova!</h1>
           </div>
           <div class="content">
             <p>Hi <strong>${userName}</strong>,</p>
@@ -211,7 +211,7 @@ const EmailTemplates = {
             <p>If you have any questions, our support team is here to help!</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} MLM Platform. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} Hexanova. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -545,7 +545,7 @@ class EmailServiceWrapper {
     const subject = `🔐 ${otp} - Your Verification Code (Expires in ${expiresIn} min)`;
     
     // Plain text version (important for deliverability)
-    const plainText = `Your verification code is: ${otp}\n\nThis code expires in ${expiresIn} minutes.\n\nIf you didn't request this, please ignore this email.\n\n- MLM Platform`;
+    const plainText = `Your verification code is: ${otp}\n\nThis code expires in ${expiresIn} minutes.\n\nIf you didn't request this, please ignore this email.\n\n- Hexanova`;
     
     const html = `
       <!DOCTYPE html>
@@ -581,7 +581,7 @@ class EmailServiceWrapper {
           </tr>
           <tr>
             <td style="padding: 20px; text-align: center;">
-              <p style="margin: 0; font-size: 12px; color: #999;">&copy; 2026 MLM Platform. All rights reserved.</p>
+              <p style="margin: 0; font-size: 12px; color: #999;">&copy; 2026 Hexanoval rights reserved.</p>
             </td>
           </tr>
         </table>
@@ -592,7 +592,7 @@ class EmailServiceWrapper {
   }
 
   async sendWelcome(to, { name, username, email, referrer, loginUrl }) {
-    const subject = 'Welcome to MLM Platform! 🎉';
+    const subject = 'Welcome to Hexanova! 🎉';
     const html = EmailTemplates.welcome(name || username, loginUrl);
     return this.sendEmail(to, subject, html);
   }

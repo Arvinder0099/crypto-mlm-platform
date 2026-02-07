@@ -244,7 +244,7 @@ const MLMFeatures = () => {
         {/* Hero Section */}
         <Box textAlign="center" mb={6}>
           <Typography variant="h3" gutterBottom fontWeight="bold">
-            Complete MLM Platform Features
+            Complete Hexanova Features
           </Typography>
           <Typography variant="h6" color="text.secondary" mb={4}>
             Everything you need to build and manage a successful multi-level marketing business

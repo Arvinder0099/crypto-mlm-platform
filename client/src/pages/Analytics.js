@@ -257,7 +257,7 @@ const Analytics = () => {
           </Box>
         </Box>
         <Typography variant="subtitle1" color="text.secondary">
-          Comprehensive analytics and performance metrics for your MLM platform
+          Comprehensive analytics and performance metrics for your Hexanova platform
         </Typography>
       </Box>
 
