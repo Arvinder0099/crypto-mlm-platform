@@ -822,21 +822,30 @@ function Register() {
                     {!phoneVerified && (
                       <Box>
                         {!phoneOtpSent ? (
-                          <Button
-                            variant="contained"
-                            fullWidth
-                            startIcon={sendingPhoneOtp ? <CircularProgress size={18} color="inherit" /> : <Send />}
-                            onClick={sendPhoneOtp}
-                            disabled={sendingPhoneOtp}
-                            sx={{
-                              py: 1.2,
-                              borderRadius: 2,
-                              background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-                              fontWeight: 700,
-                            }}
-                          >
-                            {sendingPhoneOtp ? 'Sending...' : 'Send SMS OTP'}
-                          </Button>
+                          <Box display="flex" flexDirection="column">
+                            <Button
+                              variant="contained"
+                              fullWidth
+                              startIcon={sendingPhoneOtp ? <CircularProgress size={18} color="inherit" /> : <Send />}
+                              onClick={sendPhoneOtp}
+                              disabled={sendingPhoneOtp}
+                              sx={{
+                                py: 1.2,
+                                borderRadius: 2,
+                                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                                fontWeight: 700,
+                              }}
+                            >
+                              {sendingPhoneOtp ? 'Sending...' : 'Send SMS OTP'}
+                            </Button>
+                            <Button 
+                              size="small" 
+                              onClick={() => setPhoneOtpSent(true)}
+                              sx={{ mt: 1, textTransform: 'none', color: 'text.secondary', fontWeight: 500 }}
+                            >
+                              I already have a code
+                            </Button>
+                          </Box>
                         ) : (
                           <Box>
                             <Box display="flex" gap={1} mb={1}>
