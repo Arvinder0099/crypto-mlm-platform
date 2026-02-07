@@ -935,7 +935,7 @@ function Register() {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Password"
+                    label="Create Password"
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={handleChange('password')}
@@ -957,7 +957,7 @@ function Register() {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Confirm Password"
+                    label="Confirm Your Password"
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={formData.confirmPassword}
                     onChange={handleChange('confirmPassword')}
@@ -1175,7 +1175,7 @@ function Register() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               animation: `${glow} 2s ease-in-out infinite`,
             }}>
-              <Security sx={{ fontSize: 70, color: 'white' }} />
+              <CurrencyBitcoin sx={{ fontSize: 70, color: 'white' }} />
             </Box>
             <Typography variant="h2" fontWeight="900" sx={{
               background: 'linear-gradient(135deg, #fff 0%, #10b981 50%, #fff 100%)',
@@ -1183,17 +1183,17 @@ function Register() {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
-              5D SOFTWARE
+              CryptoMLM
             </Typography>
             <Typography variant="h6" sx={{ opacity: 0.9, mt: 1 }}>
-              Power Your Digital Future
+              Build Your Crypto Empire
             </Typography>
           </Box>
         </Zoom>
 
         <Grid container spacing={2} maxWidth={400}>
           {[
-            { icon: <TrendingUp />, title: 'Smart Analytics', desc: 'AI-powered insights' },
+            { icon: <TrendingUp />, title: 'High Returns', desc: 'Up to 320% ROI' },
             { icon: <Groups />, title: 'Team Bonus', desc: '5 levels deep' },
             { icon: <Security />, title: 'Secure', desc: 'Bank-level security' },
             { icon: <AttachMoney />, title: 'Fast Payouts', desc: 'Instant withdrawals' },
@@ -1243,7 +1243,7 @@ function Register() {
                 background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <Security sx={{ fontSize: 35, color: 'white' }} />
+                <CurrencyBitcoin sx={{ fontSize: 35, color: 'white' }} />
               </Box>
             </Box>
 

@@ -180,7 +180,7 @@ const SpinningBitcoin = ({ size = 120 }) => (
         },
       }}
     >
-      <Security sx={{ fontSize: size * 0.5, color: 'white', filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))' }} />
+      <CurrencyBitcoin sx={{ fontSize: size * 0.5, color: 'white', filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))' }} />
     </Box>
   </Box>
 );
@@ -546,10 +546,10 @@ const Login = () => {
             <SpinningBitcoin size={80} />
           </Box>
           <Typography variant="h5" sx={{ fontWeight: 800, color: 'white', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
-            5D SOFTWARE Platform
+            Crypto MLM Platform
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 1 }}>
-            Next-Generation Digital Solutions
+            Start Your Journey to Financial Freedom
           </Typography>
         </Box>
         
@@ -575,10 +575,10 @@ const Login = () => {
                   animation: `${shimmer} 3s linear infinite`,
                 }}
               >
-                5D SOFTWARE
+                Crypto MLM
               </Typography>
               <Typography variant="h6" sx={{ mb: 3, opacity: 0.9 }}>
-                Next-Generation Digital Solutions
+                Start Your Journey to Financial Freedom
               </Typography>
 
               {/* Animated Chart */}
@@ -586,20 +586,21 @@ const Login = () => {
 
               <Grid container spacing={2}>
                 {[
-                  { icon: <TrendingUp />, title: 'Smart Analytics', desc: 'AI-powered insights' },
-                  { icon: <Groups />, title: 'Team Network', desc: 'Build network & earn passive income' },
-                  { icon: <Security />, title: 'Enterprise Security', desc: 'Bank-level security with 2FA' },
+                  { icon: <TrendingUp />, title: 'Daily ROI', desc: 'Earn up to 320% returns' },
+                  { icon: <Groups />, title: 'Team Building', desc: 'Build network & earn passive income' },
+                  { icon: <Security />, title: 'Secure Platform', desc: 'Bank-level security with 2FA' },
                 ].map((feature, index) => (
                   <Grid item xs={12} key={index}>
                     <Card 
                       sx={{ 
-                        bgcolor: 'rgba(255,255,255,0.1)', 
+                        background: 'rgba(255,255,255,0.1)', 
                         backdropFilter: 'blur(10px)', 
                         border: '1px solid rgba(255,255,255,0.2)',
                         transition: 'all 0.3s ease',
+                        boxShadow: 'none',
                         '&:hover': {
                           transform: 'translateX(10px)',
-                          bgcolor: 'rgba(255,255,255,0.15)',
+                          background: 'rgba(255,255,255,0.15)',
                           borderColor: 'rgba(16,185,129,0.5)',
                         },
                       }}
@@ -677,7 +678,7 @@ const Login = () => {
                     animation: `${glow} 2s ease-in-out infinite`,
                   }}
                 >
-                  <Security sx={{ fontSize: 40, color: 'white' }} />
+                  <CurrencyBitcoin sx={{ fontSize: 40, color: 'white' }} />
                 </Box>
                 
                 <Typography 
@@ -694,7 +695,7 @@ const Login = () => {
                   Welcome Back
                 </Typography>
                 <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
-                  Sign in to your account
+                  Sign in to access your crypto portfolio
                 </Typography>
 
                 {error && (
