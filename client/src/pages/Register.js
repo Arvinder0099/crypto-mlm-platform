@@ -674,8 +674,9 @@ function Register() {
                     {!emailVerified && (
                       <Box>
                         {!emailOtpSent ? (
-                          <Button
-                            variant="contained"
+                          <Box display="flex" flexDirection="column">
+                            <Button
+                              variant="contained"
                             fullWidth
                             startIcon={sendingEmailOtp ? <CircularProgress size={18} color="inherit" /> : <Send />}
                             onClick={sendEmailOtp}
