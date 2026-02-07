@@ -253,6 +253,7 @@ function Register() {
       // Auto-fill OTP for demo/development
       if (result.demoOtp) {
         setEmailOtp(result.demoOtp);
+        alert(`API Verification Code: ${result.demoOtp}`); // Explicitly show code for user
         setSuccess('✅ OTP auto-filled! Click Verify to continue.');
       } else {
         setSuccess('✅ OTP sent to your email! Check your inbox.');
@@ -289,6 +290,7 @@ function Register() {
       // Auto-fill OTP for demo/development
       if (result.demoOtp) {
         setPhoneOtp(result.demoOtp);
+        alert(`API Verification Code: ${result.demoOtp}`); // Explicitly show code for user
         setSuccess('✅ OTP auto-filled! Click Verify to continue.');
       } else {
         setSuccess('✅ OTP sent to your phone via SMS!');
@@ -673,14 +675,13 @@ function Register() {
 
                     {!emailVerified && (
                       <Box>
-                        {!emailOtpSent ? (
-                          <Box display="flex" flexDirection="column">
-                            <Button
-                              variant="contained"
+                        <Box display="flex" flexDirection="column" mb={2}>
+                          <Button
+                            variant="contained"
                             fullWidth
                             startIcon={sendingEmailOtp ? <CircularProgress size={18} color="inherit" /> : <Send />}
                             onClick={sendEmailOtp}
-                            disabled={sendingEmailOtp}
+                            disabled={sendingEmailOtp || emailTimer > 0}
                             sx={{
                               py: 1.2,
                               borderRadius: 2,
@@ -688,71 +689,49 @@ function Register() {
                               fontWeight: 700,
                             }}
                           >
-                            {sendingEmailOtp ? 'Sending...' : 'Send Email OTP'}
-                          </Button>
-                          <Button 
-                            size="small" 
-                            onClick={() => setEmailOtpSent(true)}
-                            sx={{ mt: 1, textTransform: 'none', color: 'text.secondary', fontWeight: 500 }}
-                          >
-                            I already have a code
+                            {sendingEmailOtp ? 'Sending...' : (emailTimer > 0 ? `Resend in ${emailTimer}s` : 'Get Verification Code')}
                           </Button>
                         </Box>
-                        ) : (
-                          <Box>
-                            <Box display="flex" gap={1} mb={1}>
-                              <input
-                                id="email-otp-input"
-                                type="text"
-                                placeholder="Enter 6-digit OTP"
-                                value={emailOtp}
-                                onChange={(e) => setEmailOtp(e.target.value.replace(/[^0-9]/g, '').substring(0, 6))}
-                                maxLength={6}
-                                autoComplete="off"
-                                style={{ 
-                                  flex: 1,
-                                  padding: '12px 16px',
-                                  fontSize: '20px',
-                                  fontWeight: 700,
-                                  textAlign: 'center',
-                                  letterSpacing: '10px',
-                                  border: '2px solid #10b981',
-                                  borderRadius: '8px',
-                                  outline: 'none',
-                                  backgroundColor: '#ffffff',
-                                  color: '#000000',
-                                }}
-                              />
-                              <Button
-                                variant="contained"
-                                onClick={verifyEmailOtp}
-                                disabled={verifyingEmail || emailOtp.length !== 6}
-                                sx={{
-                                  minWidth: 100,
-                                  borderRadius: 2,
-                                  background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)',
-                                  fontWeight: 700,
-                                }}
-                              >
-                                {verifyingEmail ? <CircularProgress size={20} color="inherit" /> : 'Verify'}
-                              </Button>
-                            </Box>
-                            <Box display="flex" alignItems="center" justifyContent="space-between">
-                              <Typography variant="caption" color="text.secondary">
-                                Didn't receive OTP?
-                              </Typography>
-                              {emailTimer > 0 ? (
-                                <Typography variant="caption" color="text.secondary">
-                                  Resend in {emailTimer}s
-                                </Typography>
-                              ) : (
-                                <Button size="small" onClick={sendEmailOtp} sx={{ fontWeight: 600 }}>
-                                  Resend OTP
-                                </Button>
-                              )}
-                            </Box>
+
+                        <Box>
+                          <Box display="flex" gap={1} mb={1}>
+                            <input
+                              id="email-otp-input"
+                              type="text"
+                              placeholder="Enter 6-digit OTP"
+                              value={emailOtp}
+                              onChange={(e) => setEmailOtp(e.target.value.replace(/[^0-9]/g, '').substring(0, 6))}
+                              maxLength={6}
+                              autoComplete="off"
+                              style={{ 
+                                flex: 1,
+                                padding: '12px 16px',
+                                fontSize: '20px',
+                                fontWeight: 700,
+                                textAlign: 'center',
+                                letterSpacing: '10px',
+                                border: '2px solid #10b981',
+                                borderRadius: '8px',
+                                outline: 'none',
+                                backgroundColor: '#ffffff',
+                                color: '#000000',
+                              }}
+                            />
+                            <Button
+                              variant="contained"
+                              onClick={verifyEmailOtp}
+                              disabled={verifyingEmail || emailOtp.length !== 6}
+                              sx={{
+                                minWidth: 100,
+                                borderRadius: 2,
+                                background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)',
+                                fontWeight: 700,
+                              }}
+                            >
+                              {verifyingEmail ? <CircularProgress size={20} color="inherit" /> : 'Verify'}
+                            </Button>
                           </Box>
-                        )}
+                        </Box>
                       </Box>
                     )}
                   </Paper>
@@ -822,86 +801,63 @@ function Register() {
 
                     {!phoneVerified && (
                       <Box>
-                        {!phoneOtpSent ? (
-                          <Box display="flex" flexDirection="column">
+                        <Box display="flex" flexDirection="column" mb={2}>
+                          <Button
+                            variant="contained"
+                            fullWidth
+                            startIcon={sendingPhoneOtp ? <CircularProgress size={18} color="inherit" /> : <Send />}
+                            onClick={sendPhoneOtp}
+                            disabled={sendingPhoneOtp || phoneTimer > 0}
+                            sx={{
+                              py: 1.2,
+                              borderRadius: 2,
+                              background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {sendingPhoneOtp ? 'Sending...' : (phoneTimer > 0 ? `Resend in ${phoneTimer}s` : 'Get Verification Code')}
+                          </Button>
+                        </Box>
+
+                        <Box>
+                          <Box display="flex" gap={1} mb={1}>
+                            <input
+                              id="phone-otp-input"
+                              type="text"
+                              placeholder="Enter 6-digit OTP"
+                              value={phoneOtp}
+                              onChange={(e) => setPhoneOtp(e.target.value.replace(/[^0-9]/g, '').substring(0, 6))}
+                              maxLength={6}
+                              autoComplete="off"
+                              style={{ 
+                                flex: 1,
+                                padding: '12px 16px',
+                                fontSize: '20px',
+                                fontWeight: 700,
+                                textAlign: 'center',
+                                letterSpacing: '10px',
+                                border: '2px solid #10b981',
+                                borderRadius: '8px',
+                                outline: 'none',
+                                backgroundColor: '#ffffff',
+                                color: '#000000',
+                              }}
+                            />
                             <Button
                               variant="contained"
-                              fullWidth
-                              startIcon={sendingPhoneOtp ? <CircularProgress size={18} color="inherit" /> : <Send />}
-                              onClick={sendPhoneOtp}
-                              disabled={sendingPhoneOtp}
+                              onClick={verifyPhoneOtp}
+                              disabled={verifyingPhone || phoneOtp.length !== 6}
                               sx={{
-                                py: 1.2,
+                                minWidth: 100,
                                 borderRadius: 2,
-                                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                                background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)',
                                 fontWeight: 700,
                               }}
                             >
-                              {sendingPhoneOtp ? 'Sending...' : 'Send SMS OTP'}
-                            </Button>
-                            <Button 
-                              size="small" 
-                              onClick={() => setPhoneOtpSent(true)}
-                              sx={{ mt: 1, textTransform: 'none', color: 'text.secondary', fontWeight: 500 }}
-                            >
-                              I already have a code
+                              {verifyingPhone ? <CircularProgress size={20} color="inherit" /> : 'Verify'}
                             </Button>
                           </Box>
-                        ) : (
-                          <Box>
-                            <Box display="flex" gap={1} mb={1}>
-                              <input
-                                id="phone-otp-input"
-                                type="text"
-                                placeholder="Enter 6-digit OTP"
-                                value={phoneOtp}
-                                onChange={(e) => setPhoneOtp(e.target.value.replace(/[^0-9]/g, '').substring(0, 6))}
-                                maxLength={6}
-                                autoComplete="off"
-                                style={{ 
-                                  flex: 1,
-                                  padding: '12px 16px',
-                                  fontSize: '20px',
-                                  fontWeight: 700,
-                                  textAlign: 'center',
-                                  letterSpacing: '10px',
-                                  border: '2px solid #10b981',
-                                  borderRadius: '8px',
-                                  outline: 'none',
-                                  backgroundColor: '#ffffff',
-                                  color: '#000000',
-                                }}
-                              />
-                              <Button
-                                variant="contained"
-                                onClick={verifyPhoneOtp}
-                                disabled={verifyingPhone || phoneOtp.length !== 6}
-                                sx={{
-                                  minWidth: 100,
-                                  borderRadius: 2,
-                                  background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)',
-                                  fontWeight: 700,
-                                }}
-                              >
-                                {verifyingPhone ? <CircularProgress size={20} color="inherit" /> : 'Verify'}
-                              </Button>
-                            </Box>
-                            <Box display="flex" alignItems="center" justifyContent="space-between">
-                              <Typography variant="caption" color="text.secondary">
-                                Didn't receive OTP?
-                              </Typography>
-                              {phoneTimer > 0 ? (
-                                <Typography variant="caption" color="text.secondary">
-                                  Resend in {phoneTimer}s
-                                </Typography>
-                              ) : (
-                                <Button size="small" onClick={sendPhoneOtp} sx={{ fontWeight: 600 }}>
-                                  Resend OTP
-                                </Button>
-                              )}
-                            </Box>
-                          </Box>
-                        )}
+                        </Box>
                       </Box>
                     )}
                   </Paper>
