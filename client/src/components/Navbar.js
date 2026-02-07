@@ -19,7 +19,7 @@ const Navbar = ({ onToggleSidebar }) => {
           <MenuIcon />
         </IconButton>
         <Typography variant="h6" noWrap component="div">
-          Crypto MLM Platform
+          Hexanova
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
         {/* Right-side actions can go here */}

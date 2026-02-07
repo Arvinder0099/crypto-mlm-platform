@@ -546,7 +546,7 @@ const Login = () => {
             <SpinningBitcoin size={80} />
           </Box>
           <Typography variant="h5" sx={{ fontWeight: 800, color: 'white', textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
-            Crypto MLM Platform
+            Hexanova
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 1 }}>
             Start Your Journey to Financial Freedom
@@ -575,9 +575,9 @@ const Login = () => {
                   animation: `${shimmer} 3s linear infinite`,
                 }}
               >
-                Crypto MLM
+                Hexanova
               </Typography>
-              <Typography variant="h6" sx={{ mb: 3, opacity: 0.9 }}>
+              <Typography variant="h6" sx={{ mb: 3, opacity: 0.9, color: 'rgba(255,255,255,0.9)' }}>
                 Start Your Journey to Financial Freedom
               </Typography>
 
@@ -593,14 +593,15 @@ const Login = () => {
                   <Grid item xs={12} key={index}>
                     <Card 
                       sx={{ 
-                        background: 'rgba(255,255,255,0.1)', 
+                        backgroundColor: 'rgba(255,255,255,0.1) !important', 
                         backdropFilter: 'blur(10px)', 
                         border: '1px solid rgba(255,255,255,0.2)',
                         transition: 'all 0.3s ease',
                         boxShadow: 'none',
+                        backgroundImage: 'none',
                         '&:hover': {
                           transform: 'translateX(10px)',
-                          background: 'rgba(255,255,255,0.15)',
+                          backgroundColor: 'rgba(255,255,255,0.15) !important',
                           borderColor: 'rgba(16,185,129,0.5)',
                         },
                       }}

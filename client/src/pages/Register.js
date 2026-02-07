@@ -710,6 +710,8 @@ function Register() {
                                   border: '2px solid #10b981',
                                   borderRadius: '8px',
                                   outline: 'none',
+                                  backgroundColor: '#ffffff',
+                                  color: '#000000',
                                 }}
                               />
                               <Button
@@ -848,6 +850,8 @@ function Register() {
                                   border: '2px solid #10b981',
                                   borderRadius: '8px',
                                   outline: 'none',
+                                  backgroundColor: '#ffffff',
+                                  color: '#000000',
                                 }}
                               />
                               <Button
@@ -1183,9 +1187,9 @@ function Register() {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}>
-              CryptoMLM
+              Hexanova
             </Typography>
-            <Typography variant="h6" sx={{ opacity: 0.9, mt: 1 }}>
+            <Typography variant="h6" sx={{ opacity: 0.9, mt: 1, color: 'rgba(255,255,255,0.9)' }}>
               Build Your Crypto Empire
             </Typography>
           </Box>

@@ -14,7 +14,7 @@ import {
 const ManagePopup = () => {
   const [popupSettings, setPopupSettings] = useState({
     enabled: true,
-    title: 'Welcome to Crypto MLM Platform',
+    title: 'Welcome to Hexanova',
     message: 'Join our amazing community and start earning today! Register now to get exclusive bonuses.',
     buttonText: 'Get Started',
     buttonLink: '/register',

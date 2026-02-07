@@ -72,7 +72,7 @@ const AdminLayout = ({ children }) => {
         <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
           <AdminPanelSettings sx={{ mr: 1, color: 'primary.main' }} />
           <Typography variant="h6" noWrap component="div" color="primary">
-            Crypto MLM
+            Hexanova
           </Typography>
         </Box>
       </Toolbar>

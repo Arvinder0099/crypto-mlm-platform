@@ -230,7 +230,7 @@ const UnifiedLayout = ({ children }) => {
     >
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
-          {isAdmin() ? 'ADMIN PANEL' : 'MLM PLATFORM'}
+          {isAdmin() ? 'ADMIN PANEL' : 'HEXANOVA'}
         </Typography>
         <IconButton onClick={() => setMobileDrawerOpen(false)} sx={{ color: 'white' }}>
           <CloseIcon />
@@ -553,12 +553,12 @@ const UnifiedLayout = ({ children }) => {
             }}
             onClick={() => navigate(isAdmin() ? '/admin' : '/dashboard')}
           >
-            {isAdmin() ? 'ADMIN PANEL' : 'MLM PLATFORM'}
+            {isAdmin() ? 'ADMIN PANEL' : 'HEXANOVA'}
           </Typography>
 
           {/* Horizontal Menu - Desktop Only */}
           {!isMobile && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0, ml: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 2, flexWrap: 'wrap' }}>
             {menuItems.map((item, index) => (
               item.type === 'dropdown' ? (
                 <React.Fragment key={index}>
@@ -569,9 +569,11 @@ const UnifiedLayout = ({ children }) => {
                     sx={{
                       textTransform: 'none',
                       fontWeight: 500,
-                      px: 1.5,
-                      py: 0.5,
-                      fontSize: '0.875rem',
+                    px: 1,
+                    py: 0.5,
+                    fontSize: '0.8rem',
+                    minWidth: 'auto',
+                    whiteSpace: 'nowrap',
                       '&:hover': {
                         backgroundColor: 'rgba(255,255,255,0.1)',
                       },
@@ -588,9 +590,11 @@ const UnifiedLayout = ({ children }) => {
                   sx={{
                     textTransform: 'none',
                     fontWeight: 500,
-                    px: 1.5,
+                    px: 1,
                     py: 0.5,
-                    fontSize: '0.875rem',
+                    fontSize: '0.8rem',
+                    minWidth: 'auto',
+                    whiteSpace: 'nowrap',
                     '&:hover': {
                       backgroundColor: 'rgba(255,255,255,0.1)',
                     },

@@ -13,9 +13,9 @@ import {
 
 const AdminSettingPage = () => {
   const [settings, setSettings] = useState({
-    siteName: 'Crypto MLM Platform',
-    siteEmail: 'admin@cryptomlm.com',
-    supportEmail: 'support@cryptomlm.com',
+    siteName: 'Hexanova',
+    siteEmail: 'admin@hexanova.com',
+    supportEmail: 'support@hexanova.com',
     contactPhone: '+1-234-567-8900',
     siteAddress: '123 Blockchain Street, Crypto City',
     maintenanceMode: false,

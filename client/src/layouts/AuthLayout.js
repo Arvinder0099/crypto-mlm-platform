@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Container, Paper, Typography, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
-const AuthLayout = ({ children, title = 'Crypto MLM Platform' }) => {
+const AuthLayout = ({ children, title = 'Hexanova' }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -44,7 +44,7 @@ const AuthLayout = ({ children, title = 'Crypto MLM Platform' }) => {
               color="text.secondary"
               sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
             >
-              Professional MLM Platform for Crypto Investments
+              Professional Crypto Investment Platform
             </Typography>
           </Box>
           {children}
