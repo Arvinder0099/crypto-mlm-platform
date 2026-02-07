@@ -689,6 +689,14 @@ function Register() {
                           >
                             {sendingEmailOtp ? 'Sending...' : 'Send Email OTP'}
                           </Button>
+                          <Button 
+                            size="small" 
+                            onClick={() => setEmailOtpSent(true)}
+                            sx={{ mt: 1, textTransform: 'none', color: 'text.secondary', fontWeight: 500 }}
+                          >
+                            I already have a code
+                          </Button>
+                        </Box>
                         ) : (
                           <Box>
                             <Box display="flex" gap={1} mb={1}>

@@ -1,16 +1,20 @@
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
+const API_BASE = process.env.REACT_APP_API_URL || '';
 
 function resolveUrl(url) {
   if (typeof url !== 'string') return url;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   
-  // Always use API_BASE if available, to ensure we hit the correct backend port
-  // This bypasses the CRA proxy which can be unreliable
+  // Use API_BASE if set, otherwise use relative path (for production with Nginx)
   if (API_BASE) {
     // Ensure no double slashes if API_BASE ends with / and url starts with /
     const baseUrl = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
     const path = url.startsWith('/') ? url : `/${url}`;
     return `${baseUrl}${path}`;
+  }
+  
+  // If no API_BASE, ensure url starts with / for relative path
+  if (!url.startsWith('/')) {
+    return `/${url}`;
   }
   
   return url;
