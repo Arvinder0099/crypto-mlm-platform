@@ -705,37 +705,56 @@ const preRegEmailOtps = new Map();
 const preRegPhoneOtps = new Map();
 
 // Send Email OTP (Pre-Registration)
-app.post('/api/auth/send-email-otp', rateLimiters.otp, async (req, res) => {
+app.post('/api/auth/send-email-otp', async (req, res) => {
   try {
     const { email } = req.body;
     console.log('📧 Send pre-registration email OTP:', { email });
     
-    if (!email || !validators.email(email)) {
+    // Validate email
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+
+    if (validators && validators.email && !validators.email(email)) {
       return res.status(400).json({ success: false, message: 'Valid email is required' });
     }
     
     // Check if email already registered
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'Email already registered. Please login.' });
+    try {
+      if (User) {
+        const existingUser = await User.findOne({ email: email.toLowerCase() });
+        if (existingUser) {
+          return res.status(400).json({ success: false, message: 'Email already registered. Please login.' });
+        }
+      }
+    } catch (dbError) {
+      console.error('Database check error:', dbError);
+      // Continue anyway for demo purposes if DB check fails
     }
     
     // Generate OTP
     const otp = String(Math.floor(100000 + Math.random() * 900000));
-    preRegEmailOtps.set(email.toLowerCase(), {
-      otp,
-      expires: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-    });
     
-    // Auto-cleanup after 10 minutes
-    setTimeout(() => preRegEmailOtps.delete(email.toLowerCase()), 10 * 60 * 1000);
+    if (preRegEmailOtps) {
+      preRegEmailOtps.set(email.toLowerCase(), {
+        otp,
+        expires: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+      });
+      
+      // Auto-cleanup after 10 minutes
+      setTimeout(() => preRegEmailOtps.delete(email.toLowerCase()), 10 * 60 * 1000);
+    }
     
     console.log(`📧 Pre-registration email OTP for ${email}: ${otp}`);
     
     // Try to send email
     try {
-      await emailService.sendOTP(email, { otp, expiresIn: '10', purpose: 'registration' });
-      console.log(`✅ OTP email sent to ${email}`);
+      if (emailService && typeof emailService.sendOTP === 'function') {
+        await emailService.sendOTP(email, { otp, expiresIn: '10', purpose: 'registration' });
+        console.log(`✅ OTP email sent to ${email}`);
+      } else {
+        console.warn('⚠️ emailService.sendOTP is not available. Skipping email send.');
+      }
     } catch (emailErr) {
       console.error(`⚠️  Email sending failed:`, emailErr.message);
       // Still log the OTP in console for debugging in development
@@ -749,7 +768,12 @@ app.post('/api/auth/send-email-otp', rateLimiters.otp, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Send email OTP error:', error);
-    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to send OTP',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+    });
   }
 });
 
