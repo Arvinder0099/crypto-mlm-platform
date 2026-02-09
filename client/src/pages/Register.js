@@ -235,7 +235,7 @@ function Register() {
     }
   };
 
-  // Send Email OTP — try server first (real email), fallback to local code
+  // Send Email OTP — server sends real email to the user
   const sendEmailOtp = async () => {
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       setFieldErrors(prev => ({ ...prev, email: 'Enter a valid email first' }));
@@ -252,37 +252,22 @@ function Register() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
-        // Server sent the email successfully
-        if (data.otp) {
-          // Server returned OTP (no real email provider configured) — show it
-          setGeneratedEmailCode(String(data.otp));
-          setEmailOtp(String(data.otp));
-        }
         setEmailOtpSent(true);
         setEmailTimer(60);
-        setSuccess(data.otp 
-          ? `✅ Your verification code is: ${data.otp}` 
-          : '✅ Verification code sent to your email! Check your inbox.');
+        setSuccess('✅ Verification code sent to your email! Check your inbox.');
         setTimeout(() => setSuccess(''), 8000);
       } else {
         throw new Error(data.message || 'Server error');
       }
     } catch (err) {
-      // Server failed — generate code locally as fallback
-      console.log('Server OTP failed, using local fallback:', err.message);
-      const code = String(Math.floor(100000 + Math.random() * 900000));
-      setGeneratedEmailCode(code);
-      setEmailOtp(code);
-      setEmailOtpSent(true);
-      setEmailTimer(60);
-      setSuccess(`✅ Your verification code is: ${code}`);
-      setTimeout(() => setSuccess(''), 8000);
+      setError('Failed to send code. Please try again.');
+      setTimeout(() => setError(''), 5000);
     } finally {
       setSendingEmailOtp(false);
     }
   };
 
-  // Send Phone OTP — try server first (real SMS), fallback to local code
+  // Send Phone OTP — server sends real SMS to the user
   const sendPhoneOtp = async () => {
     if (!formData.phone || formData.phone.length < 10) {
       setFieldErrors(prev => ({ ...prev, phone: 'Enter a valid phone number first' }));
@@ -299,34 +284,22 @@ function Register() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
-        if (data.otp) {
-          setGeneratedPhoneCode(String(data.otp));
-          setPhoneOtp(String(data.otp));
-        }
         setPhoneOtpSent(true);
         setPhoneTimer(60);
-        setSuccess(data.otp 
-          ? `✅ Your verification code is: ${data.otp}` 
-          : '✅ Verification code sent to your phone!');
+        setSuccess('✅ Verification code sent to your phone! Check your SMS.');
         setTimeout(() => setSuccess(''), 8000);
       } else {
         throw new Error(data.message || 'Server error');
       }
     } catch (err) {
-      console.log('Server OTP failed, using local fallback:', err.message);
-      const code = String(Math.floor(100000 + Math.random() * 900000));
-      setGeneratedPhoneCode(code);
-      setPhoneOtp(code);
-      setPhoneOtpSent(true);
-      setPhoneTimer(60);
-      setSuccess(`✅ Your verification code is: ${code}`);
-      setTimeout(() => setSuccess(''), 8000);
+      setError('Failed to send code. Please try again.');
+      setTimeout(() => setError(''), 5000);
     } finally {
       setSendingPhoneOtp(false);
     }
   };
 
-  // Verify Email OTP — try server first, fallback to local check
+  // Verify Email OTP — server verifies the code
   const verifyEmailOtp = async () => {
     if (!emailOtp || emailOtp.length !== 6) {
       setError('Please enter the 6-digit code');
@@ -347,27 +320,18 @@ function Register() {
         setSuccess('✅ Email verified successfully!');
         setTimeout(() => setSuccess(''), 3000);
       } else {
-        throw new Error(data.message || 'Verification failed');
+        setError(data.message || 'Invalid OTP. Please try again.');
+        setTimeout(() => setError(''), 5000);
       }
     } catch (err) {
-      // Fallback: if we have a local code, verify against it
-      if (generatedEmailCode && emailOtp === generatedEmailCode) {
-        setEmailVerified(true);
-        setSuccess('✅ Email verified successfully!');
-        setTimeout(() => setSuccess(''), 3000);
-      } else if (generatedEmailCode) {
-        setError('❌ Wrong code. Please enter the correct code.');
-        setTimeout(() => setError(''), 5000);
-      } else {
-        setError(err.message || 'Invalid OTP. Please try again.');
-        setTimeout(() => setError(''), 5000);
-      }
+      setError('Verification failed. Please try again.');
+      setTimeout(() => setError(''), 5000);
     } finally {
       setVerifyingEmail(false);
     }
   };
 
-  // Verify Phone OTP — try server first, fallback to local check
+  // Verify Phone OTP — server verifies the code
   const verifyPhoneOtp = async () => {
     if (!phoneOtp || phoneOtp.length !== 6) {
       setError('Please enter the 6-digit code');
@@ -388,20 +352,12 @@ function Register() {
         setSuccess('✅ Phone verified successfully!');
         setTimeout(() => setSuccess(''), 3000);
       } else {
-        throw new Error(data.message || 'Verification failed');
+        setError(data.message || 'Invalid OTP. Please try again.');
+        setTimeout(() => setError(''), 5000);
       }
     } catch (err) {
-      if (generatedPhoneCode && phoneOtp === generatedPhoneCode) {
-        setPhoneVerified(true);
-        setSuccess('✅ Phone verified successfully!');
-        setTimeout(() => setSuccess(''), 3000);
-      } else if (generatedPhoneCode) {
-        setError('❌ Wrong code. Please enter the correct code.');
-        setTimeout(() => setError(''), 5000);
-      } else {
-        setError(err.message || 'Invalid OTP. Please try again.');
-        setTimeout(() => setError(''), 5000);
-      }
+      setError('Verification failed. Please try again.');
+      setTimeout(() => setError(''), 5000);
     } finally {
       setVerifyingPhone(false);
     }

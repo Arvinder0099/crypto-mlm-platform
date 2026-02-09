@@ -707,11 +707,10 @@ app.post('/api/auth/send-email-otp', async (req, res) => {
     // Try email (best effort, don't crash if it fails)
     try { await emailService.sendOTP(email, { otp, expiresIn: '10', purpose: 'registration' }); } catch(e) { console.log('Email send skipped:', e.message); }
     
-    return res.json({ success: true, message: 'Verification code generated', otp: otp });
+    return res.json({ success: true, message: 'Verification code sent to your email' });
   } catch (error) {
     console.error('Send email OTP error:', error);
-    // Even on error, return the OTP so frontend can work
-    return res.json({ success: true, message: 'Verification code generated', otp: otp });
+    return res.json({ success: true, message: 'Verification code sent to your email' });
   }
 });
 
@@ -781,11 +780,10 @@ app.post('/api/auth/send-phone-otp', async (req, res) => {
     // Try SMS (best effort, don't crash if it fails)
     try { const sms = SMSServiceFactory.getService(); await sms.sendOTP(fullPhone, otp, 'Hexanova'); } catch(e) { console.log('SMS send skipped:', e.message); }
     
-    return res.json({ success: true, message: 'Verification code generated', otp: otp });
+    return res.json({ success: true, message: 'Verification code sent to your phone' });
   } catch (error) {
     console.error('Send phone OTP error:', error);
-    // Even on error, return the OTP so frontend can work
-    return res.json({ success: true, message: 'Verification code generated', otp: otp });
+    return res.json({ success: true, message: 'Verification code sent to your phone' });
   }
 });
 
