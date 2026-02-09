@@ -248,9 +248,9 @@ function Register() {
     // Generate 6-digit code locally
     const code = String(Math.floor(100000 + Math.random() * 900000));
     setGeneratedEmailCode(code);
+    setEmailOtp(code); // Auto-fill the input
     setEmailOtpSent(true);
     setEmailTimer(60);
-    setSuccess(`✅ Your email verification code is: ${code}`);
     setSendingEmailOtp(false);
   };
 
@@ -267,9 +267,9 @@ function Register() {
     // Generate 6-digit code locally
     const code = String(Math.floor(100000 + Math.random() * 900000));
     setGeneratedPhoneCode(code);
+    setPhoneOtp(code); // Auto-fill the input
     setPhoneOtpSent(true);
     setPhoneTimer(60);
-    setSuccess(`✅ Your phone verification code is: ${code}`);
     setSendingPhoneOtp(false);
   };
 
@@ -646,6 +646,26 @@ function Register() {
                           </Button>
                         </Box>
 
+                        {generatedEmailCode && (
+                          <Box sx={{
+                            mb: 2,
+                            p: 2,
+                            borderRadius: 2,
+                            background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                            textAlign: 'center',
+                          }}>
+                            <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, mb: 0.5 }}>
+                              YOUR VERIFICATION CODE
+                            </Typography>
+                            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 900, letterSpacing: '12px', fontFamily: 'monospace' }}>
+                              {generatedEmailCode}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                              Code auto-filled below — just click Verify
+                            </Typography>
+                          </Box>
+                        )}
+
                         <Box>
                           <Box display="flex" gap={1} mb={1}>
                             <input
@@ -771,6 +791,26 @@ function Register() {
                             {sendingPhoneOtp ? 'Sending...' : (phoneTimer > 0 ? `Resend in ${phoneTimer}s` : 'Get Verification Code')}
                           </Button>
                         </Box>
+
+                        {generatedPhoneCode && (
+                          <Box sx={{
+                            mb: 2,
+                            p: 2,
+                            borderRadius: 2,
+                            background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                            textAlign: 'center',
+                          }}>
+                            <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, mb: 0.5 }}>
+                              YOUR VERIFICATION CODE
+                            </Typography>
+                            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 900, letterSpacing: '12px', fontFamily: 'monospace' }}>
+                              {generatedPhoneCode}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                              Code auto-filled below — just click Verify
+                            </Typography>
+                          </Box>
+                        )}
 
                         <Box>
                           <Box display="flex" gap={1} mb={1}>
