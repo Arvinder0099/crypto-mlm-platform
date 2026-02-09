@@ -250,32 +250,18 @@ function Register() {
       
       setEmailOtpSent(true);
       setEmailTimer(60);
-      // Auto-fill and auto-verify OTP
-      if (result.demoOtp) {
-        setEmailOtp(String(result.demoOtp));
-        setSuccess(`✅ Code: ${result.demoOtp} — Auto-verifying...`);
-        setTimeout(async () => {
-          try {
-            await fetchJSON('/api/auth/verify-email-otp', {
-              method: 'POST',
-              body: JSON.stringify({ email: formData.email, otp: String(result.demoOtp) }),
-            });
-          } catch (e) { /* ignore verify error */ }
-          setEmailVerified(true);
-          setSuccess('✅ Email verified successfully!');
-          setTimeout(() => setSuccess(''), 3000);
-        }, 500);
+      // Get OTP from response (server returns it since email provider not configured)
+      const code = result.otp || result.demoOtp;
+      if (code) {
+        setEmailOtp(String(code));
+        setSuccess(`✅ Your verification code is: ${code} — Click Verify to continue`);
       } else {
         setSuccess('✅ OTP sent to your email! Check your inbox.');
-        setTimeout(() => setSuccess(''), 5000);
       }
     } catch (err) {
-      // API failed (500 error) - auto-verify email since server OTP is not working
-      console.warn('Email OTP API failed, auto-verifying:', err.message);
-      setEmailVerified(true);
-      setEmailOtpSent(true);
-      setSuccess('✅ Email verified successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      console.error('Email OTP error:', err.message);
+      setError('❌ Failed to get verification code. Please try again.');
+      setTimeout(() => setError(''), 5000);
     } finally {
       setSendingEmailOtp(false);
     }
@@ -301,36 +287,18 @@ function Register() {
       
       setPhoneOtpSent(true);
       setPhoneTimer(60);
-      // Auto-fill and auto-verify OTP
-      if (result.demoOtp) {
-        setPhoneOtp(String(result.demoOtp));
-        setSuccess(`✅ Code: ${result.demoOtp} — Auto-verifying...`);
-        setTimeout(async () => {
-          try {
-            await fetchJSON('/api/auth/verify-phone-otp', {
-              method: 'POST',
-              body: JSON.stringify({
-                phone: formData.phone,
-                countryCode: formData.countryCode,
-                otp: String(result.demoOtp),
-              }),
-            });
-          } catch (e) { /* ignore verify error */ }
-          setPhoneVerified(true);
-          setSuccess('✅ Phone verified successfully!');
-          setTimeout(() => setSuccess(''), 3000);
-        }, 500);
+      // Get OTP from response (server returns it since SMS provider not configured)
+      const code = result.otp || result.demoOtp;
+      if (code) {
+        setPhoneOtp(String(code));
+        setSuccess(`✅ Your verification code is: ${code} — Click Verify to continue`);
       } else {
         setSuccess('✅ OTP sent to your phone via SMS!');
-        setTimeout(() => setSuccess(''), 5000);
       }
     } catch (err) {
-      // API failed (500 error) - auto-verify phone since server OTP is not working
-      console.warn('Phone OTP API failed, auto-verifying:', err.message);
-      setPhoneVerified(true);
-      setPhoneOtpSent(true);
-      setSuccess('✅ Phone verified successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      console.error('Phone OTP error:', err.message);
+      setError('❌ Failed to get verification code. Please try again.');
+      setTimeout(() => setError(''), 5000);
     } finally {
       setSendingPhoneOtp(false);
     }
