@@ -235,7 +235,7 @@ function Register() {
     }
   };
 
-  // Send Email OTP — generates code locally, no server dependency
+  // Send Email OTP — calls server which sends real email
   const sendEmailOtp = async () => {
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       setFieldErrors(prev => ({ ...prev, email: 'Enter a valid email first' }));
@@ -244,17 +244,25 @@ function Register() {
 
     setSendingEmailOtp(true);
     setError('');
-    
-    // Generate 6-digit code locally
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    setGeneratedEmailCode(code);
-    setEmailOtp(code); // Auto-fill the input
-    setEmailOtpSent(true);
-    setEmailTimer(60);
-    setSendingEmailOtp(false);
+    try {
+      await fetchJSON('/api/auth/send-email-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email: formData.email }),
+      });
+      setEmailOtpSent(true);
+      setEmailTimer(60);
+      setSuccess('✅ Verification code sent to your email! Check your inbox.');
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      console.error('Email OTP error:', err.message);
+      setError('Failed to send code. Please try again.');
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setSendingEmailOtp(false);
+    }
   };
 
-  // Send Phone OTP — generates code locally, no server dependency
+  // Send Phone OTP — calls server which sends real SMS
   const sendPhoneOtp = async () => {
     if (!formData.phone || formData.phone.length < 10) {
       setFieldErrors(prev => ({ ...prev, phone: 'Enter a valid phone number first' }));
@@ -263,17 +271,25 @@ function Register() {
 
     setSendingPhoneOtp(true);
     setError('');
-    
-    // Generate 6-digit code locally
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    setGeneratedPhoneCode(code);
-    setPhoneOtp(code); // Auto-fill the input
-    setPhoneOtpSent(true);
-    setPhoneTimer(60);
-    setSendingPhoneOtp(false);
+    try {
+      await fetchJSON('/api/auth/send-phone-otp', {
+        method: 'POST',
+        body: JSON.stringify({ phone: formData.phone, countryCode: formData.countryCode }),
+      });
+      setPhoneOtpSent(true);
+      setPhoneTimer(60);
+      setSuccess('✅ Verification code sent to your phone via SMS!');
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      console.error('Phone OTP error:', err.message);
+      setError('Failed to send code. Please try again.');
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setSendingPhoneOtp(false);
+    }
   };
 
-  // Verify Email OTP — checks against locally generated code
+  // Verify Email OTP — calls server to verify
   const verifyEmailOtp = async () => {
     if (!emailOtp || emailOtp.length !== 6) {
       setError('Please enter the 6-digit code');
@@ -282,19 +298,23 @@ function Register() {
 
     setVerifyingEmail(true);
     setError('');
-    
-    if (emailOtp === generatedEmailCode) {
+    try {
+      await fetchJSON('/api/auth/verify-email-otp', {
+        method: 'POST',
+        body: JSON.stringify({ email: formData.email, otp: emailOtp }),
+      });
       setEmailVerified(true);
       setSuccess('✅ Email verified successfully!');
       setTimeout(() => setSuccess(''), 3000);
-    } else {
-      setError('❌ Wrong code. Please enter the correct code shown above.');
+    } catch (err) {
+      setError(err.message || 'Invalid OTP. Please try again.');
       setTimeout(() => setError(''), 5000);
+    } finally {
+      setVerifyingEmail(false);
     }
-    setVerifyingEmail(false);
   };
 
-  // Verify Phone OTP — checks against locally generated code
+  // Verify Phone OTP — calls server to verify
   const verifyPhoneOtp = async () => {
     if (!phoneOtp || phoneOtp.length !== 6) {
       setError('Please enter the 6-digit code');
@@ -303,16 +323,20 @@ function Register() {
 
     setVerifyingPhone(true);
     setError('');
-    
-    if (phoneOtp === generatedPhoneCode) {
+    try {
+      await fetchJSON('/api/auth/verify-phone-otp', {
+        method: 'POST',
+        body: JSON.stringify({ phone: formData.phone, countryCode: formData.countryCode, otp: phoneOtp }),
+      });
       setPhoneVerified(true);
       setSuccess('✅ Phone verified successfully!');
       setTimeout(() => setSuccess(''), 3000);
-    } else {
-      setError('❌ Wrong code. Please enter the correct code shown above.');
+    } catch (err) {
+      setError(err.message || 'Invalid OTP. Please try again.');
       setTimeout(() => setError(''), 5000);
+    } finally {
+      setVerifyingPhone(false);
     }
-    setVerifyingPhone(false);
   };
 
   const validateStep = (step) => {
@@ -646,27 +670,10 @@ function Register() {
                           </Button>
                         </Box>
 
-                        {generatedEmailCode && (
-                          <Box sx={{
-                            mb: 2,
-                            p: 2,
-                            borderRadius: 2,
-                            background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-                            textAlign: 'center',
-                          }}>
-                            <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, mb: 0.5 }}>
-                              YOUR VERIFICATION CODE
-                            </Typography>
-                            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 900, letterSpacing: '12px', fontFamily: 'monospace' }}>
-                              {generatedEmailCode}
-                            </Typography>
-                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                              Code auto-filled below — just click Verify
-                            </Typography>
-                          </Box>
-                        )}
-
                         <Box>
+                          <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                            Enter the 6-digit code sent to your email
+                          </Typography>
                           <Box display="flex" gap={1} mb={1}>
                             <input
                               id="email-otp-input"
@@ -792,27 +799,10 @@ function Register() {
                           </Button>
                         </Box>
 
-                        {generatedPhoneCode && (
-                          <Box sx={{
-                            mb: 2,
-                            p: 2,
-                            borderRadius: 2,
-                            background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-                            textAlign: 'center',
-                          }}>
-                            <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600, mb: 0.5 }}>
-                              YOUR VERIFICATION CODE
-                            </Typography>
-                            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 900, letterSpacing: '12px', fontFamily: 'monospace' }}>
-                              {generatedPhoneCode}
-                            </Typography>
-                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                              Code auto-filled below — just click Verify
-                            </Typography>
-                          </Box>
-                        )}
-
                         <Box>
+                          <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                            Enter the 6-digit code sent to your phone
+                          </Typography>
                           <Box display="flex" gap={1} mb={1}>
                             <input
                               id="phone-otp-input"
@@ -1167,10 +1157,10 @@ function Register() {
             { icon: <AttachMoney />, title: 'Fast Payouts', desc: 'Instant withdrawals' },
           ].map((item, i) => (
             <Grid item xs={6} key={i}>
-              <Paper sx={{
-                p: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255,255,255,0.2)', transition: 'all 0.3s',
-                '&:hover': { transform: 'translateY(-5px)', bgcolor: 'rgba(255,255,255,0.15)' },
+              <Paper elevation={0} sx={{
+                p: 2, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.1) !important', backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)', transition: 'all 0.3s', backgroundImage: 'none',
+                '&:hover': { transform: 'translateY(-5px)', backgroundColor: 'rgba(255,255,255,0.15) !important' },
               }}>
                 <Box sx={{ color: '#10b981', mb: 1 }}>{item.icon}</Box>
                 <Typography variant="subtitle2" fontWeight={700} color="white">{item.title}</Typography>
