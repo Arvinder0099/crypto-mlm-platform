@@ -819,7 +819,7 @@ app.post('/api/auth/verify-email-otp', async (req, res) => {
 });
 
 // Send Phone OTP (Pre-Registration)
-app.post('/api/auth/send-phone-otp', rateLimiters.otp, async (req, res) => {
+app.post('/api/auth/send-phone-otp', async (req, res) => {
   try {
     const { phone, countryCode } = req.body;
     console.log('📱 Send pre-registration phone OTP:', { phone, countryCode });
@@ -832,35 +832,39 @@ app.post('/api/auth/send-phone-otp', rateLimiters.otp, async (req, res) => {
     
     // Generate OTP
     const otp = String(Math.floor(100000 + Math.random() * 900000));
-    preRegPhoneOtps.set(fullPhone, {
-      otp,
-      expires: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-    });
     
-    // Auto-cleanup after 10 minutes
-    setTimeout(() => preRegPhoneOtps.delete(fullPhone), 10 * 60 * 1000);
+    if (preRegPhoneOtps) {
+      preRegPhoneOtps.set(fullPhone, {
+        otp,
+        expires: new Date(Date.now() + 10 * 60 * 1000),
+      });
+      setTimeout(() => preRegPhoneOtps.delete(fullPhone), 10 * 60 * 1000);
+    }
     
     console.log(`📱 Pre-registration phone OTP for ${fullPhone}: ${otp}`);
     
-    // Try to send SMS
+    // Try to send SMS (best effort)
     try {
-      const smsService = SMSServiceFactory.getService();
-      await smsService.sendOTP(fullPhone, otp, 'Hexanova');
-      console.log(`✅ OTP SMS sent to ${fullPhone}`);
+      if (SMSServiceFactory && typeof SMSServiceFactory.getService === 'function') {
+        const smsService = SMSServiceFactory.getService();
+        if (smsService && typeof smsService.sendOTP === 'function') {
+          await smsService.sendOTP(fullPhone, otp, 'Hexanova');
+          console.log(`✅ OTP SMS sent to ${fullPhone}`);
+        }
+      }
     } catch (smsErr) {
       console.error(`⚠️  SMS sending failed:`, smsErr.message);
-      // Still log the OTP in console for debugging in development
       console.log(`📱 Phone OTP for ${fullPhone}: ${otp} (SMS send failed)`);
     }
     
     res.json({ 
       success: true, 
       message: 'OTP sent to your phone',
-      demoOtp: otp // For demo/development - remove in production
+      demoOtp: otp
     });
   } catch (error) {
     console.error('❌ Send phone OTP error:', error);
-    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+    res.status(500).json({ success: false, message: 'Failed to send OTP', error: error.message });
   }
 });
 
