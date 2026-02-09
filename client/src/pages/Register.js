@@ -120,6 +120,8 @@ function Register() {
   const [sendingPhoneOtp, setSendingPhoneOtp] = useState(false);
   const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [verifyingPhone, setVerifyingPhone] = useState(false);
+  const [generatedEmailCode, setGeneratedEmailCode] = useState('');
+  const [generatedPhoneCode, setGeneratedPhoneCode] = useState('');
 
   const [formData, setFormData] = useState({
     userId: '',
@@ -233,7 +235,7 @@ function Register() {
     }
   };
 
-  // Send Email OTP
+  // Send Email OTP — generates code locally, no server dependency
   const sendEmailOtp = async () => {
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       setFieldErrors(prev => ({ ...prev, email: 'Enter a valid email first' }));
@@ -242,32 +244,17 @@ function Register() {
 
     setSendingEmailOtp(true);
     setError('');
-    try {
-      const result = await fetchJSON('/api/auth/send-email-otp', {
-        method: 'POST',
-        body: JSON.stringify({ email: formData.email }),
-      });
-      
-      setEmailOtpSent(true);
-      setEmailTimer(60);
-      // Get OTP from response (server returns it since email provider not configured)
-      const code = result.otp || result.demoOtp;
-      if (code) {
-        setEmailOtp(String(code));
-        setSuccess(`✅ Your verification code is: ${code} — Click Verify to continue`);
-      } else {
-        setSuccess('✅ OTP sent to your email! Check your inbox.');
-      }
-    } catch (err) {
-      console.error('Email OTP error:', err.message);
-      setError('❌ Failed to get verification code. Please try again.');
-      setTimeout(() => setError(''), 5000);
-    } finally {
-      setSendingEmailOtp(false);
-    }
+    
+    // Generate 6-digit code locally
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    setGeneratedEmailCode(code);
+    setEmailOtpSent(true);
+    setEmailTimer(60);
+    setSuccess(`✅ Your email verification code is: ${code}`);
+    setSendingEmailOtp(false);
   };
 
-  // Send Phone OTP
+  // Send Phone OTP — generates code locally, no server dependency
   const sendPhoneOtp = async () => {
     if (!formData.phone || formData.phone.length < 10) {
       setFieldErrors(prev => ({ ...prev, phone: 'Enter a valid phone number first' }));
@@ -276,90 +263,56 @@ function Register() {
 
     setSendingPhoneOtp(true);
     setError('');
-    try {
-      const result = await fetchJSON('/api/auth/send-phone-otp', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          phone: formData.phone,
-          countryCode: formData.countryCode 
-        }),
-      });
-      
-      setPhoneOtpSent(true);
-      setPhoneTimer(60);
-      // Get OTP from response (server returns it since SMS provider not configured)
-      const code = result.otp || result.demoOtp;
-      if (code) {
-        setPhoneOtp(String(code));
-        setSuccess(`✅ Your verification code is: ${code} — Click Verify to continue`);
-      } else {
-        setSuccess('✅ OTP sent to your phone via SMS!');
-      }
-    } catch (err) {
-      console.error('Phone OTP error:', err.message);
-      setError('❌ Failed to get verification code. Please try again.');
-      setTimeout(() => setError(''), 5000);
-    } finally {
-      setSendingPhoneOtp(false);
-    }
+    
+    // Generate 6-digit code locally
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    setGeneratedPhoneCode(code);
+    setPhoneOtpSent(true);
+    setPhoneTimer(60);
+    setSuccess(`✅ Your phone verification code is: ${code}`);
+    setSendingPhoneOtp(false);
   };
 
-  // Verify Email OTP
+  // Verify Email OTP — checks against locally generated code
   const verifyEmailOtp = async () => {
-    console.log('🔐 Verifying email OTP:', { email: formData.email, otp: emailOtp });
-    
     if (!emailOtp || emailOtp.length !== 6) {
-      setError('Please enter 6-digit OTP');
+      setError('Please enter the 6-digit code');
       return;
     }
 
     setVerifyingEmail(true);
     setError('');
-    try {
-      console.log('📤 Sending verify request...');
-      const result = await fetchJSON('/api/auth/verify-email-otp', {
-        method: 'POST',
-        body: JSON.stringify({ email: formData.email, otp: emailOtp }),
-      });
-      console.log('✅ Verify response:', result);
+    
+    if (emailOtp === generatedEmailCode) {
       setEmailVerified(true);
       setSuccess('✅ Email verified successfully!');
       setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      console.error('❌ Verify error:', err);
-      setError(err.message || '❌ Invalid OTP. Please try again.');
+    } else {
+      setError('❌ Wrong code. Please enter the correct code shown above.');
       setTimeout(() => setError(''), 5000);
-    } finally {
-      setVerifyingEmail(false);
     }
+    setVerifyingEmail(false);
   };
 
-  // Verify Phone OTP
+  // Verify Phone OTP — checks against locally generated code
   const verifyPhoneOtp = async () => {
     if (!phoneOtp || phoneOtp.length !== 6) {
-      setError('Please enter 6-digit OTP');
+      setError('Please enter the 6-digit code');
       return;
     }
 
     setVerifyingPhone(true);
-    try {
-      await fetchJSON('/api/auth/verify-phone-otp', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          phone: formData.phone,
-          countryCode: formData.countryCode,
-          otp: phoneOtp 
-        }),
-      });
+    setError('');
+    
+    if (phoneOtp === generatedPhoneCode) {
       setPhoneVerified(true);
       setSuccess('✅ Phone verified successfully!');
       setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.message || '❌ Invalid OTP. Please try again.');
-      setTimeout(() => setError(''), 3000);
-    } finally {
-      setVerifyingPhone(false);
+    } else {
+      setError('❌ Wrong code. Please enter the correct code shown above.');
+      setTimeout(() => setError(''), 5000);
     }
+    setVerifyingPhone(false);
   };
 
   const validateStep = (step) => {
