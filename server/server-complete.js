@@ -24,29 +24,9 @@ const { rateLimiters, sanitizeRequestBody, securityHeaders, validateRequest, val
 const app = express();
 
 // ==================== MIDDLEWARE ====================
-// More permissive CORS for development
+// CORS - allow all origins (DigitalOcean app platform uses same domain)
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is allowed
-    const allowedOrigins = process.env.ALLOWED_ORIGINS 
-      ? process.env.ALLOWED_ORIGINS.split(',') 
-      : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3049', 'http://localhost:3040', 'http://127.0.0.1:3000', 'http://127.0.0.1:3049'];
-    
-    // Always allow localhost in development
-    if (process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
-      callback(null, true);
-    } else {
-      console.log('Blocked by CORS:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
