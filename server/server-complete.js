@@ -79,12 +79,15 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/crypto-ml
         createdAt: new Date(), updatedAt: new Date()
       });
       console.log('✅ Admin account created: arvindersaini2523@gmail.com');
-    } else if (existingAdmin.role !== 'admin') {
+    } else {
+      // Always ensure admin has correct password, role and status
+      const bcryptLib = require('bcryptjs');
+      const hashedPw = await bcryptLib.hash('Arvinder2001@', 10);
       await mongoose.connection.db.collection('users').updateOne(
         { email: adminEmail },
-        { $set: { role: 'admin', status: 'active' } }
+        { $set: { role: 'admin', status: 'active', password: hashedPw } }
       );
-      console.log('✅ Admin role assigned to arvindersaini2523@gmail.com');
+      console.log('✅ Admin account verified: arvindersaini2523@gmail.com');
     }
   } catch (adminErr) {
     console.log('Admin setup note:', adminErr.message);
