@@ -52,7 +52,44 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/crypto-ml
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('✅ MongoDB Connected'))
+.then(async () => {
+  console.log('✅ MongoDB Connected');
+  // Auto-create admin account if it doesn't exist
+  try {
+    const adminEmail = 'arvindersaini2523@gmail.com';
+    const existingAdmin = await mongoose.connection.db.collection('users').findOne({ email: adminEmail });
+    if (!existingAdmin) {
+      const bcryptLib = require('bcryptjs');
+      const hashedPw = await bcryptLib.hash('Arvinder2001@', 10);
+      await mongoose.connection.db.collection('users').insertOne({
+        userId: 'ARV2523',
+        firstName: 'Arvinder',
+        lastName: 'Saini',
+        email: adminEmail,
+        password: hashedPw,
+        phone: '7276192503',
+        phoneCountryCode: '+91',
+        role: 'admin',
+        status: 'active',
+        referralCode: 'HEXNOVA-ARV2523',
+        directReferrals: [],
+        downlineUsers: [],
+        balance: 0, myWallet: 0, fundWallet: 0, utilityWallet: 0,
+        totalInvested: 0, totalEarned: 0, totalWithdrawn: 0,
+        createdAt: new Date(), updatedAt: new Date()
+      });
+      console.log('✅ Admin account created: arvindersaini2523@gmail.com');
+    } else if (existingAdmin.role !== 'admin') {
+      await mongoose.connection.db.collection('users').updateOne(
+        { email: adminEmail },
+        { $set: { role: 'admin', status: 'active' } }
+      );
+      console.log('✅ Admin role assigned to arvindersaini2523@gmail.com');
+    }
+  } catch (adminErr) {
+    console.log('Admin setup note:', adminErr.message);
+  }
+})
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // JWT Configuration
@@ -652,7 +689,7 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
       username: userId,
       email,
       referrer: referrer ? `${referrer.firstName} ${referrer.lastName}` : null,
-      loginUrl: `${process.env.APP_URL || 'http://localhost:3049'}/login`
+      loginUrl: `https://hexanova.net/login`
     }).catch(console.error);
     
     res.status(201).json({
@@ -853,10 +890,15 @@ app.post('/api/auth/login', rateLimiters.auth, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password required' });
+      return res.status(400).json({ message: 'Email / User ID and password required' });
     }
     
-    const user = await User.findOne({ email });
+    // Support login with email OR userId
+    const loginValue = email.trim();
+    const isEmail = loginValue.includes('@');
+    const user = isEmail
+      ? await User.findOne({ email: loginValue.toLowerCase() })
+      : await User.findOne({ userId: loginValue.toUpperCase() });
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
     
     const isValidPassword = await bcrypt.compare(password, user.password);
@@ -1196,7 +1238,7 @@ app.post('/api/auth/forgot-password', rateLimiters.auth, async (req, res) => {
     
     // Generate reset token
     const resetToken = jwt.sign({ id: user._id, purpose: 'password-reset' }, JWT_SECRET, { expiresIn: '1h' });
-    const resetLink = `${process.env.APP_URL || 'http://localhost:3049'}/reset-password?token=${resetToken}`;
+    const resetLink = `https://hexanova.net/reset-password?token=${resetToken}`;
     
     // Send email
     await emailService.sendPasswordReset(email, {
@@ -3919,7 +3961,7 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
 
         // Referral Info
         referralCode: user.referralCode,
-        referralLink: `${process.env.APP_URL || 'http://localhost:3049'}/register?ref=${user.userId}`
+        referralLink: `https://hexanova.net/register?ref=${user.userId}`
       }
     });
   } catch (error) {
@@ -6304,7 +6346,7 @@ app.get('/api/user/referral-info', authenticateToken, async (req, res) => {
       .populate('referredUserId', 'firstName lastName userId email createdAt')
       .sort({ createdAt: -1 });
     
-    const referralLink = `${process.env.FRONTEND_URL || 'https://crypto-mlm-platform-efji5.ondigitalocean.app'}/register?ref=${user.referralCode}`;
+    const referralLink = `https://hexanova.net/register?ref=${user.referralCode}`;
     
     // Commission structure from settings
     const settings = await AdminSettings.findOne({});

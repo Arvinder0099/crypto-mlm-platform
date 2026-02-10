@@ -112,13 +112,13 @@ const Dashboard = () => {
             referralCode: stats.referralCode || '',
             referralLink: stats.referralLink || ''
           });
-          setReferral(stats.referralLink || `${window.location.origin}/register?ref=${stats.userId}`);
+          setReferral(stats.referralLink || `https://hexanova.net/register?ref=${stats.userId}`);
         }
       } catch (err) {
         console.warn('Failed to load dashboard stats', err?.message || err);
         // Set referral from localStorage fallback
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
-        setReferral(`${window.location.origin}/register?ref=${userData.userId || userData._id || ''}`);
+        setReferral(`https://hexanova.net/register?ref=${userData.userId || userData._id || ''}`);
       }
 
       try {
