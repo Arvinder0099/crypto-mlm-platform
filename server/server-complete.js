@@ -1308,7 +1308,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 // ==================== OTP ROUTES ====================
 
-// Send OTP to phone (supports all country codes)
+// Send OTP to phone (supports all country codes) - User Panel
 app.post('/api/otp/send-phone', rateLimiters.otp, async (req, res) => {
   try {
     const { phone, countryCode = '+91', purpose = 'verification' } = req.body;
@@ -1320,10 +1320,32 @@ app.post('/api/otp/send-phone', rateLimiters.otp, async (req, res) => {
     const cleanPhone = phone.replace(/^0+/, '').replace(/[^0-9]/g, '');
     const fullPhone = `${countryCode}${cleanPhone}`;
     
-    console.log(`📱 Sending OTP to: ${fullPhone}`);
+    console.log(`📱 [User Panel] Sending OTP to: ${fullPhone}`);
     
-    const result = await otpService.sendOTP(fullPhone, purpose);
-    res.json(result);
+    // Generate and store OTP using otpService (stores with key sms:${fullPhone})
+    const otp = otpService.createOTP(fullPhone, 'sms');
+    console.log(`📱 [User Panel] OTP for ${fullPhone}: ${otp}`);
+    
+    // Actually send SMS via Twilio/provider
+    let smsSent = false;
+    let smsError = null;
+    try {
+      const sms = SMSServiceFactory.getService();
+      console.log('📱 SMS service type:', sms.constructor.name);
+      const smsResult = await sms.sendOTP(fullPhone, otp, 'Hexanova');
+      console.log('✅ SMS send result:', JSON.stringify(smsResult));
+      smsSent = !smsResult.devMode;
+    } catch(e) {
+      console.error('❌ SMS send failed:', e.message);
+      smsError = e.message;
+    }
+    
+    if (smsSent) {
+      res.json({ success: true, message: 'Verification code sent to your phone via SMS' });
+    } else {
+      console.log(`⚠️ SMS not delivered to ${fullPhone}. Error: ${smsError || 'SMS service in dev mode'}`);
+      res.json({ success: true, message: 'Verification code generated. If you did not receive an SMS, please check your phone number and country code.', smsDelivered: false });
+    }
   } catch (error) {
     console.error('OTP send error:', error);
     res.status(500).json({ success: false, message: error.message || 'Failed to send OTP' });
@@ -1360,9 +1382,11 @@ app.post('/api/otp/verify', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Target and OTP are required' });
     }
     
-    console.log(`🔐 Verifying OTP for: ${target}, type: ${type}`);
+    // Map client type ('phone'/'email') to store type ('sms'/'email')
+    const storeType = type === 'phone' ? 'sms' : 'email';
+    console.log(`🔐 Verifying OTP for: ${target}, type: ${type}, storeType: ${storeType}`);
     
-    const result = otpService.verifyOTP(target, otp, purpose);
+    const result = otpService.verifyOTP(target, otp, storeType);
     
     if (result.valid || result.success) {
       // If this is a logged-in user verifying phone/email

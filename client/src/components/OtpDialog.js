@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Stack, Alert, FormControl, InputLabel, Select, MenuItem, Autocomplete, Box, Typography } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Stack, Alert, FormControl, InputLabel, Select, MenuItem, Autocomplete, Box, Typography, CircularProgress, Divider } from '@mui/material';
+import { Phone, Email, Lock, Send, CheckCircle } from '@mui/icons-material';
 
 // Comprehensive list of country codes
 const countryCodes = [
@@ -79,20 +80,59 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
   const [phone, setPhone] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(countryCodes.find(c => c.code === '+91'));
   const [otp, setOtp] = useState('');
-  const [otpMethod, setOtpMethod] = useState('phone'); // 'phone' or 'email'
+  const [otpMethod, setOtpMethod] = useState('email'); // default to email (more reliable)
   const [userEmail, setUserEmail] = useState(email || '');
   const [status, setStatus] = useState({ sending: false, verifying: false, sent: false, message: '', severity: 'info' });
+  const [timer, setTimer] = useState(0);
 
+  // Auto-fetch user's phone/email from profile on open
+  useEffect(() => {
+    if (open) {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        fetch('/api/user/dashboard-stats', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data?.user) {
+              if (data.user.email && !email) setUserEmail(data.user.email);
+              if (data.user.phone) {
+                // Try to extract country code and phone number
+                const p = data.user.phone;
+                const matchedCountry = countryCodes.find(c => p.startsWith(c.code));
+                if (matchedCountry) {
+                  setSelectedCountry(matchedCountry);
+                  setPhone(p.replace(matchedCountry.code, ''));
+                } else {
+                  setPhone(p.replace(/^\+\d{1,3}/, ''));
+                }
+              }
+            }
+          })
+          .catch(() => {}); // Silently fail
+      }
+    }
+  }, [open, email]);
+
+  // Reset on close
   useEffect(() => {
     if (!open) {
-      setPhone('');
       setOtp('');
       setStatus({ sending: false, verifying: false, sent: false, message: '', severity: 'info' });
+      setTimer(0);
     }
     if (email) {
       setUserEmail(email);
     }
   }, [open, email]);
+
+  // Countdown timer for resend
+  useEffect(() => {
+    if (timer <= 0) return;
+    const interval = setInterval(() => setTimer(t => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [timer]);
 
   const handleSendPhoneOtp = async () => {
     if (!phone) {
@@ -100,7 +140,7 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
       return;
     }
     
-    setStatus({ sending: true, verifying: false, sent: false, message: '', severity: 'info' });
+    setStatus({ sending: true, verifying: false, sent: false, message: 'Sending OTP...', severity: 'info' });
     try {
       const token = localStorage.getItem('authToken');
       const fullPhone = `${selectedCountry.code}${phone.replace(/^0+/, '')}`;
@@ -121,11 +161,12 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
       
       if (data?.success) {
         setStatus({ sending: false, verifying: false, sent: true, message: `OTP sent to ${fullPhone}`, severity: 'success' });
+        setTimer(60); // 60 second cooldown
       } else {
         setStatus({ sending: false, verifying: false, sent: false, message: data?.message || 'Failed to send OTP', severity: 'error' });
       }
     } catch (error) {
-      setStatus({ sending: false, verifying: false, sent: false, message: 'Error sending OTP', severity: 'error' });
+      setStatus({ sending: false, verifying: false, sent: false, message: 'Network error. Please try again.', severity: 'error' });
     }
   };
 
@@ -135,7 +176,7 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
       return;
     }
     
-    setStatus({ sending: true, verifying: false, sent: false, message: '', severity: 'info' });
+    setStatus({ sending: true, verifying: false, sent: false, message: 'Sending OTP...', severity: 'info' });
     try {
       const token = localStorage.getItem('authToken');
       
@@ -152,21 +193,22 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
       
       if (data?.success) {
         setStatus({ sending: false, verifying: false, sent: true, message: `OTP sent to ${userEmail}`, severity: 'success' });
+        setTimer(60); // 60 second cooldown
       } else {
         setStatus({ sending: false, verifying: false, sent: false, message: data?.message || 'Failed to send OTP', severity: 'error' });
       }
     } catch (error) {
-      setStatus({ sending: false, verifying: false, sent: false, message: 'Error sending OTP', severity: 'error' });
+      setStatus({ sending: false, verifying: false, sent: false, message: 'Network error. Please try again.', severity: 'error' });
     }
   };
 
   const handleVerify = async () => {
-    if (!otp) {
-      setStatus((prev) => ({ ...prev, message: 'Enter the OTP to verify', severity: 'warning' }));
+    if (!otp || otp.length !== 6) {
+      setStatus((prev) => ({ ...prev, message: 'Enter the complete 6-digit OTP', severity: 'warning' }));
       return;
     }
     
-    setStatus((prev) => ({ ...prev, verifying: true, message: '' }));
+    setStatus((prev) => ({ ...prev, verifying: true, message: 'Verifying...' }));
     try {
       const token = localStorage.getItem('authToken');
       const target = otpMethod === 'phone' ? `${selectedCountry.code}${phone.replace(/^0+/, '')}` : userEmail;
@@ -187,42 +229,82 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
       const data = await resp.json();
       
       if (data?.success) {
-        setStatus({ sending: false, verifying: false, sent: true, message: 'OTP verified successfully', severity: 'success' });
+        setStatus({ sending: false, verifying: false, sent: true, message: 'OTP verified successfully!', severity: 'success' });
         onVerified?.(otp, target);
-        setTimeout(() => onClose?.(), 500);
+        setTimeout(() => onClose?.(), 800);
       } else {
-        setStatus({ sending: false, verifying: false, sent: true, message: data?.message || 'Verification failed', severity: 'error' });
+        setStatus({ sending: false, verifying: false, sent: true, message: data?.message || 'Invalid OTP. Please try again.', severity: 'error' });
       }
     } catch (error) {
-      setStatus({ sending: false, verifying: false, sent: true, message: 'Error verifying OTP', severity: 'error' });
+      setStatus({ sending: false, verifying: false, sent: true, message: 'Network error. Please try again.', severity: 'error' });
     }
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="sm" 
+      fullWidth
+      sx={{ 
+        zIndex: 9999,
+        '& .MuiDialog-paper': {
+          borderRadius: 3,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          overflow: 'visible',
+        },
+        '& .MuiBackdrop-root': {
+          backgroundColor: 'rgba(0,0,0,0.6)',
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+        color: '#fff',
+        fontWeight: 700,
+        fontSize: '1.2rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        py: 2,
+      }}>
+        <Lock /> {title}
+      </DialogTitle>
+      <DialogContent sx={{ pt: '24px !important', pb: 1 }}>
+        <Stack spacing={2.5}>
           {/* OTP Method Selection */}
-          <FormControl fullWidth>
+          <FormControl fullWidth size="small">
             <InputLabel>Send OTP via</InputLabel>
             <Select
               value={otpMethod}
               label="Send OTP via"
               onChange={(e) => {
                 setOtpMethod(e.target.value);
+                setOtp('');
                 setStatus({ sending: false, verifying: false, sent: false, message: '', severity: 'info' });
+                setTimer(0);
               }}
+              sx={{ borderRadius: 2 }}
             >
-              <MenuItem value="phone">📱 Phone SMS</MenuItem>
-              <MenuItem value="email">📧 Email</MenuItem>
+              <MenuItem value="email">
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Email fontSize="small" color="primary" /> Email (Recommended)
+                </Box>
+              </MenuItem>
+              <MenuItem value="phone">
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Phone fontSize="small" color="success" /> Phone SMS
+                </Box>
+              </MenuItem>
             </Select>
           </FormControl>
 
+          {/* Phone or Email input */}
           {otpMethod === 'phone' ? (
             <Stack direction="row" spacing={1}>
               <Autocomplete
-                sx={{ minWidth: 180 }}
+                sx={{ minWidth: 160 }}
+                size="small"
                 options={countryCodes}
                 value={selectedCountry}
                 onChange={(e, newValue) => setSelectedCountry(newValue || countryCodes[2])}
@@ -243,6 +325,11 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
                 fullWidth
+                size="small"
+                InputProps={{
+                  startAdornment: <Phone sx={{ mr: 1, color: 'action.active', fontSize: 20 }} />,
+                }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
             </Stack>
           ) : (
@@ -253,38 +340,112 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
               value={userEmail}
               onChange={(e) => setUserEmail(e.target.value)}
               fullWidth
+              size="small"
+              InputProps={{
+                startAdornment: <Email sx={{ mr: 1, color: 'action.active', fontSize: 20 }} />,
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
           )}
 
-          <TextField
-            label="One Time Password"
-            placeholder="Enter 6-digit OTP"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+          {/* Send OTP Button */}
+          <Button
+            onClick={otpMethod === 'phone' ? handleSendPhoneOtp : handleSendEmailOtp}
+            disabled={status.sending || timer > 0}
+            variant="contained"
             fullWidth
-            inputProps={{ maxLength: 6 }}
-          />
-          
+            startIcon={status.sending ? <CircularProgress size={18} color="inherit" /> : <Send />}
+            sx={{
+              py: 1.2,
+              borderRadius: 2,
+              background: status.sent ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+              fontWeight: 700,
+              fontSize: '0.95rem',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+              },
+            }}
+          >
+            {status.sending ? 'Sending...' : timer > 0 ? `Resend in ${timer}s` : status.sent ? 'Resend OTP' : 'Send OTP'}
+          </Button>
+
+          {/* Status Alert */}
           {status.message && (
-            <Alert severity={status.severity}>{status.message}</Alert>
+            <Alert severity={status.severity} variant="filled" sx={{ borderRadius: 2 }}>
+              {status.message}
+            </Alert>
+          )}
+
+          {/* OTP Input - Only show after OTP is sent */}
+          {status.sent && (
+            <>
+              <Divider>
+                <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                  ENTER VERIFICATION CODE
+                </Typography>
+              </Divider>
+              <Box>
+                <input
+                  type="text"
+                  placeholder="000000"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  maxLength={6}
+                  autoFocus
+                  style={{ 
+                    width: '100%',
+                    padding: '16px 20px',
+                    fontSize: '28px',
+                    fontWeight: 800,
+                    textAlign: 'center',
+                    letterSpacing: '12px',
+                    border: '2px solid #10b981',
+                    borderRadius: '12px',
+                    outline: 'none',
+                    backgroundColor: '#f0fdf4',
+                    color: '#065f46',
+                    boxSizing: 'border-box',
+                    transition: 'border-color 0.2s ease',
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = '#059669'; e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = 'none'; }}
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', textAlign: 'center' }}>
+                  Enter the 6-digit code sent to your {otpMethod === 'phone' ? 'phone' : 'email'}
+                </Typography>
+              </Box>
+
+              {/* Verify Button */}
+              <Button
+                onClick={handleVerify}
+                disabled={status.verifying || otp.length !== 6}
+                variant="contained"
+                fullWidth
+                startIcon={status.verifying ? <CircularProgress size={18} color="inherit" /> : <CheckCircle />}
+                sx={{
+                  py: 1.3,
+                  borderRadius: 2,
+                  background: otp.length === 6 ? 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)' : '#e0e0e0',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #00A846 0%, #00C853 100%)',
+                  },
+                  '&.Mui-disabled': {
+                    background: '#e0e0e0',
+                    color: '#999',
+                  },
+                }}
+              >
+                {status.verifying ? 'Verifying...' : 'Verify OTP'}
+              </Button>
+            </>
           )}
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} color="inherit">Cancel</Button>
-        <Button 
-          onClick={otpMethod === 'phone' ? handleSendPhoneOtp : handleSendEmailOtp} 
-          disabled={status.sending} 
-          variant="outlined"
-        >
-          {status.sending ? 'Sending...' : 'Send OTP'}
-        </Button>
-        <Button 
-          onClick={handleVerify} 
-          disabled={status.verifying || !otp || !status.sent} 
-          variant="contained"
-        >
-          {status.verifying ? 'Verifying...' : 'Verify'}
+      <DialogActions sx={{ px: 3, pb: 2, pt: 1 }}>
+        <Button onClick={onClose} color="inherit" variant="text" sx={{ fontWeight: 600 }}>
+          Cancel
         </Button>
       </DialogActions>
     </Dialog>
