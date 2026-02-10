@@ -35,7 +35,7 @@ const ActivationReport = () => {
         if (startDate) params.set('startDate', startDate);
         if (endDate) params.set('endDate', endDate);
         const qs = params.toString();
-        const json = await fetchWithAuth(`/api/user-plans/activations${qs ? `?${qs}` : ''}` , { signal: controller.signal });
+        const json = await fetchWithAuth(`/api/activations/report${qs ? `?${qs}` : ''}` , { signal: controller.signal });
         const data = (json.data || []).map((r, idx) => ({
           sNo: idx + 1,
           userId: r.userId ?? 'N/A',

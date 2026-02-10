@@ -24,7 +24,7 @@ const EliminateSpecificCondition = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    fetch('/api/admin/member-conditions', {
+    fetch('/api/admin/eliminate-conditions', {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
       .then(res => res.json())

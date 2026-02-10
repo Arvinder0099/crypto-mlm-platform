@@ -27,7 +27,7 @@ const AllActivationSummary = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
-    fetch('/api/admin/all-activations', {
+    fetch('/api/admin/activations', {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
       .then(res => res.json())

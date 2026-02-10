@@ -16,7 +16,7 @@ const MyDirect = () => {
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     setLoading(true);
-    fetch('/api/dashboard/my-direct', {
+    fetch('/api/network/directs', {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
       .then(res => res.json())

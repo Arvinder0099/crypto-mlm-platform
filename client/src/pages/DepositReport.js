@@ -37,7 +37,7 @@ const DepositReport = () => {
         if (startDate) params.set('startDate', startDate);
         if (endDate) params.set('endDate', endDate);
         const qs = params.toString();
-        const json = await fetchWithAuth(`/api/transactions/deposits${qs ? `?${qs}` : ''}`, { signal: controller.signal });
+        const json = await fetchWithAuth(`/api/deposits/report${qs ? `?${qs}` : ''}`, { signal: controller.signal });
         const raw = Array.isArray(json?.data) ? json.data : [];
         const mapped = raw.map((d, idx) => ({
           sNo: idx + 1,

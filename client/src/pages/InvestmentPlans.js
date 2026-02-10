@@ -186,7 +186,7 @@ const InvestmentPlans = () => {
       }
     };
 
-    fetchJSON('/api/investment-plans')
+    fetchJSON('/api/plans')
       .then((res) => {
         const plans = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         if (!mounted || plans.length === 0) return;
@@ -221,7 +221,7 @@ const InvestmentPlans = () => {
     setActiveLoading(true);
     setActiveError(null);
 
-    fetchWithAuth('/api/user-plans/my-plans')
+    fetchWithAuth('/api/investments')
       .then((res) => {
         const items = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
         if (!mounted) return;
@@ -300,7 +300,7 @@ const InvestmentPlans = () => {
       setHistoryError(null);
       setPayouts([]);
   
-      fetchWithAuth(`/api/user-plans/${investment.id}/payouts`)
+      fetchWithAuth(`/api/investments/${investment.id}`)
           .then((res) => {
               const data = res?.data || res;
               const recent = Array.isArray(data?.recent) ? data.recent : [];
@@ -325,7 +325,7 @@ const InvestmentPlans = () => {
               amount: Number(investmentAmount),
               walletType: selectedWallet
           };
-          const res = await fetchWithAuth('/api/user-plans', {
+          const res = await fetchWithAuth('/api/plans/purchase', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)

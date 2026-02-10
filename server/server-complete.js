@@ -7264,6 +7264,140 @@ This is your Golden Chance. Don’t miss it.`;
 };
 initializeAnnouncement();
 
+// ==================== MISSING ENDPOINTS (added for frontend compatibility) ====================
+
+// /api/admin/overview-stats — used by ReportsAnalytics.js
+app.get('/api/admin/overview-stats', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const activeMembers = await User.countDocuments({ isActive: true });
+    const totalInvestments = await Investment.aggregate([{ $group: { _id: null, total: { $sum: '$amount' } } }]);
+    const totalWithdrawals = await Withdrawal.aggregate([{ $match: { status: 'approved' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]);
+    res.json({
+      success: true,
+      data: {
+        totalRevenue: totalInvestments[0]?.total || 0,
+        activeMembers,
+        commissionPaid: totalWithdrawals[0]?.total || 0,
+        totalUsers
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// /api/admin/top-performers — used by ReportsAnalytics.js
+app.get('/api/admin/top-performers', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const topUsers = await User.find({ isActive: true })
+      .sort({ 'wallet.totalIncome': -1 })
+      .limit(10)
+      .select('userId fullName username wallet rank');
+    const data = topUsers.map(u => ({
+      name: u.fullName || u.username || u.userId,
+      rank: u.rank || 'Member',
+      earnings: u.wallet?.totalIncome || 0,
+      teamSize: 0
+    }));
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// /api/admin/network-growth — used by ReportsAnalytics.js
+app.get('/api/admin/network-growth', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const growth = await User.aggregate([
+      { $match: { createdAt: { $gte: sixMonthsAgo } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } }, count: { $sum: 1 } } },
+      { $sort: { _id: 1 } }
+    ]);
+    const data = growth.map(g => ({ month: g._id, members: g.count }));
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// /api/mlm/summary — used by MLMDashboard.js
+app.get('/api/mlm/summary', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id || req.user.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const directs = await User.find({ referredBy: user.userId }).select('userId fullName username isActive createdAt');
+    const investments = await Investment.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5);
+    const deposits = await Deposit.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5);
+
+    const levels = [];
+    let currentLevel = [user.userId];
+    for (let lvl = 1; lvl <= 5; lvl++) {
+      const refs = await User.find({ referredBy: { $in: currentLevel } }).select('userId isActive');
+      if (refs.length === 0) break;
+      levels.push({
+        level: lvl,
+        members: refs.length,
+        active: refs.filter(r => r.isActive).length
+      });
+      currentLevel = refs.map(r => r.userId);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        totalDirects: directs.length,
+        activeDirects: directs.filter(d => d.isActive).length,
+        levels,
+        recentActivations: investments.map(i => ({
+          userId: i.userId,
+          amount: i.amount,
+          date: i.createdAt
+        })),
+        recentDeposits: deposits.map(d => ({
+          userId: d.userId,
+          amount: d.amount,
+          date: d.createdAt
+        }))
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// /api/products — used by ProductCatalog.js
+app.get('/api/products', authenticateToken, async (req, res) => {
+  try {
+    const plans = await Plan.find({ isActive: true });
+    const products = plans.map(p => ({
+      id: p._id,
+      name: p.name,
+      description: p.description || `${p.name} investment plan`,
+      category: p.category || 'investment',
+      price: p.minAmount,
+      maxPrice: p.maxAmount,
+      dailyROI: p.dailyROI,
+      duration: p.duration,
+      features: [
+        `Min: $${p.minAmount}`,
+        `Max: $${p.maxAmount}`,
+        `Daily ROI: ${p.dailyROI}%`,
+        `Duration: ${p.duration} days`
+      ],
+      image: '/static/media/plan-default.png',
+      rating: 4.5,
+      inStock: true
+    }));
+    res.json({ success: true, data: products });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ==================== SERVER START ====================
 
 const PORT = process.env.PORT || 5000;

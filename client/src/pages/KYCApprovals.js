@@ -110,7 +110,7 @@ const KYCApprovals = () => {
 useEffect(() => {
   async function loadKyc() {
     try {
-      const res = await fetchWithAuth('/api/users?kycStatus=pending_approval&limit=50');
+      const res = await fetchWithAuth('/api/admin/kyc/pending');
       const users = res?.data?.users || [];
       const mapped = users.map(u => ({
         id: u._id,
