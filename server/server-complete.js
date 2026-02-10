@@ -2305,16 +2305,19 @@ app.post('/api/wallet/deposit', authenticateToken, isAdmin, async (req, res) => 
     const user = await User.findById(targetUserId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    user.balance += amount;
+    const prevFundWallet = user.fundWallet || 0;
+    user.fundWallet = prevFundWallet + amount;
+    // Keep balance in sync
+    user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
     await user.save();
     
     const transaction = new Transaction({
-      userId: user._id, type: 'deposit', amount, previousBalance: user.balance - amount,
-      newBalance: user.balance, status: 'completed', description: description || 'Admin Manual Deposit',
+      userId: user._id, type: 'deposit', amount, previousBalance: prevFundWallet,
+      newBalance: user.fundWallet, status: 'completed', description: description || 'Admin Manual Deposit',
     });
     await transaction.save();
     
-    res.json({ message: 'Deposit successful', newBalance: user.balance });
+    res.json({ message: 'Deposit successful', fundWallet: user.fundWallet, newBalance: user.balance });
   } catch (error) {
     res.status(500).json({ message: 'Error processing deposit', error: error.message });
   }
@@ -2327,7 +2330,9 @@ app.post('/api/withdrawals', authenticateToken, async (req, res) => {
     const { amount, walletAddress, requestReason } = req.body;
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    if (amount > user.balance) return res.status(400).json({ message: 'Insufficient balance' });
+    // Check withdrawable balance (My Wallet is the withdrawable wallet)
+    const withdrawableBalance = (user.myWallet || 0);
+    if (amount > withdrawableBalance) return res.status(400).json({ message: `Insufficient balance in My Wallet. Available: $${withdrawableBalance}` });
     
     const settings = await AdminSettings.findOne({});
     const minWithdrawal = settings?.minWithdrawal || 50;
@@ -2347,7 +2352,10 @@ app.post('/api/withdrawals', authenticateToken, async (req, res) => {
     });
     
     await withdrawal.save();
+    user.myWallet = (user.myWallet || 0) - amount;
     user.pendingWithdrawal += amount;
+    // Keep balance in sync
+    user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
     await user.save();
     
     // Send email notification
@@ -2506,6 +2514,8 @@ app.post('/api/admin/deposits/:id/approve', authenticateToken, isAdmin, async (r
     const user = await User.findById(deposit.userId);
     if (user) {
       user.fundWallet = (user.fundWallet || 0) + deposit.amount;
+      // Keep balance in sync
+      user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
       await user.save();
 
       // Create transaction record
@@ -2599,9 +2609,11 @@ app.post('/api/withdrawals/:id/approve', authenticateToken, isAdmin, async (req,
     if (!withdrawal) return res.status(404).json({ message: 'Withdrawal not found' });
     
     const user = await User.findById(withdrawal.userId._id);
-    user.balance -= withdrawal.amount;
+    // Balance was already deducted from myWallet when request was created
+    // Just update totals and keep balance in sync
     user.totalWithdrawn += withdrawal.amount;
     user.pendingWithdrawal -= withdrawal.amount;
+    user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
     await user.save();
     
     const transaction = new Transaction({
@@ -2641,7 +2653,11 @@ app.post('/api/withdrawals/:id/reject', authenticateToken, isAdmin, async (req, 
     if (!withdrawal) return res.status(404).json({ message: 'Withdrawal not found' });
     
     const user = await User.findById(withdrawal.userId._id);
+    // Restore funds back to My Wallet since withdrawal was rejected
+    user.myWallet = (user.myWallet || 0) + withdrawal.amount;
     user.pendingWithdrawal -= withdrawal.amount;
+    // Keep balance in sync
+    user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
     await user.save();
     
     // Send email notification
@@ -3915,6 +3931,15 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
     const passiveIncome = investmentEarnings + (user.totalDailyReturnsReceived || 0);
 
     // Wallet data - using 3 wallet system
+    // Migrate any orphaned balance: if balance > sum of 3 wallets, add difference to fundWallet
+    const walletsSum = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
+    if ((user.balance || 0) > walletsSum && walletsSum === 0) {
+      // Old balance exists but wallets are empty — migrate balance to fundWallet
+      user.fundWallet = user.balance;
+      await user.save();
+      console.log(`Migrated ${user.balance} from legacy balance to fundWallet for user ${user.userId}`);
+    }
+
     const walletData = {
       myWallet: user.myWallet || 0,
       fundWallet: user.fundWallet || 0,
@@ -4163,9 +4188,11 @@ app.post('/api/admin/points/add', authenticateToken, isAdmin, async (req, res) =
       return res.status(400).json({ success: false, message: 'Insufficient admin pool balance' });
     }
 
-    // Update user balance
-    const previousBalance = user.balance || 0;
-    user.balance = previousBalance + pointsAmount;
+    // Update user wallets — credit Fund Wallet (visible on dashboard)
+    const previousFundWallet = user.fundWallet || 0;
+    user.fundWallet = previousFundWallet + pointsAmount;
+    // Keep balance in sync (balance = myWallet + fundWallet + utilityWallet)
+    user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
     await user.save();
 
     // Create transaction record
@@ -4175,8 +4202,8 @@ app.post('/api/admin/points/add', authenticateToken, isAdmin, async (req, res) =
       amount: pointsAmount,
       description: description || 'USDT points added by admin',
       status: 'completed',
-      balanceBefore: previousBalance,
-      balanceAfter: user.balance,
+      balanceBefore: previousFundWallet,
+      balanceAfter: user.fundWallet,
       processedBy: req.user.id,
       processedAt: new Date()
     });
@@ -4192,12 +4219,13 @@ app.post('/api/admin/points/add', authenticateToken, isAdmin, async (req, res) =
     settings.adminPointsPool = adminPointsPool;
     await settings.save();
 
-    console.log(`Admin added ${pointsAmount} USDT points to ${user.userId}. New balance: ${user.balance}`);
+    console.log(`Admin added ${pointsAmount} USDT points to ${user.userId}. Fund Wallet: ${user.fundWallet}, Total Balance: ${user.balance}`);
 
     res.json({
       success: true,
-      message: `Successfully added ${pointsAmount} USDT to ${user.userId}'s wallet`,
+      message: `Successfully added ${pointsAmount} USDT to ${user.userId}'s Fund Wallet`,
       newBalance: user.balance,
+      fundWallet: user.fundWallet,
       adminPoolRemaining: adminPointsPool
     });
   } catch (error) {
@@ -6068,8 +6096,10 @@ app.post('/api/withdrawals/request', authenticateToken, async (req, res) => {
     if (withdrawAmount > maxWithdrawal) {
       return res.status(400).json({ success: false, message: `Maximum withdrawal is $${maxWithdrawal}` });
     }
-    if (withdrawAmount > user.balance) {
-      return res.status(400).json({ success: false, message: 'Insufficient balance' });
+    // Check withdrawable balance (My Wallet is the withdrawable wallet)
+    const withdrawableBalance = (user.myWallet || 0);
+    if (withdrawAmount > withdrawableBalance) {
+      return res.status(400).json({ success: false, message: `Insufficient balance in My Wallet. Available: $${withdrawableBalance}` });
     }
     
     // Calculate charges
@@ -6087,9 +6117,11 @@ app.post('/api/withdrawals/request', authenticateToken, async (req, res) => {
     });
     await withdrawal.save();
     
-    // Deduct from balance and add to pending
-    user.balance -= withdrawAmount;
+    // Deduct from My Wallet and add to pending
+    user.myWallet = (user.myWallet || 0) - withdrawAmount;
     user.pendingWithdrawal += withdrawAmount;
+    // Keep balance in sync
+    user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
     await user.save();
     
     // Create transaction record
