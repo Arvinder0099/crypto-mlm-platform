@@ -381,7 +381,12 @@ function Register() {
     
     if (step === 1) {
       if (!formData.password) errors.password = 'Password is required';
-      else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
+      else if (formData.password.length < 12) errors.password = 'Password must be at least 12 characters';
+      else if (formData.password.length > 16) errors.password = 'Password must not exceed 16 characters';
+      else if (!/[a-z]/.test(formData.password)) errors.password = 'Must include a lowercase letter';
+      else if (!/[A-Z]/.test(formData.password)) errors.password = 'Must include an uppercase letter';
+      else if (!/\d/.test(formData.password)) errors.password = 'Must include a number';
+      else if (!/[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/`~]/.test(formData.password)) errors.password = 'Must include a symbol (!@#$%^&* etc.)';
       if (formData.password !== formData.confirmPassword) errors.confirmPassword = 'Passwords do not match';
       if (!formData.walletAddress.trim()) errors.walletAddress = 'Wallet address is required';
       else if (!validateWalletAddress(formData.walletAddress, formData.walletType)) {
@@ -905,7 +910,7 @@ function Register() {
                     value={formData.password}
                     onChange={handleChange('password')}
                     error={!!fieldErrors.password}
-                    helperText={fieldErrors.password || 'Minimum 6 characters'}
+                    helperText={fieldErrors.password || '12-16 chars: uppercase, lowercase, number & symbol'}
                     InputProps={{
                       startAdornment: <InputAdornment position="start"><Lock color="action" /></InputAdornment>,
                       endAdornment: (
@@ -944,26 +949,55 @@ function Register() {
 
                 {/* Password Strength */}
                 <Grid item xs={12}>
-                  <LinearProgress
-                    variant="determinate"
-                    value={Math.min(100, formData.password.length * 12)}
-                    sx={{
-                      height: 8,
-                      borderRadius: 4,
-                      bgcolor: alpha('#10b981', 0.1),
-                      '& .MuiLinearProgress-bar': {
-                        borderRadius: 4,
-                        background: formData.password.length >= 8 
-                          ? 'linear-gradient(90deg, #00C853, #69F0AE)'
-                          : formData.password.length >= 6 
-                            ? 'linear-gradient(90deg, #FFC107, #FFD54F)'
-                            : 'linear-gradient(90deg, #FF5252, #FF8A80)',
-                      },
-                    }}
-                  />
-                  <Typography variant="caption" color="text.secondary">
-                    Password Strength: {formData.password.length >= 8 ? '💪 Strong' : formData.password.length >= 6 ? '👍 Good' : '⚠️ Weak'}
-                  </Typography>
+                  {(() => {
+                    const p = formData.password;
+                    const checks = [
+                      p.length >= 12 && p.length <= 16,
+                      /[a-z]/.test(p),
+                      /[A-Z]/.test(p),
+                      /\d/.test(p),
+                      /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/`~]/.test(p),
+                    ];
+                    const passed = checks.filter(Boolean).length;
+                    const pct = p.length === 0 ? 0 : (passed / 5) * 100;
+                    const color = passed >= 5 ? '#00C853' : passed >= 3 ? '#FFC107' : '#FF5252';
+                    const label = passed >= 5 ? '\ud83d\udcaa Strong' : passed >= 3 ? '\ud83d\udc4d Medium' : p.length > 0 ? '\u26a0\ufe0f Weak' : '';
+                    return (
+                      <>
+                        <LinearProgress
+                          variant="determinate"
+                          value={pct}
+                          sx={{
+                            height: 8,
+                            borderRadius: 4,
+                            bgcolor: alpha('#10b981', 0.1),
+                            '& .MuiLinearProgress-bar': {
+                              borderRadius: 4,
+                              backgroundColor: color,
+                            },
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          {label && `Password Strength: ${label}`}
+                        </Typography>
+                        {p.length > 0 && (
+                          <Box sx={{ mt: 0.5 }}>
+                            {[
+                              ['12-16 characters', p.length >= 12 && p.length <= 16],
+                              ['Lowercase letter', /[a-z]/.test(p)],
+                              ['Uppercase letter', /[A-Z]/.test(p)],
+                              ['Number', /\d/.test(p)],
+                              ['Symbol (!@#$%^&*)', /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/`~]/.test(p)],
+                            ].map(([text, ok]) => (
+                              <Typography key={text} variant="caption" display="block" sx={{ color: ok ? '#00C853' : '#FF5252', fontSize: '0.7rem' }}>
+                                {ok ? '\u2713' : '\u2717'} {text}
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
+                      </>
+                    );
+                  })()}
                 </Grid>
               </Grid>
             </Box>

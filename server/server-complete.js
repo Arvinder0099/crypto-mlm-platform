@@ -525,6 +525,14 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
     
+    // Strong password validation: 12-16 chars, uppercase, lowercase, number, symbol
+    if (password.length < 12 || password.length > 16) {
+      return res.status(400).json({ message: 'Password must be 12-16 characters long' });
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/`~])/.test(password)) {
+      return res.status(400).json({ message: 'Password must include uppercase, lowercase, number, and symbol' });
+    }
+    
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already registered' });
@@ -777,13 +785,30 @@ app.post('/api/auth/send-phone-otp', async (req, res) => {
     });
     setTimeout(() => preRegPhoneOtps.delete(fullPhone), 10 * 60 * 1000);
     
-    // Try SMS (best effort, don't crash if it fails)
-    try { const sms = SMSServiceFactory.getService(); await sms.sendOTP(fullPhone, otp, 'Hexanova'); } catch(e) { console.log('SMS send skipped:', e.message); }
+    // Send SMS - report errors to user so they know if it failed
+    let smsSent = false;
+    let smsError = null;
+    try {
+      const sms = SMSServiceFactory.getService();
+      console.log('📱 SMS service type:', sms.constructor.name);
+      const smsResult = await sms.sendOTP(fullPhone, otp, 'Hexanova');
+      console.log('✅ SMS send result:', JSON.stringify(smsResult));
+      smsSent = !smsResult.devMode; // devMode means it was only logged, not actually sent
+    } catch(e) {
+      console.error('❌ SMS send failed:', e.message);
+      smsError = e.message;
+    }
     
-    return res.json({ success: true, message: 'Verification code sent to your phone' });
+    if (smsSent) {
+      return res.json({ success: true, message: 'Verification code sent to your phone via SMS' });
+    } else {
+      // OTP is stored - user can still verify if they get the code another way
+      console.log(`⚠️ SMS not delivered to ${fullPhone}. Error: ${smsError || 'SMS service in dev mode'}`);
+      return res.json({ success: true, message: 'Verification code generated. If you did not receive an SMS, please check your phone number and country code.', smsDelivered: false });
+    }
   } catch (error) {
     console.error('Send phone OTP error:', error);
-    return res.json({ success: true, message: 'Verification code sent to your phone' });
+    return res.status(500).json({ success: false, message: 'Failed to send verification code. Please try again.' });
   }
 });
 
@@ -876,6 +901,7 @@ app.post('/api/auth/forgot-password/send-otp', rateLimiters.auth, async (req, re
     
     // Send OTP via SMS
     try {
+      const smsService = SMSServiceFactory.getService();
       await smsService.sendOTP(phone, otp);
     } catch (smsError) {
       console.error('SMS sending failed:', smsError);
@@ -884,9 +910,7 @@ app.post('/api/auth/forgot-password/send-otp', rateLimiters.auth, async (req, re
     
     res.json({ 
       success: true, 
-      message: 'OTP sent to your phone number',
-      // For demo, include OTP in response (remove in production)
-      demoOtp: otp
+      message: 'OTP sent to your phone number'
     });
   } catch (error) {
     res.status(500).json({ message: 'Failed to send OTP', error: error.message });
@@ -936,8 +960,11 @@ app.post('/api/auth/forgot-password/reset', rateLimiters.auth, async (req, res) 
       return res.status(400).json({ message: 'Passwords do not match' });
     }
     
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    if (newPassword.length < 12 || newPassword.length > 16) {
+      return res.status(400).json({ message: 'Password must be 12-16 characters long' });
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/`~])/.test(newPassword)) {
+      return res.status(400).json({ message: 'Password must include uppercase, lowercase, number, and symbol' });
     }
     
     // Verify token
@@ -975,115 +1002,45 @@ app.get('/api/auth/verify', authenticateToken, async (req, res) => {
   }
 });
 
-// TEMPORARY: One-time password reset for production setup (REMOVE AFTER USE)
+// TEMPORARY: One-time password reset - DISABLED FOR PRODUCTION SECURITY
+/*
 app.post('/api/auth/setup-admin-password', async (req, res) => {
-  try {
-    const { secretKey, email, newPassword } = req.body;
-    
-    // Security: Only works with a secret key
-    if (secretKey !== 'SETUP_ADMIN_2026_SECRET') {
-      return res.status(403).json({ message: 'Invalid secret key' });
-    }
-    
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-    user.status = 'active';
-    await user.save();
-    
-    res.json({ success: true, message: `Password reset for ${email}` });
-  } catch (error) {
-    res.status(500).json({ message: 'Password reset failed', error: error.message });
-  }
+  // ... (Code removed for security)
+  return res.status(404).json({ message: 'Endpoint disabled' });
 });
+*/
 
-// Make user admin (secret endpoint)
+// Make user admin - DISABLED FOR PRODUCTION SECURITY
+/*
 app.post('/api/auth/make-admin', async (req, res) => {
-  try {
-    const { secretKey, email } = req.body;
-    
-    // Security: Only works with a secret key
-    if (secretKey !== 'MAKE_ADMIN_2026_SECRET') {
-      return res.status(403).json({ message: 'Invalid secret key' });
-    }
-    
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    user.role = 'admin';
-    await user.save();
-    
-    res.json({ success: true, message: `${email} is now an admin` });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to make admin', error: error.message });
-  }
+  // ... (Code removed for security)
+  return res.status(404).json({ message: 'Endpoint disabled' });
 });
+*/
 
-// Remove admin role (make user regular)
+// Remove admin role - DISABLED FOR PRODUCTION SECURITY
+/*
 app.post('/api/auth/remove-admin', async (req, res) => {
-  try {
-    const { secretKey, email } = req.body;
-    
-    // Security: Only works with a secret key
-    if (secretKey !== 'MAKE_ADMIN_2026_SECRET') {
-      return res.status(403).json({ message: 'Invalid secret key' });
-    }
-    
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    user.role = 'user';
-    await user.save();
-    
-    res.json({ success: true, message: `${email} is now a regular user` });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to remove admin', error: error.message });
-  }
+  // ... (Code removed for security)
+  return res.status(404).json({ message: 'Endpoint disabled' });
 });
+*/
 
-// List all users (admin endpoint)
+// List all users - DISABLED FOR PRODUCTION SECURITY
+/*
 app.post('/api/auth/list-users', async (req, res) => {
-  try {
-    const { secretKey } = req.body;
-    
-    if (secretKey !== 'MAKE_ADMIN_2026_SECRET') {
-      return res.status(403).json({ message: 'Invalid secret key' });
-    }
-    
-    const users = await User.find({}, 'email userId role wallet createdAt').sort({ createdAt: -1 });
-    res.json({ success: true, users });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to list users', error: error.message });
-  }
+  // ... (Code removed for security)
+  return res.status(404).json({ message: 'Endpoint disabled' });
 });
+*/
 
-// Delete user (admin endpoint)
+// Delete user - DISABLED FOR PRODUCTION SECURITY
+/*
 app.post('/api/auth/delete-user', async (req, res) => {
-  try {
-    const { secretKey, email } = req.body;
-    
-    if (secretKey !== 'MAKE_ADMIN_2026_SECRET') {
-      return res.status(403).json({ message: 'Invalid secret key' });
-    }
-    
-    const user = await User.findOneAndDelete({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    
-    res.json({ success: true, message: `User ${email} has been deleted` });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to delete user', error: error.message });
-  }
+  // ... (Code removed for security)
+  return res.status(404).json({ message: 'Endpoint disabled' });
 });
+*/
 
 // Send Email Verification Code
 // Temporary storage for email codes (for new users who haven't registered yet)
@@ -1176,51 +1133,18 @@ app.post('/api/auth/verify-email', async (req, res) => {
   }
 });
 
+/* DUPLICATE ROUTE DEPRECATED. Use /api/auth/send-phone-otp above
 // Send Phone OTP
 app.post('/api/auth/send-phone-otp', rateLimiters.otp, async (req, res) => {
   try {
     const { email, phone, phoneCountryCode } = req.body;
-    console.log('📱 Send phone OTP request:', { email, phone, phoneCountryCode });
-    
-    if (!email || !validators.email(email)) {
-      return res.status(400).json({ success: false, message: 'Valid email is required' });
-    }
-    
-    const user = await User.findOne({ email });
-    if (!user) {
-      console.error(`⚠️  User not found for email: ${email}`);
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-    
-    // Update phone info if provided
-    if (phone) user.phone = phone;
-    if (phoneCountryCode) user.phoneCountryCode = phoneCountryCode;
-    
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    user.phoneVerificationCode = code;
-    user.phoneVerificationExpires = new Date(Date.now() + 10 * 60 * 1000);
-    await user.save();
-    
-    // Send SMS with code
-    const phoneNumber = `${user.phoneCountryCode}${user.phone}`.replace(/\s+/g, '');
-    console.log(`📱 Phone OTP generated for ${phoneNumber}: ${code}`);
-    
-    try {
-      // Get SMS service and send OTP
-      const smsService = SMSServiceFactory.getService();
-      const smsResult = await smsService.sendOTP(phoneNumber, code, 'Hexanova');
-      console.log('✅ SMS sent successfully:', smsResult);
-    } catch (smsError) {
-      console.error('❌ SMS sending failed:', smsError.message);
-      // Continue with response even if SMS fails (for development)
-    }
-    
-    res.json({ success: true, message: 'Phone OTP sent' });
+    // ... (Code removed to prevent routing conflict)
+    return res.status(404).json({ message: 'Use the standard pre-registration phone OTP endpoint' });
   } catch (error) {
-    console.error('❌ Send phone OTP error:', error);
-    res.status(500).json({ success: false, message: 'Failed to send phone OTP' });
+    res.status(500).json({ success: false, message: 'Endpoint deprecated' });
   }
 });
+*/
 
 // Verify Phone OTP
 app.post('/api/auth/verify-phone', async (req, res) => {
@@ -1301,7 +1225,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     }
     
     if (!validators.password(newPassword)) {
-      return res.status(400).json({ message: 'Password must be at least 8 characters with uppercase, lowercase, and number' });
+      return res.status(400).json({ message: 'Password must be 12-16 characters with uppercase, lowercase, number, and symbol' });
     }
     
     // Verify token
@@ -1602,6 +1526,14 @@ app.post('/api/user/change-password', authenticateToken, async (req, res) => {
   try {
     const { oldPassword, newPassword, confirmPassword } = req.body;
     if (newPassword !== confirmPassword) return res.status(400).json({ message: 'Passwords do not match' });
+    
+    // Strong password validation
+    if (newPassword.length < 12 || newPassword.length > 16) {
+      return res.status(400).json({ message: 'Password must be 12-16 characters long' });
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/`~])/.test(newPassword)) {
+      return res.status(400).json({ message: 'Password must include uppercase, lowercase, number, and symbol' });
+    }
     
     const user = await User.findById(req.user.id);
     const isValid = await bcrypt.compare(oldPassword, user.password);
@@ -2318,18 +2250,22 @@ app.get('/api/dashboard/wallet', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/wallet/deposit', authenticateToken, async (req, res) => {
+app.post('/api/wallet/deposit', authenticateToken, isAdmin, async (req, res) => {
   try {
     const { amount, description } = req.body;
     if (amount <= 0) return res.status(400).json({ message: 'Invalid amount' });
     
-    const user = await User.findById(req.user.id);
+    // Check if body provides userId (admin can credit anyone) or default to self
+    const targetUserId = req.body.userId || req.user.id;
+    const user = await User.findById(targetUserId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
     user.balance += amount;
     await user.save();
     
     const transaction = new Transaction({
-      userId: req.user.id, type: 'deposit', amount, previousBalance: user.balance - amount,
-      newBalance: user.balance, status: 'completed', description: description || 'Deposit',
+      userId: user._id, type: 'deposit', amount, previousBalance: user.balance - amount,
+      newBalance: user.balance, status: 'completed', description: description || 'Admin Manual Deposit',
     });
     await transaction.save();
     
@@ -4870,10 +4806,10 @@ app.post('/api/admin/activate-user', authenticateToken, isAdmin, async (req, res
     // Get the plan or use defaults
     let plan = null;
     if (planId) {
-      plan = await InvestmentPlan.findById(planId);
+      plan = await Plan.findById(planId);
     }
     if (!plan) {
-      plan = await InvestmentPlan.findOne({ status: 'active' });
+      plan = await Plan.findOne({ status: 'active' });
     }
     
     const dailyReturn = plan?.dailyReturn || 1.5;

@@ -159,8 +159,9 @@ const validators = {
   },
   
   password: (password) => {
-    // At least 8 chars, 1 uppercase, 1 lowercase, 1 number
-    const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    // 12-16 chars, 1 uppercase, 1 lowercase, 1 number, 1 symbol
+    if (password.length < 12 || password.length > 16) return false;
+    const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/`~]).{12,16}$/;
     return re.test(password);
   },
   
