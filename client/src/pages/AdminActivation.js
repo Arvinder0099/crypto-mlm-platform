@@ -12,7 +12,7 @@ import {
   Autocomplete,
 } from '@mui/material';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
+const API_BASE = process.env.REACT_APP_API_URL || '';
 
 const AdminActivation = () => {
   const [formData, setFormData] = useState({

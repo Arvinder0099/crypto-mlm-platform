@@ -29,7 +29,7 @@ import {
   Image as ImageIcon,
 } from '@mui/icons-material';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
+const API_BASE = process.env.REACT_APP_API_URL || '';
 
 const PendingFundRequests = () => {
   const [filters, setFilters] = useState({

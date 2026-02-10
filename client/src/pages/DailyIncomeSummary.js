@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { Description as ExcelIcon, Print as PrintIcon, CalendarToday as CalendarIcon } from '@mui/icons-material';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
+const API_BASE = process.env.REACT_APP_API_URL || '';
 
 const DailyIncomeSummary = () => {
   const [filters, setFilters] = useState({

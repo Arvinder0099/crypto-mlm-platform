@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import { Description as ExcelIcon, Print as PrintIcon, CheckCircle, Cancel } from '@mui/icons-material';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3040';
+const API_BASE = process.env.REACT_APP_API_URL || '';
 
 const PendingWithdrawalRequests = () => {
   const [filters, setFilters] = useState({

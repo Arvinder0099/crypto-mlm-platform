@@ -185,7 +185,7 @@ const FloatingChat = () => {
       console.log('📨 Sending message:', { chatId: chatInfo?.id, message: text });
       
       // Direct fetch with explicit headers to ensure proper JSON request
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3040';
+      const apiUrl = process.env.REACT_APP_API_URL || '';
       const res = await fetch(`${apiUrl}/api/chat/send`, {
         method: 'POST',
         headers: {
