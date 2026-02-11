@@ -196,7 +196,7 @@ const theme = createTheme({
           backgroundImage: 'linear-gradient(145deg, #ffffff 0%, #f8fafb 100%)',
           border: 'none',
           boxShadow: '8px 8px 16px rgba(0, 0, 0, 0.08), -4px -4px 12px rgba(255, 255, 255, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-          borderRadius: 20,
+          borderRadius: 16,
         },
       },
     },
@@ -204,12 +204,16 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 12,
-          padding: '12px 24px',
+          padding: '10px 20px',
           fontWeight: 600,
           boxShadow: '4px 4px 8px rgba(0, 0, 0, 0.1), -2px -2px 6px rgba(255, 255, 255, 0.8)',
           transition: 'all 0.25s ease-in-out',
+          '@media (max-width: 600px)': {
+            padding: '8px 16px',
+            fontSize: '0.85rem',
+          },
           '&:hover': {
-            transform: 'translateY(-3px) scale(1.02)',
+            transform: 'translateY(-2px)',
             boxShadow: '6px 6px 12px rgba(0, 0, 0, 0.15), -3px -3px 8px rgba(255, 255, 255, 0.9)',
           },
           '&:active': {
@@ -240,13 +244,14 @@ const theme = createTheme({
           backgroundColor: '#ffffff',
           backgroundImage: 'linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%)',
           border: 'none',
-          borderRadius: 24,
+          borderRadius: 20,
           boxShadow: '10px 10px 20px rgba(0, 0, 0, 0.08), -5px -5px 15px rgba(255, 255, 255, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
           transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
-          transformStyle: 'preserve-3d',
-          '&:hover': {
-            transform: 'translateY(-8px) rotateX(2deg)',
-            boxShadow: '15px 15px 30px rgba(0, 0, 0, 0.12), -8px -8px 20px rgba(255, 255, 255, 1), 0 20px 40px rgba(16, 185, 129, 0.15)',
+          '@media (min-width: 600px)': {
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '15px 15px 30px rgba(0, 0, 0, 0.12), -8px -8px 20px rgba(255, 255, 255, 1), 0 20px 40px rgba(16, 185, 129, 0.15)',
+            },
           },
         },
       },
@@ -280,14 +285,17 @@ const theme = createTheme({
           background: 'linear-gradient(180deg, #34d399 0%, #10b981 50%, #059669 100%)',
           boxShadow: '4px 0 20px rgba(16, 185, 129, 0.3)',
           borderRight: 'none',
+          borderRadius: 0,
+          backgroundImage: 'none',
         },
       },
     },
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
-          margin: '6px 10px',
+          borderRadius: 10,
+          margin: '3px 8px',
+          padding: '8px 12px',
           color: '#ffffff',
           transition: 'all 0.2s ease',
           '&.Mui-selected': {
@@ -299,7 +307,7 @@ const theme = createTheme({
           },
           '&:hover': {
             backgroundColor: 'rgba(255, 255, 255, 0.15)',
-            transform: 'translateX(4px)',
+            transform: 'translateX(3px)',
           },
         },
       },
@@ -376,8 +384,17 @@ function App() {
         <CssBaseline />
         <GlobalStyles styles={{
           '*,*::before,*::after': { boxSizing: 'border-box' },
-          html: { height: '100%' },
-          body: { minWidth: 320, overflowX: 'hidden', width: '100%', maxWidth: '100vw' },
+          html: { height: '100%', WebkitTextSizeAdjust: '100%' },
+          body: { 
+            minWidth: 320, 
+            overflowX: 'hidden', 
+            width: '100%', 
+            maxWidth: '100vw',
+            WebkitOverflowScrolling: 'touch',
+            // Safe area for notched phones
+            paddingLeft: 'env(safe-area-inset-left)',
+            paddingRight: 'env(safe-area-inset-right)',
+          },
 
           // Stabilize text layout and wrapping
           'body *': { wordBreak: 'normal', overflowWrap: 'break-word' },

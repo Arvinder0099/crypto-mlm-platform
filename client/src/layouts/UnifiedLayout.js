@@ -224,11 +224,24 @@ const UnifiedLayout = ({ children }) => {
       sx={{
         '& .MuiDrawer-paper': {
           width: 280,
-          // Background handled by theme (emerald green)
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          overflowX: 'hidden',
+          // Reset paper overrides that break drawer
+          backgroundImage: 'none',
+          borderRadius: 0,
         },
       }}
     >
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Fixed Header */}
+      <Box sx={{ 
+        p: 2, 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        flexShrink: 0,
+      }}>
         <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
           {isAdmin() ? 'ADMIN PANEL' : 'HEXANOVA'}
         </Typography>
@@ -236,9 +249,19 @@ const UnifiedLayout = ({ children }) => {
           <CloseIcon />
         </IconButton>
       </Box>
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)' }} />
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
       
-      <List sx={{ px: 1 }}>
+      {/* Scrollable Menu Area */}
+      <Box sx={{ 
+        flex: 1, 
+        overflowY: 'auto', 
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        '&::-webkit-scrollbar': { width: 4 },
+        '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.3)', borderRadius: 2 },
+        '&::-webkit-scrollbar-track': { background: 'transparent' },
+      }}>
+      <List sx={{ px: 1, pb: 1 }}>
         {!isAdmin() ? (
           <>
             {/* User Dashboard */}
@@ -497,21 +520,24 @@ const UnifiedLayout = ({ children }) => {
           </>
         )}
 
-        <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.2)' }} />
-        
-        {/* Logout */}
+      </List>
+      </Box>
+      
+      {/* Fixed Footer - Logout */}
+      <Box sx={{ flexShrink: 0, p: 1, borderTop: '1px solid rgba(255,255,255,0.2)' }}>
         <ListItemButton 
           onClick={() => { handleLogout(); setMobileDrawerOpen(false); }} 
           sx={{ 
             borderRadius: 2, 
-            bgcolor: 'rgba(255,255,255,0.1)',
-            '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' }
+            bgcolor: 'rgba(255,255,255,0.15)',
+            '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' },
+            mx: 0.5,
           }}
         >
           <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><LogoutIcon /></ListItemIcon>
           <ListItemText primary="Logout" />
         </ListItemButton>
-      </List>
+      </Box>
     </Drawer>
   );
 
@@ -915,7 +941,9 @@ const UnifiedLayout = ({ children }) => {
           marginTop: { xs: '56px', sm: '64px' },
           minHeight: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 64px)' },
           background: 'linear-gradient(145deg, #34d399 0%, #10b981 50%, #059669 100%)',
-          padding: { xs: 1, sm: 2, md: 3 },
+          padding: { xs: '6px', sm: 2, md: 3 },
+          // Safe area support for notched phones
+          paddingBottom: { xs: 'max(6px, env(safe-area-inset-bottom))', sm: 2, md: 3 },
         }}
       >
         <Box
@@ -923,8 +951,8 @@ const UnifiedLayout = ({ children }) => {
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(10px)',
             borderRadius: { xs: 2, sm: 3, md: 4 },
-            padding: { xs: 1, sm: 2, md: 3 },
-            minHeight: { xs: 'calc(100vh - 80px)', sm: 'calc(100vh - 100px)', md: 'calc(100vh - 112px)' },
+            padding: { xs: '10px', sm: 2, md: 3 },
+            minHeight: { xs: 'calc(100vh - 72px)', sm: 'calc(100vh - 100px)', md: 'calc(100vh - 112px)' },
             boxShadow: '10px 10px 30px rgba(16, 185, 129, 0.2), -5px -5px 15px rgba(255, 255, 255, 0.8)',
             width: '100%',
             minWidth: 0,

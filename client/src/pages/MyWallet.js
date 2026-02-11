@@ -148,7 +148,7 @@ const MyWallet = () => {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h4" fontWeight={700} sx={{ mb: 1, color: '#1e3a5f' }}>
         My Wallet
       </Typography>
