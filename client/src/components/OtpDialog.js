@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Stack, Alert, FormControl, InputLabel, Select, MenuItem, Autocomplete, Box, Typography, CircularProgress, Divider } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Stack, Alert, FormControl, InputLabel, Select, MenuItem, Box, Typography, CircularProgress, Divider } from '@mui/material';
 import { Phone, Email, Lock, Send, CheckCircle } from '@mui/icons-material';
 
 // Comprehensive list of country codes
@@ -246,12 +246,21 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
       onClose={onClose} 
       maxWidth="sm" 
       fullWidth
+      scroll="paper"
+      disableScrollLock={false}
       sx={{ 
         zIndex: 9999,
+        '& .MuiDialog-container': {
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
         '& .MuiDialog-paper': {
-          borderRadius: 3,
+          borderRadius: { xs: 2, sm: 3 },
           boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-          overflow: 'visible',
+          overflow: 'hidden',
+          m: { xs: 1, sm: 3 },
+          maxHeight: { xs: 'calc(100vh - 32px)', sm: 'calc(100vh - 64px)' },
+          width: { xs: 'calc(100% - 16px)', sm: undefined },
         },
         '& .MuiBackdrop-root': {
           backgroundColor: 'rgba(0,0,0,0.6)',
@@ -301,24 +310,23 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
 
           {/* Phone or Email input */}
           {otpMethod === 'phone' ? (
-            <Stack direction="row" spacing={1}>
-              <Autocomplete
-                sx={{ minWidth: 160 }}
-                size="small"
-                options={countryCodes}
-                value={selectedCountry}
-                onChange={(e, newValue) => setSelectedCountry(newValue || countryCodes[2])}
-                getOptionLabel={(option) => `${option.flag} ${option.code} ${option.country}`}
-                renderOption={(props, option) => (
-                  <Box component="li" {...props}>
-                    <Typography sx={{ mr: 1 }}>{option.flag}</Typography>
-                    <Typography sx={{ fontWeight: 600, mr: 1 }}>{option.code}</Typography>
-                    <Typography variant="body2" color="text.secondary">{option.country}</Typography>
-                  </Box>
-                )}
-                renderInput={(params) => <TextField {...params} label="Country" />}
-                disableClearable
-              />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 } }}>
+                <InputLabel>Country</InputLabel>
+                <Select
+                  value={selectedCountry?.code || '+91'}
+                  label="Country"
+                  onChange={(e) => setSelectedCountry(countryCodes.find(c => c.code === e.target.value) || countryCodes[2])}
+                  sx={{ borderRadius: 2 }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
+                >
+                  {countryCodes.map((c) => (
+                    <MenuItem key={c.code} value={c.code}>
+                      {c.flag} {c.code} {c.country}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <TextField
                 label="Phone Number"
                 placeholder="Enter phone number"
@@ -394,11 +402,11 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
                   autoFocus
                   style={{ 
                     width: '100%',
-                    padding: '16px 20px',
-                    fontSize: '28px',
+                    padding: '12px 16px',
+                    fontSize: '24px',
                     fontWeight: 800,
                     textAlign: 'center',
-                    letterSpacing: '12px',
+                    letterSpacing: '8px',
                     border: '2px solid #10b981',
                     borderRadius: '12px',
                     outline: 'none',
