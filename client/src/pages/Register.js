@@ -1296,6 +1296,8 @@ function Register() {
         position: 'relative',
         overflowX: 'hidden',
         overflowY: 'auto',
+        width: '100%',
+        maxWidth: '100vw',
       }}
     >
       {/* Floating Crypto Icons */}
@@ -1396,7 +1398,10 @@ function Register() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          p: { xs: 2, sm: 4 },
+          p: { xs: 1, sm: 4 },
+          width: '100%',
+          minWidth: 0,
+          boxSizing: 'border-box',
         }}
       >
         <Zoom in timeout={500}>
@@ -1404,12 +1409,13 @@ function Register() {
             sx={{
               width: '100%',
               maxWidth: 520,
-              p: { xs: 3, sm: 4 },
-              borderRadius: 4,
+              p: { xs: 1.5, sm: 3, md: 4 },
+              borderRadius: { xs: 2, sm: 4 },
               boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
               background: 'rgba(255,255,255,0.98)',
               maxHeight: '90vh',
               overflowY: 'auto',
+              boxSizing: 'border-box',
             }}
           >
             {/* Mobile Logo */}
@@ -1446,7 +1452,7 @@ function Register() {
                         </Box>
                       )}
                     >
-                      <Typography variant="caption" fontWeight={index === activeStep ? 700 : 400}>
+                      <Typography variant="caption" fontWeight={index === activeStep ? 700 : 400} sx={{ fontSize: { xs: '0.6rem', sm: '0.75rem' } }}>
                         {label}
                       </Typography>
                     </StepLabel>

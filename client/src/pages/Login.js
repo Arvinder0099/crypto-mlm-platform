@@ -540,7 +540,7 @@ const Login = () => {
         }}
       />
 
-      <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3, md: 0 }, position: 'relative', zIndex: 2 }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3, md: 0 }, px: { xs: 1, sm: 2, md: 3 }, position: 'relative', zIndex: 2 }}>
         {/* Mobile Header */}
         <Box sx={{ display: { xs: 'block', md: 'none' }, textAlign: 'center', mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
@@ -656,13 +656,15 @@ const Login = () => {
             <Paper 
               elevation={24} 
               sx={{ 
-                p: { xs: 3, sm: 4 }, 
-                borderRadius: 4,
+                p: { xs: 2, sm: 3, md: 4 }, 
+                borderRadius: { xs: 2, sm: 4 },
                 backdropFilter: 'blur(20px)',
                 bgcolor: 'rgba(255, 255, 255, 0.95)',
                 boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), 0 0 40px rgba(16,185,129,0.1)',
-                mx: { xs: 1, sm: 0 },
+                mx: { xs: 0, sm: 0 },
                 border: '1px solid rgba(255,255,255,0.2)',
+                width: '100%',
+                boxSizing: 'border-box',
               }}
             >
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
