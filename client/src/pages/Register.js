@@ -739,7 +739,7 @@ function Register() {
                 Enter your details and verify with OTP
               </Typography>
 
-              <Grid container spacing={2}>
+              <Grid container spacing={{ xs: 1.5, sm: 2 }}>
                 {/* User ID Field */}
                 <Grid item xs={12}>
                   <TextField
@@ -815,7 +815,7 @@ function Register() {
                   <Paper
                     elevation={0}
                     sx={{
-                      p: 2,
+                      p: { xs: 1.5, sm: 2 },
                       borderRadius: 3,
                       border: `2px solid ${emailVerified ? '#00C853' : '#10b981'}`,
                       bgcolor: emailVerified ? alpha('#00C853', 0.05) : alpha('#10b981', 0.05),
@@ -860,24 +860,27 @@ function Register() {
                           <Box display="flex" gap={1} mb={1}>
                             <input
                               id="email-otp-input"
-                              type="text"
-                              placeholder="Enter 6-digit OTP"
+                              type="tel"
+                              inputMode="numeric"
+                              placeholder="000000"
                               value={emailOtp}
                               onChange={(e) => setEmailOtp(e.target.value.replace(/[^0-9]/g, '').substring(0, 6))}
                               maxLength={6}
                               autoComplete="off"
                               style={{ 
                                 flex: 1,
-                                padding: '12px 16px',
-                                fontSize: '20px',
+                                minWidth: 0,
+                                padding: '10px 8px',
+                                fontSize: '18px',
                                 fontWeight: 700,
                                 textAlign: 'center',
-                                letterSpacing: '10px',
+                                letterSpacing: '6px',
                                 border: '2px solid #10b981',
                                 borderRadius: '8px',
                                 outline: 'none',
                                 backgroundColor: '#ffffff',
                                 color: '#000000',
+                                boxSizing: 'border-box',
                               }}
                             />
                             <Button
@@ -949,7 +952,7 @@ function Register() {
                   <Paper
                     elevation={0}
                     sx={{
-                      p: 2,
+                      p: { xs: 1.5, sm: 2 },
                       borderRadius: 3,
                       border: `2px solid ${phoneVerified ? '#00C853' : '#10b981'}`,
                       bgcolor: phoneVerified ? alpha('#00C853', 0.05) : alpha('#10b981', 0.05),
@@ -994,24 +997,27 @@ function Register() {
                           <Box display="flex" gap={1} mb={1}>
                             <input
                               id="phone-otp-input"
-                              type="text"
-                              placeholder="Enter 6-digit OTP"
+                              type="tel"
+                              inputMode="numeric"
+                              placeholder="000000"
                               value={phoneOtp}
                               onChange={(e) => setPhoneOtp(e.target.value.replace(/[^0-9]/g, '').substring(0, 6))}
                               maxLength={6}
                               autoComplete="off"
                               style={{ 
                                 flex: 1,
-                                padding: '12px 16px',
-                                fontSize: '20px',
+                                minWidth: 0,
+                                padding: '10px 8px',
+                                fontSize: '18px',
                                 fontWeight: 700,
                                 textAlign: 'center',
-                                letterSpacing: '10px',
+                                letterSpacing: '6px',
                                 border: '2px solid #10b981',
                                 borderRadius: '8px',
                                 outline: 'none',
                                 backgroundColor: '#ffffff',
                                 color: '#000000',
+                                boxSizing: 'border-box',
                               }}
                             />
                             <Button
@@ -1178,7 +1184,7 @@ function Register() {
                 Add your wallet for withdrawals
               </Typography>
 
-              <Grid container spacing={2}>
+              <Grid container spacing={{ xs: 1.5, sm: 2 }}>
 
                 {/* Wallet Setup */}
                 <Grid item xs={12}>
@@ -1414,6 +1420,7 @@ function Register() {
               boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
               background: 'rgba(255,255,255,0.98)',
               maxHeight: '90vh',
+              overflowX: 'hidden',
               overflowY: 'auto',
               boxSizing: 'border-box',
             }}
