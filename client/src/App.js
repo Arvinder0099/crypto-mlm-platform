@@ -353,8 +353,16 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 16,
-          overflow: 'hidden',
           boxShadow: '6px 6px 12px rgba(0, 0, 0, 0.06), -3px -3px 8px rgba(255, 255, 255, 0.8)',
+        },
+      },
+    },
+    MuiTableContainer: {
+      styleOverrides: {
+        root: {
+          overflowX: 'auto',
+          width: '100%',
+          maxWidth: '100%',
         },
       },
     },
@@ -369,7 +377,7 @@ function App() {
         <GlobalStyles styles={{
           '*,*::before,*::after': { boxSizing: 'border-box' },
           html: { height: '100%' },
-          body: { minWidth: 320, overflowX: 'hidden' },
+          body: { minWidth: 320, overflowX: 'hidden', width: '100%', maxWidth: '100vw' },
 
           // Stabilize text layout and wrapping
           'body *': { wordBreak: 'normal', overflowWrap: 'break-word' },
@@ -391,7 +399,8 @@ function App() {
              minWidth: 0,
              maxWidth: '100%',
              margin: 0,
-             overflow: 'hidden',
+             overflowX: 'auto',
+             overflowY: 'visible',
            },
            '.wrap-text': { wordBreak: 'break-word', overflowWrap: 'anywhere' },
            // Force wrapping for all descendants in page and admin containers
@@ -405,7 +414,6 @@ function App() {
            '.MuiTableCell-root': { 
              whiteSpace: 'normal',
              wordBreak: 'break-word',
-             maxWidth: '200px',
            },
           // Normalize heading and paragraph margins to reduce jumpiness
           'h1, h2, h3, h4, h5, h6, p': { margin: '8px 0' },

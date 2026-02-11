@@ -43,7 +43,7 @@ function TabPanel({ children, value, index, ...other }) {
       aria-labelledby={`wallet-tab-${index}`}
       {...other}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>{children}</Box>}
     </div>
   );
 }
@@ -148,7 +148,7 @@ const WalletManagement = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h4" gutterBottom fontWeight="bold">
         Wallet Management
       </Typography>

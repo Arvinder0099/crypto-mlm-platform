@@ -145,9 +145,9 @@ const ChangePassword = () => {
   };
 
   return (
-    <Box>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, color: '#1e3a5f' }}>Change Password</Typography>
-      <Paper sx={{ p: 3, borderRadius: 2 }}>
+      <Paper sx={{ p: { xs: 1.5, sm: 2, md: 3 }, borderRadius: 2 }}>
         <Grid container spacing={2}>
           <Grid item xs={12} md={6}>
             <TextField 

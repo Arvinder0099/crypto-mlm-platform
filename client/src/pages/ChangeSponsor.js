@@ -27,7 +27,7 @@ const ChangeSponsor = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       {/* Header */}
       <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 4 }}>
         SPONSOR CHANGE

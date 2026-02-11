@@ -908,10 +908,14 @@ const UnifiedLayout = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
+          width: '100%',
+          minWidth: 0,
+          maxWidth: '100vw',
+          overflowX: 'hidden',
           marginTop: { xs: '56px', sm: '64px' },
           minHeight: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 64px)' },
           background: 'linear-gradient(145deg, #34d399 0%, #10b981 50%, #059669 100%)',
-          padding: { xs: 1.5, sm: 2, md: 3 },
+          padding: { xs: 1, sm: 2, md: 3 },
         }}
       >
         <Box
@@ -919,9 +923,12 @@ const UnifiedLayout = ({ children }) => {
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(10px)',
             borderRadius: { xs: 2, sm: 3, md: 4 },
-            padding: { xs: 1.5, sm: 2, md: 3 },
+            padding: { xs: 1, sm: 2, md: 3 },
             minHeight: { xs: 'calc(100vh - 80px)', sm: 'calc(100vh - 100px)', md: 'calc(100vh - 112px)' },
             boxShadow: '10px 10px 30px rgba(16, 185, 129, 0.2), -5px -5px 15px rgba(255, 255, 255, 0.8)',
+            width: '100%',
+            minWidth: 0,
+            overflowX: 'auto',
           }}
         >
           {children}

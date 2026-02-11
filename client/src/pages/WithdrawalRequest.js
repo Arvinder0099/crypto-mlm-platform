@@ -151,7 +151,7 @@ const WithdrawalRequest = () => {
   }
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+    <Box sx={{ maxWidth: 800, mx: 'auto', p: { xs: 1, sm: 2 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
         💸 Withdrawal Request
       </Typography>

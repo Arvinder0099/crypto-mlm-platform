@@ -166,7 +166,7 @@ const Dashboard = () => {
   };
 
   return (
-    <Box sx={{ flexGrow: 1, p: { xs: 1, sm: 2, md: 3 } }}>
+    <Box sx={{ flexGrow: 1, p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       {/* Section 1: Crypto User Info & Investment Monitor */}
       <Box sx={{ mb: { xs: 2, sm: 3, md: 4 } }}>
         <Grid container spacing={{ xs: 2, sm: 2, md: 3 }}>
@@ -208,33 +208,33 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>My Investment Monitor</Typography>
               <Grid container spacing={2}>
                 <Grid item xs={6} md={3}>
-                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: '#f3e5f5', borderRadius: 2 }}>
+                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: '#f3e5f5', borderRadius: 2, overflow: 'hidden' }}>
                     <Typography variant="caption" color="text.secondary">Total Invested</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#667eea' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#667eea', fontSize: { xs: '0.85rem', sm: '1.25rem' }, wordBreak: 'break-word' }}>
                       {dashboardData.totalInvested.toLocaleString()} USDT
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={6} md={3}>
-                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: '#e8f5e9', borderRadius: 2 }}>
+                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: '#e8f5e9', borderRadius: 2, overflow: 'hidden' }}>
                     <Typography variant="caption" color="text.secondary">Total Earned</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#4caf50' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#4caf50', fontSize: { xs: '0.85rem', sm: '1.25rem' }, wordBreak: 'break-word' }}>
                       {dashboardData.totalEarned.toLocaleString()} USDT
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={6} md={3}>
-                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: '#fff3e0', borderRadius: 2 }}>
+                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: '#fff3e0', borderRadius: 2, overflow: 'hidden' }}>
                     <Typography variant="caption" color="text.secondary">Daily Earning</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#ff9800' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#ff9800', fontSize: { xs: '0.85rem', sm: '1.25rem' }, wordBreak: 'break-word' }}>
                       {dashboardData.dailyEarning.toLocaleString()} USDT
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={6} md={3}>
-                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: '#e3f2fd', borderRadius: 2 }}>
+                  <Box sx={{ textAlign: 'center', p: 1.5, bgcolor: '#e3f2fd', borderRadius: 2, overflow: 'hidden' }}>
                     <Typography variant="caption" color="text.secondary">Active Plans</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#2196f3' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#2196f3', fontSize: { xs: '0.85rem', sm: '1.25rem' } }}>
                       {dashboardData.activePlans}
                     </Typography>
                   </Box>

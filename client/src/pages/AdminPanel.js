@@ -266,7 +266,7 @@ const AdminPanel = () => {
         <Grid container spacing={3}>
           {/* Total Credited */}
           <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 3 }}>
+            <Paper sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
                 Total Credited
               </Typography>
@@ -301,7 +301,7 @@ const AdminPanel = () => {
 
           {/* Total Debited */}
           <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 3 }}>
+            <Paper sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
                 Total Debited
               </Typography>

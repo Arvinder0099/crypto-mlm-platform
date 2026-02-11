@@ -85,7 +85,7 @@ const EditProfile = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, color: '#1e293b' }}>
         Edit Profile
       </Typography>

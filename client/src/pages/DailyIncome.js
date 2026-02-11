@@ -97,7 +97,7 @@ const DailyIncome = () => {
   };
 
   return (
-    <Box>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h5" gutterBottom sx={{ fontWeight: 700, color: '#1a237e' }}>Daily Income Report</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>Your daily earnings from active investment plans</Typography>
       

@@ -62,7 +62,7 @@ const CompensationPlans = () => {
 
   const TabPanel = ({ children, value, index }) => (
     <div hidden={value !== index}>
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+      {value === index && <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>{children}</Box>}
     </div>
   );
 
@@ -151,7 +151,7 @@ const CompensationPlans = () => {
   );
 
   return (
-    <Box>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h4" gutterBottom>
         Generation Compensation Plan
       </Typography>

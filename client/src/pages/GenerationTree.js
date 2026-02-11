@@ -64,7 +64,7 @@ const GenerationTree = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h5" gutterBottom>Generation History</Typography>
       
       {error && (
@@ -87,7 +87,7 @@ const GenerationTree = () => {
       </Paper>
 
       {/* Bottom: History List */}
-      <Paper elevation={0} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+      <Paper elevation={0} variant="outlined" sx={{ borderRadius: 2 }}>
         <Typography variant="subtitle1" sx={{ p: 2, fontWeight: 600, borderBottom: '1px solid #eee' }}>Network History</Typography>
         <TableContainer sx={{ maxHeight: 600 }}>
           <Table stickyHeader>

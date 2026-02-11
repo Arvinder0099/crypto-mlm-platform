@@ -128,7 +128,7 @@ const AdminWalletSettings = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       {/* Header */}
       <Paper sx={{ p: 3, mb: 3, borderRadius: 3, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>

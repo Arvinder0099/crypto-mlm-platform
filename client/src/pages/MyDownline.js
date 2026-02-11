@@ -71,7 +71,7 @@ const MyDownline = () => {
   }
 
   return (
-    <Box className="page-container" sx={{ p: 3 }}>
+    <Box className="page-container" sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>My Direct Downline</Typography>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -97,11 +97,11 @@ const MyDownline = () => {
       </Grid>
 
       {/* Directs List Table */}
-      <Paper elevation={0} variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+      <Paper elevation={0} variant="outlined" sx={{ borderRadius: 2 }}>
         <Typography variant="subtitle1" sx={{ p: 2, fontWeight: 600, borderBottom: '1px solid #eee' }}>
           History
         </Typography>
-        <TableContainer>
+        <TableContainer sx={{ overflowX: 'auto' }}>
           <Table>
             <TableHead sx={{ bgcolor: 'rgba(0, 0, 0, 0.02)' }}>
               <TableRow>

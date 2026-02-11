@@ -217,7 +217,7 @@ const AdminChat = () => {
   );
 
   return (
-    <Box sx={{ height: 'calc(100vh - 150px)', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: 'calc(100vh - 150px)', display: 'flex', flexDirection: 'column', width: '100%', minWidth: 0 }}>
       <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
         Support Chat Inbox
       </Typography>

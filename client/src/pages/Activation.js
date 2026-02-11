@@ -156,7 +156,7 @@ const Activation = () => {
   }
 
   return (
-    <Box sx={{ p: 2, minHeight: '100vh' }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, minHeight: '100vh', width: '100%', minWidth: 0 }}>
       {/* Plan Cards - Horizontal Scroll */}
       <Box sx={{ mb: 3, overflowX: 'auto', pb: 2 }}>
         <Grid container spacing={2} sx={{ flexWrap: 'nowrap', minWidth: 'max-content' }}>

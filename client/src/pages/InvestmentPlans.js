@@ -382,7 +382,7 @@ const InvestmentPlans = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h4" gutterBottom>
         Investment Plans
       </Typography>

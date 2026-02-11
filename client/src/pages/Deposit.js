@@ -206,7 +206,7 @@ const Deposit = () => {
   const adminAddress = adminAddresses[selectedNetwork];
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto' }}>
+    <Box sx={{ maxWidth: 900, mx: 'auto', p: { xs: 1, sm: 2 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
         💰 Fund Wallet - Deposit
       </Typography>

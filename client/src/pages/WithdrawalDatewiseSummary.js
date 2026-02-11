@@ -36,7 +36,7 @@ const WithdrawalDatewiseSummary = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
@@ -47,7 +47,7 @@ const WithdrawalDatewiseSummary = () => {
         </Typography>
       </Box>
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
         {/* Export and Print Buttons */}
         <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
           <Button

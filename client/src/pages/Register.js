@@ -1294,7 +1294,8 @@ function Register() {
         display: 'flex',
         background: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)',
         position: 'relative',
-        overflow: 'hidden',
+        overflowX: 'hidden',
+        overflowY: 'auto',
       }}
     >
       {/* Floating Crypto Icons */}

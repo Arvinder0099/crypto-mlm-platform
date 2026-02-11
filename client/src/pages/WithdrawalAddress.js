@@ -79,7 +79,7 @@ const WithdrawalAddress = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h5" gutterBottom sx={{ fontWeight: 700, color: '#1a237e', display: 'flex', alignItems: 'center', gap: 1 }}>
         <AccountBalanceWallet /> Withdrawal Address
       </Typography>
@@ -87,7 +87,7 @@ const WithdrawalAddress = () => {
         Add your cryptocurrency wallet addresses for withdrawals
       </Typography>
       
-      <Paper sx={{ p: 3, borderRadius: 2 }}>
+      <Paper sx={{ p: { xs: 1.5, sm: 2, md: 3 }, borderRadius: 2 }}>
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField 
