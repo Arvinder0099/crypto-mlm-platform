@@ -1,27 +1,48 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, TextField, Button, Grid, Snackbar, Alert, Paper, Select, FormControl, MenuItem, InputLabel, Card, CardContent, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip } from '@mui/material';
-import { fetchJSON, fetchWithAuth } from '../utils/api';
-import { Warning, Info } from '@mui/icons-material';
-import OtpDialog from '../components/OtpDialog';
+import { Box, Typography, TextField, Button, Grid, Snackbar, Alert, Paper, Select, FormControl, MenuItem, InputLabel, Card, CardContent, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip, Chip, alpha } from '@mui/material';
+import { fetchJSON } from '../utils/api';
+import { Warning, Info, Email, Send, Verified } from '@mui/icons-material';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
 
 const Activation = () => {
   const [selectedPlanId, setSelectedPlanId] = useState('');
-  const [activationType, setActivationType] = useState('self');
-  const [selectedWallet, setSelectedWallet] = useState('fund');
   const [form, setForm] = useState({ otp: '' });
   const [fundWalletBalance, setFundWalletBalance] = useState(0);
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
-  const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, plan: null });
+  
+  // Inline OTP states
+  const [userEmail, setUserEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpMessage, setOtpMessage] = useState('');
 
   useEffect(() => {
     fetchData();
+    // Auto-fetch user email
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      fetch(`${API_BASE}/api/user/profile`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(data => { if (data?.user?.email) setUserEmail(data.user.email); })
+        .catch(() => {});
+    }
   }, []);
+
+  // OTP countdown timer
+  useEffect(() => {
+    if (otpTimer <= 0) return;
+    const interval = setInterval(() => setOtpTimer(t => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [otpTimer]);
 
   // 6 Plans: Introduction, Basic, Bronze, Silver, Gold, Platinum
   const defaultPlans = [
@@ -138,13 +159,63 @@ const Activation = () => {
     }
   };
 
-  const handleSendOtp = () => {
-    setOtpDialogOpen(true);
+  const handleSendOtp = async () => {
+    if (!userEmail) {
+      setOtpMessage('Please enter your email address');
+      return;
+    }
+    setSendingOtp(true);
+    setOtpMessage('');
+    try {
+      const token = localStorage.getItem('authToken');
+      const resp = await fetch(`${API_BASE}/api/otp/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ email: userEmail })
+      });
+      const data = await resp.json();
+      if (data?.success) {
+        setOtpSent(true);
+        setOtpTimer(60);
+        setOtpMessage(`OTP sent to ${userEmail}`);
+        setSnack({ open: true, message: `OTP sent to ${userEmail}`, severity: 'success' });
+      } else {
+        setOtpMessage(data?.message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      setOtpMessage('Network error. Please try again.');
+    } finally {
+      setSendingOtp(false);
+    }
   };
 
-  const handleOtpVerified = (otpValue) => {
-    setForm((prev) => ({ ...prev, otp: otpValue }));
-    setSnack({ open: true, message: 'OTP verified successfully!', severity: 'success' });
+  const handleVerifyOtp = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      setOtpMessage('Enter the complete 6-digit OTP');
+      return;
+    }
+    setVerifyingOtp(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const resp = await fetch(`${API_BASE}/api/otp/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ target: userEmail, otp: otpCode, type: 'email' })
+      });
+      const data = await resp.json();
+      if (data?.success) {
+        setOtpVerified(true);
+        setForm(prev => ({ ...prev, otp: otpCode }));
+        setOtpMessage('');
+        setSnack({ open: true, message: 'OTP verified successfully!', severity: 'success' });
+      } else {
+        setOtpMessage(data?.message || 'Invalid OTP. Please try again.');
+      }
+    } catch (error) {
+      setOtpMessage('Network error. Please try again.');
+    } finally {
+      setVerifyingOtp(false);
+    }
   };
 
   if (loading) {
@@ -323,29 +394,124 @@ const Activation = () => {
             />
           </Grid>
 
-          {/* OTP Field */}
+          {/* OTP Verification - Inline */}
           <Grid item xs={12}>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                fullWidth
-                label="One Time Password"
-                value={form.otp}
-                placeholder="Enter OTP"
-                InputProps={{ readOnly: true }}
-                helperText={form.otp ? '✅ OTP Verified' : 'Click Send OTP to verify'}
-              />
-              <Button 
-                variant="contained" 
-                onClick={handleSendOtp}
-                disabled={!!form.otp}
-                sx={{ 
-                  minWidth: 120,
-                  bgcolor: form.otp ? '#4caf50' : '#1976d2'
-                }}
-              >
-                {form.otp ? 'Verified' : 'Send OTP'}
-              </Button>
-            </Box>
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 1.5, sm: 2.5 },
+                borderRadius: 3,
+                border: `2px solid ${otpVerified ? '#00C853' : '#10b981'}`,
+                bgcolor: otpVerified ? alpha('#00C853', 0.05) : alpha('#10b981', 0.05),
+              }}
+            >
+              <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Email sx={{ color: otpVerified ? '#00C853' : '#10b981' }} />
+                  <Typography variant="subtitle1" fontWeight={700} color={otpVerified ? 'success.main' : 'primary'}>
+                    OTP Verification
+                  </Typography>
+                </Box>
+                {otpVerified && (
+                  <Chip icon={<Verified sx={{ fontSize: 16 }} />} label="VERIFIED" color="success" size="small" sx={{ fontWeight: 700 }} />
+                )}
+              </Box>
+
+              {!otpVerified ? (
+                <Box>
+                  {/* Email field */}
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Email Address"
+                    value={userEmail}
+                    onChange={(e) => setUserEmail(e.target.value)}
+                    sx={{ mb: 2, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  />
+
+                  {/* Send OTP Button */}
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    startIcon={sendingOtp ? <CircularProgress size={18} color="inherit" /> : <Send />}
+                    onClick={handleSendOtp}
+                    disabled={sendingOtp || otpTimer > 0}
+                    sx={{
+                      py: 1.2,
+                      mb: 2,
+                      borderRadius: 2,
+                      background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                      fontWeight: 700,
+                      '&:hover': { background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' },
+                    }}
+                  >
+                    {sendingOtp ? 'Sending...' : otpTimer > 0 ? `Resend in ${otpTimer}s` : otpSent ? 'Resend OTP' : 'Send OTP'}
+                  </Button>
+
+                  {/* OTP Message */}
+                  {otpMessage && (
+                    <Alert severity={otpSent ? 'success' : 'warning'} sx={{ mb: 2, borderRadius: 2 }}>
+                      {otpMessage}
+                    </Alert>
+                  )}
+
+                  {/* OTP Code Input - always visible after sent */}
+                  {otpSent && (
+                    <Box>
+                      <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                        Enter the 6-digit code sent to your email
+                      </Typography>
+                      <Box display="flex" gap={1} mb={1}>
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          placeholder="000000"
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                          maxLength={6}
+                          autoFocus
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            padding: '12px 8px',
+                            fontSize: '22px',
+                            fontWeight: 800,
+                            textAlign: 'center',
+                            letterSpacing: '6px',
+                            border: '2px solid #10b981',
+                            borderRadius: '8px',
+                            outline: 'none',
+                            backgroundColor: '#ffffff',
+                            color: '#065f46',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => { e.target.style.borderColor = '#059669'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.2)'; }}
+                          onBlur={(e) => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = 'none'; }}
+                        />
+                        <Button
+                          variant="contained"
+                          onClick={handleVerifyOtp}
+                          disabled={verifyingOtp || otpCode.length !== 6}
+                          sx={{
+                            minWidth: 90,
+                            borderRadius: 2,
+                            background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)',
+                            fontWeight: 700,
+                            '&:hover': { background: 'linear-gradient(135deg, #00A846 0%, #00C853 100%)' },
+                          }}
+                        >
+                          {verifyingOtp ? <CircularProgress size={20} color="inherit" /> : 'Verify'}
+                        </Button>
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              ) : (
+                <Alert severity="success" sx={{ borderRadius: 2 }}>
+                  OTP has been verified successfully. You can now activate your plan.
+                </Alert>
+              )}
+            </Paper>
           </Grid>
 
           {/* Submit Button */}
@@ -409,12 +575,6 @@ const Activation = () => {
         </Alert>
       </Snackbar>
 
-      <OtpDialog
-        open={otpDialogOpen}
-        onClose={() => setOtpDialogOpen(false)}
-        onVerified={(otp) => handleOtpVerified(otp)}
-        title="Activation OTP Verification"
-      />
     </Box>
   );
 };

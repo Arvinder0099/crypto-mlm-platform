@@ -4,8 +4,7 @@ import {
   Card, CardContent, CircularProgress, FormControl, InputLabel, Select,
   MenuItem, Divider, Chip
 } from '@mui/material';
-import { AccountBalanceWallet, Send, Warning } from '@mui/icons-material';
-import OtpDialog from '../components/OtpDialog';
+import { AccountBalanceWallet, Send, Warning, CheckCircle } from '@mui/icons-material';
 
 const WithdrawalRequest = () => {
   const [loading, setLoading] = useState(true);
@@ -15,11 +14,26 @@ const WithdrawalRequest = () => {
   const [settings, setSettings] = useState({ minWithdrawal: 50, maxWithdrawal: 50000, withdrawalFeePercent: 0 });
   const [form, setForm] = useState({ amount: '', walletAddress: '', selectedAddress: '', otp: '' });
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
-  const [otpDialogOpen, setOtpDialogOpen] = useState(false);
+  // Inline OTP states
+  const [userEmail, setUserEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [otpTimer, setOtpTimer] = useState(0);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpMessage, setOtpMessage] = useState('');
 
   useEffect(() => {
     fetchUserData();
   }, []);
+
+  // OTP countdown timer
+  useEffect(() => {
+    if (otpTimer <= 0) return;
+    const interval = setInterval(() => setOtpTimer(t => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [otpTimer]);
 
   const fetchUserData = async () => {
     const token = localStorage.getItem('authToken');
@@ -31,6 +45,7 @@ const WithdrawalRequest = () => {
       const profileData = await profileRes.json();
       if (profileData.user) {
         setUserBalance(profileData.user.balance || 0);
+        if (profileData.user.email) setUserEmail(profileData.user.email);
         // Set primary wallet address
         if (profileData.user.walletAddress) {
           setSavedAddresses([{
@@ -63,7 +78,42 @@ const WithdrawalRequest = () => {
 
   const handleOtpVerified = (otpValue) => {
     setForm((prev) => ({ ...prev, otp: otpValue }));
+    setOtpVerified(true);
     setSnack({ open: true, message: 'OTP verified successfully!', severity: 'success' });
+  };
+
+  const handleSendWithdrawOtp = async () => {
+    if (!userEmail) { setOtpMessage('Please enter your email'); return; }
+    setSendingOtp(true); setOtpMessage('');
+    try {
+      const token = localStorage.getItem('authToken');
+      const resp = await fetch('/api/otp/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ email: userEmail })
+      });
+      const data = await resp.json();
+      if (data?.success) { setOtpSent(true); setOtpTimer(60); setOtpMessage(`OTP sent to ${userEmail}`); }
+      else { setOtpMessage(data?.message || 'Failed to send OTP'); }
+    } catch (e) { setOtpMessage('Network error'); }
+    finally { setSendingOtp(false); }
+  };
+
+  const handleVerifyWithdrawOtp = async () => {
+    if (!otpCode || otpCode.length !== 6) { setOtpMessage('Enter 6-digit OTP'); return; }
+    setVerifyingOtp(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const resp = await fetch('/api/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ target: userEmail, otp: otpCode, type: 'email' })
+      });
+      const data = await resp.json();
+      if (data?.success) { handleOtpVerified(otpCode); }
+      else { setOtpMessage(data?.message || 'Invalid OTP'); }
+    } catch (e) { setOtpMessage('Network error'); }
+    finally { setVerifyingOtp(false); }
   };
 
   const calculateCharges = () => {
@@ -246,26 +296,37 @@ const WithdrawalRequest = () => {
               </Grid>
             )}
 
-            {/* OTP Verification */}
+            {/* OTP Verification - Inline */}
             <Grid item xs={12}>
               <Divider sx={{ my: 1 }} />
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-                <TextField
-                  label="OTP Verification"
-                  name="otp"
-                  value={form.otp}
-                  InputProps={{ readOnly: true }}
-                  sx={{ flex: 1 }}
-                  helperText={form.otp ? '✅ OTP Verified' : 'Click Send OTP to verify'}
-                />
-                <Button 
-                  variant="outlined" 
-                  onClick={() => setOtpDialogOpen(true)}
-                  disabled={!!form.otp}
-                >
-                  {form.otp ? 'Verified' : 'Send OTP'}
-                </Button>
-              </Box>
+              <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 2 }, mt: 2, borderRadius: 3, border: `2px solid ${otpVerified ? '#00C853' : '#10b981'}`, bgcolor: otpVerified ? 'rgba(0,200,83,0.05)' : 'rgba(16,185,129,0.05)' }}>
+                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                  <Typography variant="subtitle2" fontWeight={700} color={otpVerified ? 'success.main' : 'primary'}>OTP Verification</Typography>
+                  {otpVerified && <CheckCircle color="success" sx={{ fontSize: 18 }} />}
+                </Box>
+                {!otpVerified ? (
+                  <Box>
+                    <TextField fullWidth size="small" label="Email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} sx={{ mb: 1 }} />
+                    <Button variant="contained" fullWidth size="small" onClick={handleSendWithdrawOtp} disabled={sendingOtp || otpTimer > 0}
+                      sx={{ mb: 1, background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)', fontWeight: 700 }}>
+                      {sendingOtp ? 'Sending...' : otpTimer > 0 ? `Resend ${otpTimer}s` : otpSent ? 'Resend OTP' : 'Send OTP'}
+                    </Button>
+                    {otpMessage && <Alert severity={otpSent ? 'success' : 'warning'} sx={{ mb: 1, py: 0 }}>{otpMessage}</Alert>}
+                    {otpSent && (
+                      <Box display="flex" gap={1}>
+                        <input type="tel" inputMode="numeric" placeholder="000000" value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))} maxLength={6} autoFocus
+                          style={{ flex: 1, minWidth: 0, padding: '10px 8px', fontSize: '20px', fontWeight: 800, textAlign: 'center', letterSpacing: '6px', border: '2px solid #10b981', borderRadius: '8px', outline: 'none', boxSizing: 'border-box' }} />
+                        <Button variant="contained" onClick={handleVerifyWithdrawOtp} disabled={verifyingOtp || otpCode.length !== 6}
+                          sx={{ minWidth: 80, background: 'linear-gradient(135deg, #00C853 0%, #69F0AE 100%)', fontWeight: 700 }}>
+                          {verifyingOtp ? <CircularProgress size={18} color="inherit" /> : 'Verify'}
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                ) : (
+                  <Alert severity="success" sx={{ py: 0 }}>OTP verified</Alert>
+                )}
+              </Paper>
             </Grid>
 
             {/* Submit Button */}
@@ -303,12 +364,6 @@ const WithdrawalRequest = () => {
         </Alert>
       </Snackbar>
 
-      <OtpDialog
-        open={otpDialogOpen}
-        onClose={() => setOtpDialogOpen(false)}
-        onVerified={(otp) => handleOtpVerified(otp)}
-        title="Withdrawal OTP Verification"
-      />
     </Box>
   );
 };
