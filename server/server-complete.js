@@ -92,6 +92,27 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/crypto-ml
   } catch (adminErr) {
     console.log('Admin setup note:', adminErr.message);
   }
+
+  // Auto-seed default investment plans if none exist
+  try {
+    const plansCount = await mongoose.connection.db.collection('plans').countDocuments();
+    if (plansCount === 0) {
+      const defaultPlans = [
+        { name: 'INTRODUCTION PLAN', investment: 100, dailyEarn: 0.55, duration: 365, totalReturn: 200.75, roi: 200.75, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+        { name: 'BASIC PLAN', investment: 250, dailyEarn: 1.25, duration: 400, totalReturn: 500, roi: 200, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+        { name: 'BRONZE PLAN', investment: 500, dailyEarn: 2.5, duration: 400, totalReturn: 1000, roi: 200, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+        { name: 'SILVER PLAN', investment: 1000, dailyEarn: 5, duration: 400, totalReturn: 2000, roi: 200, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+        { name: 'GOLD PLAN', investment: 2000, dailyEarn: 10, duration: 400, totalReturn: 4000, roi: 200, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+        { name: 'PLATINUM PLAN', investment: 5000, dailyEarn: 40, duration: 400, totalReturn: 16000, roi: 320, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+      ];
+      await mongoose.connection.db.collection('plans').insertMany(defaultPlans);
+      console.log('✅ Default investment plans seeded (6 plans)');
+    } else {
+      console.log(`✅ ${plansCount} investment plans found in DB`);
+    }
+  } catch (planErr) {
+    console.log('Plan seeding note:', planErr.message);
+  }
 })
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
@@ -369,7 +390,7 @@ const referralBonusSchema = new mongoose.Schema({
 
 // Admin Notification Schema - notifies admin of referral registrations
 const adminNotificationSchema = new mongoose.Schema({
-  type: { type: String, enum: ['referral_registration', 'referral_bonus_pending', 'withdrawal_request', 'deposit', 'kyc_submission', 'system_alert', 'other'], required: true },
+  type: { type: String, enum: ['referral_registration', 'referral_bonus_pending', 'withdrawal_request', 'deposit', 'kyc_submission', 'system_alert', 'investment', 'plan_activation', 'other'], required: true },
   title: { type: String, required: true },
   message: { type: String, required: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -6518,6 +6539,15 @@ app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
     });
     await transaction.save();
     
+    // Create user notification for investment activation
+    await createUserNotification(
+      req.user.id,
+      'investment_activated',
+      'Investment Activated! 🚀',
+      `Your ${plan.name} investment of $${plan.investment} is now active. Daily earning: $${plan.dailyEarn}`,
+      { amount: plan.investment, investmentId: investment._id, planName: plan.name }
+    );
+    
     // Create admin notification for plan activation
     await AdminNotification.create({
       type: 'investment',
@@ -6568,6 +6598,15 @@ app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
           { upsert: true }
         );
         
+        // Notify referrer about bonus
+        await createUserNotification(
+          referrer._id,
+          'referral_bonus',
+          'Referral Bonus! 🤝',
+          `You earned $${bonusAmount} (5%) bonus from ${user.firstName}'s investment.`,
+          { amount: bonusAmount }
+        );
+        
         // Create admin notification
         await AdminNotification.create({
           type: 'referral_bonus_pending',
@@ -6595,6 +6634,15 @@ app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
         status: 'completed',
         balanceAfter: user.utilityWallet
       });
+
+      // Notify user about welcome bonus
+      await createUserNotification(
+        user._id,
+        'welcome_bonus',
+        'Welcome Bonus! 🎁',
+        `You received $${welcomeBonus} Welcome Bonus in your Utility Wallet.`,
+        { amount: welcomeBonus }
+      );
     }
     
     res.json({

@@ -1,19 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Box, Typography, TextField, Button, Grid, Snackbar, Alert, Paper, Select, FormControl, MenuItem, InputLabel, Card, CardContent, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip, Chip, alpha } from '@mui/material';
 import { fetchJSON } from '../utils/api';
-import { Warning, Info, Email, Send, Verified } from '@mui/icons-material';
+import { Warning, Info, Email, Send, Verified, CheckCircle } from '@mui/icons-material';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
 
 const Activation = () => {
   const [selectedPlanId, setSelectedPlanId] = useState('');
-  const [form, setForm] = useState({ otp: '' });
   const [fundWalletBalance, setFundWalletBalance] = useState(0);
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, plan: null });
+  const [activatedInvestment, setActivatedInvestment] = useState(null); // tracks successful activation
   
   // Inline OTP states
   const [userEmail, setUserEmail] = useState('');
@@ -24,6 +24,8 @@ const Activation = () => {
   const [otpTimer, setOtpTimer] = useState(0);
   const [otpSent, setOtpSent] = useState(false);
   const [otpMessage, setOtpMessage] = useState('');
+
+  const formRef = useRef(null);
 
   useEffect(() => {
     fetchData();
@@ -111,7 +113,7 @@ const Activation = () => {
       setSnack({ open: true, message: 'Please select an investment plan', severity: 'error' });
       return;
     }
-    if (!form.otp) {
+    if (!otpVerified) {
       setSnack({ open: true, message: 'Please verify OTP first', severity: 'error' });
       return;
     }
@@ -140,20 +142,34 @@ const Activation = () => {
       const data = await response.json();
       
       if (response.ok && data.success) {
+        // Save the activated investment details for display
+        setActivatedInvestment({
+          planName: data.investment.planName,
+          amount: data.investment.amount,
+          dailyReturn: data.investment.dailyReturn,
+          duration: data.investment.duration,
+          expectedReturn: data.investment.expectedReturn,
+          startDate: data.investment.startDate,
+          endDate: data.investment.endDate,
+        });
+        setFundWalletBalance(data.newBalance);
         setSnack({ 
           open: true, 
           message: `Successfully invested in ${data.investment.planName}! Your daily earning: ${data.investment.dailyReturn} USDT`, 
           severity: 'success' 
         });
-        setFundWalletBalance(data.newBalance);
+        // Reset form
         setSelectedPlanId('');
-        setForm({ otp: '' });
+        setOtpVerified(false);
+        setOtpCode('');
+        setOtpSent(false);
+        setOtpMessage('');
       } else {
         setSnack({ open: true, message: data.message || 'Failed to purchase plan', severity: 'error' });
       }
     } catch (error) {
       console.error('Purchase error:', error);
-      setSnack({ open: true, message: 'Error processing purchase', severity: 'error' });
+      setSnack({ open: true, message: 'Error processing purchase. Please try again.', severity: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -205,7 +221,6 @@ const Activation = () => {
       const data = await resp.json();
       if (data?.success) {
         setOtpVerified(true);
-        setForm(prev => ({ ...prev, otp: otpCode }));
         setOtpMessage('');
         setSnack({ open: true, message: 'OTP verified successfully!', severity: 'success' });
       } else {
@@ -242,7 +257,11 @@ const Activation = () => {
                   transition: 'transform 0.2s, box-shadow 0.2s',
                   '&:hover': { transform: 'scale(1.02)', boxShadow: '0 8px 20px rgba(16, 185, 129, 0.15)' }
                 }}
-                onClick={() => setSelectedPlanId(plan.id)}
+                onClick={() => {
+                  setSelectedPlanId(plan.id);
+                  // Auto-scroll to form
+                  setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                }}
               >
                 {/* Plan Name Header - Green */}
                 <Box sx={{ 
@@ -325,9 +344,10 @@ const Activation = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedPlanId(plan.id);
+                      setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
                     }}
                   >
-                    {plan.name.includes('INTRODUCTION') ? 'Minimum' : 'Select'}
+                    {selectedPlanId === plan.id ? '✓ Selected' : 'Buy Now'}
                   </Button>
                 </CardContent>
               </Card>
@@ -337,7 +357,7 @@ const Activation = () => {
       </Box>
 
       {/* Activation Details Form */}
-      <Paper sx={{ p: 3, borderRadius: 3 }}>
+      <Paper ref={formRef} sx={{ p: 3, borderRadius: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: 'text.primary' }}>
           Activation Details
         </Typography>
@@ -521,7 +541,7 @@ const Activation = () => {
               fullWidth
               size="large"
               onClick={handleBuyClick}
-              disabled={!selectedPlanId || !form.otp || submitting}
+              disabled={!selectedPlanId || !otpVerified || submitting}
               startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : null}
               sx={{ 
                 py: 1.5,
@@ -537,6 +557,48 @@ const Activation = () => {
           </Grid>
         </Grid>
       </Paper>
+
+      {/* Success - Activated Investment Display */}
+      {activatedInvestment && (
+        <Paper sx={{ p: 3, borderRadius: 3, mt: 3, border: '2px solid #4caf50', bgcolor: alpha('#4caf50', 0.05) }}>
+          <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <CheckCircle sx={{ color: '#4caf50', fontSize: 28 }} />
+            <Typography variant="h6" sx={{ fontWeight: 700, color: '#4caf50' }}>
+              Investment Activated Successfully!
+            </Typography>
+          </Box>
+          <Grid container spacing={2}>
+            <Grid item xs={6} sm={3}>
+              <Typography variant="caption" color="text.secondary">Plan</Typography>
+              <Typography variant="body1" fontWeight={600}>{activatedInvestment.planName}</Typography>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Typography variant="caption" color="text.secondary">Amount Invested</Typography>
+              <Typography variant="body1" fontWeight={600}>${activatedInvestment.amount} USDT</Typography>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Typography variant="caption" color="text.secondary">Daily Earning</Typography>
+              <Typography variant="body1" fontWeight={600} color="success.main">${activatedInvestment.dailyReturn} USDT</Typography>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Typography variant="caption" color="text.secondary">Fund Wallet Balance</Typography>
+              <Typography variant="body1" fontWeight={600} color={fundWalletBalance > 0 ? 'success.main' : 'error.main'}>${fundWalletBalance.toFixed(2)} USDT</Typography>
+            </Grid>
+          </Grid>
+          <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
+            Your daily earnings of ${activatedInvestment.dailyReturn} USDT will be credited to your My Wallet automatically.
+            Duration: {activatedInvestment.duration} days | Expected Return: ${activatedInvestment.expectedReturn} USDT
+          </Alert>
+          <Button 
+            variant="outlined" 
+            sx={{ mt: 2 }}
+            onClick={() => setActivatedInvestment(null)}
+          >
+            Activate Another Plan
+          </Button>
+        </Paper>
+      )}
+
       {/* Confirmation Dialog */}
       <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, plan: null })}>
         <DialogTitle>Confirm Investment</DialogTitle>
