@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Stack, Alert, FormControl, InputLabel, Select, MenuItem, Box, Typography, CircularProgress, Divider } from '@mui/material';
-import { Phone, Email, Lock, Send, CheckCircle } from '@mui/icons-material';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, Stack, Alert, FormControl, InputLabel, Select, MenuItem, Box, Typography, CircularProgress, Divider, useMediaQuery, useTheme, IconButton } from '@mui/material';
+import { Phone, Email, Lock, Send, CheckCircle, Close } from '@mui/icons-material';
 
 // Comprehensive list of country codes
 const countryCodes = [
@@ -84,6 +84,19 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
   const [userEmail, setUserEmail] = useState(email || '');
   const [status, setStatus] = useState({ sending: false, verifying: false, sent: false, message: '', severity: 'info' });
   const [timer, setTimer] = useState(0);
+  const otpInputRef = useRef(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Scroll to OTP input when it appears
+  const scrollToOtpInput = useCallback(() => {
+    setTimeout(() => {
+      if (otpInputRef.current) {
+        otpInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        otpInputRef.current.focus();
+      }
+    }, 300);
+  }, []);
 
   // Auto-fetch user's phone/email from profile on open
   useEffect(() => {
@@ -161,7 +174,8 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
       
       if (data?.success) {
         setStatus({ sending: false, verifying: false, sent: true, message: `OTP sent to ${fullPhone}`, severity: 'success' });
-        setTimer(60); // 60 second cooldown
+        setTimer(60);
+        scrollToOtpInput();
       } else {
         setStatus({ sending: false, verifying: false, sent: false, message: data?.message || 'Failed to send OTP', severity: 'error' });
       }
@@ -193,7 +207,8 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
       
       if (data?.success) {
         setStatus({ sending: false, verifying: false, sent: true, message: `OTP sent to ${userEmail}`, severity: 'success' });
-        setTimer(60); // 60 second cooldown
+        setTimer(60);
+        scrollToOtpInput();
       } else {
         setStatus({ sending: false, verifying: false, sent: false, message: data?.message || 'Failed to send OTP', severity: 'error' });
       }
@@ -244,23 +259,15 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
     <Dialog 
       open={open} 
       onClose={onClose} 
+      fullScreen={isMobile}
       maxWidth="sm" 
       fullWidth
-      scroll="paper"
-      disableScrollLock={false}
+      scroll="body"
       sx={{ 
         zIndex: 9999,
-        '& .MuiDialog-container': {
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
         '& .MuiDialog-paper': {
-          borderRadius: { xs: 2, sm: 3 },
+          borderRadius: isMobile ? 0 : 3,
           boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-          overflow: 'hidden',
-          m: { xs: 1, sm: 3 },
-          maxHeight: { xs: 'calc(100vh - 32px)', sm: 'calc(100vh - 64px)' },
-          width: { xs: 'calc(100% - 16px)', sm: undefined },
         },
         '& .MuiBackdrop-root': {
           backgroundColor: 'rgba(0,0,0,0.6)',
@@ -271,15 +278,25 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
         background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
         color: '#fff',
         fontWeight: 700,
-        fontSize: '1.2rem',
+        fontSize: { xs: '1rem', sm: '1.2rem' },
         display: 'flex',
         alignItems: 'center',
         gap: 1,
-        py: 2,
+        py: 1.5,
+        pr: 6,
+        position: 'sticky',
+        top: 0,
+        zIndex: 1,
       }}>
         <Lock /> {title}
+        <IconButton
+          onClick={onClose}
+          sx={{ position: 'absolute', right: 8, top: 8, color: '#fff' }}
+        >
+          <Close />
+        </IconButton>
       </DialogTitle>
-      <DialogContent sx={{ pt: '24px !important', pb: 1 }}>
+      <DialogContent sx={{ pt: '20px !important', pb: 2, px: { xs: 2, sm: 3 } }}>
         <Stack spacing={2.5}>
           {/* OTP Method Selection */}
           <FormControl fullWidth size="small">
@@ -310,8 +327,8 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
 
           {/* Phone or Email input */}
           {otpMethod === 'phone' ? (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 160 } }}>
+            <Stack spacing={1}>
+              <FormControl size="small" fullWidth>
                 <InputLabel>Country</InputLabel>
                 <Select
                   value={selectedCountry?.code || '+91'}
@@ -394,7 +411,10 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
               </Divider>
               <Box>
                 <input
-                  type="text"
+                  ref={otpInputRef}
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="000000"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
@@ -402,7 +422,7 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
                   autoFocus
                   style={{ 
                     width: '100%',
-                    padding: '12px 16px',
+                    padding: '14px 12px',
                     fontSize: '24px',
                     fontWeight: 800,
                     textAlign: 'center',
@@ -413,7 +433,6 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
                     backgroundColor: '#f0fdf4',
                     color: '#065f46',
                     boxSizing: 'border-box',
-                    transition: 'border-color 0.2s ease',
                   }}
                   onFocus={(e) => { e.target.style.borderColor = '#059669'; e.target.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)'; }}
                   onBlur={(e) => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = 'none'; }}
@@ -451,8 +470,8 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
           )}
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2, pt: 1 }}>
-        <Button onClick={onClose} color="inherit" variant="text" sx={{ fontWeight: 600 }}>
+      <DialogActions sx={{ px: 3, pb: 2, pt: 1, position: 'sticky', bottom: 0, bgcolor: 'background.paper' }}>
+        <Button onClick={onClose} color="inherit" variant="outlined" fullWidth sx={{ fontWeight: 600, borderRadius: 2 }}>
           Cancel
         </Button>
       </DialogActions>
