@@ -138,16 +138,16 @@ const TransactionSummary = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {transactionData.map((row) => (
-                <TableRow key={row.id} sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
-                  <TableCell>{row.id}</TableCell>
-                  <TableCell>{row.userId}</TableCell>
-                  <TableCell>$ {row.creditAmount.toFixed(2)}</TableCell>
-                  <TableCell>$ {row.debitAmount.toFixed(2)}</TableCell>
-                  <TableCell>$ {row.totalAmount.toFixed(2)}</TableCell>
-                  <TableCell>{row.transactionDate}</TableCell>
-                  <TableCell>$ {row.closingAmount.toFixed(2)}</TableCell>
-                  <TableCell>{row.description}</TableCell>
+              {transactionData.map((row, idx) => (
+                <TableRow key={idx} sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
+                  <TableCell>{idx + 1}</TableCell>
+                  <TableCell>{row.userId || 'N/A'}</TableCell>
+                  <TableCell sx={{ color: (row.credit || 0) > 0 ? '#4caf50' : 'inherit' }}>$ {(row.credit || 0).toFixed(2)}</TableCell>
+                  <TableCell sx={{ color: (row.debit || 0) > 0 ? '#f44336' : 'inherit' }}>$ {(row.debit || 0).toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.totalAmount || row.credit || row.debit || 0).toFixed(2)}</TableCell>
+                  <TableCell>{row.date ? new Date(row.date).toLocaleDateString() : 'N/A'}</TableCell>
+                  <TableCell>$ {(row.balance || 0).toFixed(2)}</TableCell>
+                  <TableCell>{row.description || row.type || 'N/A'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

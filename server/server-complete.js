@@ -1649,6 +1649,7 @@ app.get('/api/user/dashboard', authenticateToken, async (req, res) => {
 app.get('/api/user/wallets', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
     res.json({
       myWallet: user.myWallet || 0,
       fundWallet: user.fundWallet || 0,

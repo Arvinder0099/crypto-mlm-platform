@@ -143,8 +143,8 @@ const DailyLevelIncomeSummary = () => {
                   <TableCell>{row.memberId}</TableCell>
                   <TableCell>{row.level}</TableCell>
                   <TableCell>{row.levelPercent}</TableCell>
-                  <TableCell>$ {row.investmentAmount.toFixed(2)}</TableCell>
-                  <TableCell>$ {row.levelIncome.toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.investmentAmount || 0).toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.levelIncome || 0).toFixed(2)}</TableCell>
                   <TableCell>{row.datedOn}</TableCell>
                 </TableRow>
               ))}

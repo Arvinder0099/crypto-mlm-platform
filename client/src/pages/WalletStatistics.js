@@ -134,9 +134,9 @@ const WalletStatistics = () => {
                   <TableCell>{row.srNo}</TableCell>
                   <TableCell sx={{ color: '#1976d2', cursor: 'pointer' }}>{row.userId}</TableCell>
                   <TableCell>{row.userName}</TableCell>
-                  <TableCell>$ {row.cashWalletBalance.toFixed(2)}</TableCell>
-                  <TableCell>$ {row.utilityWalletBalance.toFixed(2)}</TableCell>
-                  <TableCell>$ {row.rankWalletBalance.toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.cashWalletBalance || 0).toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.utilityWalletBalance || 0).toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.rankWalletBalance || 0).toFixed(2)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

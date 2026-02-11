@@ -84,8 +84,8 @@ const AdminActivationSummary = () => {
         </Box>
 
         {/* Table */}
-        <TableContainer>
-          <Table>
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 800 }}>
             <TableHead>
               <TableRow
                 sx={{
@@ -96,23 +96,29 @@ const AdminActivationSummary = () => {
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>User ID</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>User Name</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Amount</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Package</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Top Up By</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Payment Type</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Plan</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Activated On</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Reference ID</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {activations.map((row) => (
-                <TableRow key={row.id} sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
-                  <TableCell>{row.id}</TableCell>
-                  <TableCell>{row.userId}</TableCell>
-                  <TableCell>{row.userName}</TableCell>
-                  <TableCell>$ {row.amount.toFixed(2)}</TableCell>
-                  <TableCell>{row.package}</TableCell>
-                  <TableCell>{row.topUpBy}</TableCell>
-                  <TableCell>{row.paymentType}</TableCell>
-                  <TableCell sx={{ fontSize: '0.85rem' }}>{row.referenceId}</TableCell>
+              {activations.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    No activations found
+                  </TableCell>
+                </TableRow>
+              ) : activations.map((row, idx) => (
+                <TableRow key={idx} sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
+                  <TableCell>{idx + 1}</TableCell>
+                  <TableCell>{row.userId || 'N/A'}</TableCell>
+                  <TableCell>{row.userName || 'N/A'}</TableCell>
+                  <TableCell>$ {(row.amount || 0).toFixed(2)}</TableCell>
+                  <TableCell>{row.plan || 'N/A'}</TableCell>
+                  <TableCell>{(row.status || 'N/A').toUpperCase()}</TableCell>
+                  <TableCell>{row.activatedOn ? new Date(row.activatedOn).toLocaleDateString() : 'N/A'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.85rem' }}>{row.referenceId || 'N/A'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

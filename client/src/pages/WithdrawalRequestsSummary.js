@@ -150,9 +150,9 @@ const WithdrawalRequestsSummary = () => {
                   <TableCell>{row.date}</TableCell>
                   <TableCell>{row.userId}</TableCell>
                   <TableCell>{row.userName}</TableCell>
-                  <TableCell>$ {row.amount.toFixed(2)}</TableCell>
-                  <TableCell>$ {row.fee.toFixed(2)}</TableCell>
-                  <TableCell>$ {row.finalAmount.toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.amount || 0).toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.fee || 0).toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.finalAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>{row.coin}</TableCell>
                   <TableCell sx={{ fontSize: '0.85rem' }}>{row.toAddress}</TableCell>
                 </TableRow>

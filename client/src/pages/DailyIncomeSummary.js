@@ -144,9 +144,9 @@ const DailyIncomeSummary = () => {
                   <TableCell>{row.id}</TableCell>
                   <TableCell>{row.userId}</TableCell>
                   <TableCell>{row.package}</TableCell>
-                  <TableCell>$ {row.packageAmount.toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.packageAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>{row.roiRate}</TableCell>
-                  <TableCell>$ {row.roiAmount.toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.roiAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>{row.day}</TableCell>
                   <TableCell>{row.roiDate}</TableCell>
                 </TableRow>

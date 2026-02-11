@@ -153,7 +153,7 @@ const DirectIncomeSummary = () => {
                   <TableCell>{row.userId}</TableCell>
                   <TableCell>{row.childId}</TableCell>
                   <TableCell>{row.level}</TableCell>
-                  <TableCell>$ {row.amount.toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.amount || 0).toFixed(2)}</TableCell>
                   <TableCell>{row.percent}</TableCell>
                   <TableCell>{row.date}</TableCell>
                 </TableRow>

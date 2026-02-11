@@ -258,11 +258,11 @@ const FinancialReports = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" fontWeight="bold" color="success.main">
-                        ${income.dailyIncome.toFixed(2)}
+                        ${(income.dailyIncome || 0).toFixed(2)}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">${income.totalIncome.toFixed(2)}</Typography>
+                      <Typography variant="body2">${(income.totalIncome || 0).toFixed(2)}</Typography>
                       <Typography variant="caption" color="text.secondary">
                         {income.daysActive} days active
                       </Typography>
@@ -417,10 +417,10 @@ const FinancialReports = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" fontWeight="bold" color="success.main">
-                        ${income.commission.toFixed(2)}
+                        ${(income.commission || 0).toFixed(2)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {income.commissionRate}% rate
+                        {income.commissionRate || 0}% rate
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -572,10 +572,10 @@ const FinancialReports = () => {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight="bold" color="success.main">
-                          ${income.commission.toFixed(2)}
+                          ${(income.commission || 0).toFixed(2)}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {income.commissionRate}% rate
+                          {income.commissionRate || 0}% rate
                         </Typography>
                       </TableCell>
                       <TableCell>

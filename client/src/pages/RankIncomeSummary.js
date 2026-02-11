@@ -115,7 +115,7 @@ const RankIncomeSummary = () => {
                   <TableCell>{row.userName}</TableCell>
                   <TableCell>{row.rankId}</TableCell>
                   <TableCell>{row.rank}</TableCell>
-                  <TableCell>$ {row.rewardAmount.toFixed(2)}</TableCell>
+                  <TableCell>$ {(row.rewardAmount || 0).toFixed(2)}</TableCell>
                   <TableCell>{row.acheivedOn}</TableCell>
                 </TableRow>
               ))}

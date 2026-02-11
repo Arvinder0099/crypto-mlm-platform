@@ -101,8 +101,8 @@ const AllActivationSummary = () => {
         </Box>
 
         {/* Table */}
-        <TableContainer>
-          <Table>
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 700 }}>
             <TableHead>
               <TableRow
                 sx={{
@@ -111,39 +111,31 @@ const AllActivationSummary = () => {
               >
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>#</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>User ID</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>User Name</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Amount</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Package</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>InvestBy</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Payment Type</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Plan</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Activated On</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Reference ID</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {activations.map((row) => (
-                <TableRow key={row.id} sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
-                  <TableCell>{row.id}</TableCell>
-                  <TableCell>
-                    <Link
-                      component="button"
-                      variant="body2"
-                      sx={{
-                        color: '#1976d2',
-                        textDecoration: 'none',
-                        cursor: 'pointer',
-                        '&:hover': {
-                          textDecoration: 'underline',
-                        },
-                      }}
-                    >
-                      View
-                    </Link>
+              {activations.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                    No activations found
                   </TableCell>
-                  <TableCell>{row.userId}</TableCell>
-                  <TableCell>${row.amount.toFixed(2)}</TableCell>
-                  <TableCell>{row.package}</TableCell>
-                  <TableCell>{row.investBy}</TableCell>
-                  <TableCell>{row.paymentType}</TableCell>
-                  <TableCell>{row.referenceId}</TableCell>
+                </TableRow>
+              ) : activations.map((row, idx) => (
+                <TableRow key={idx} sx={{ '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' } }}>
+                  <TableCell>{idx + 1}</TableCell>
+                  <TableCell>{row.userId || 'N/A'}</TableCell>
+                  <TableCell>{row.userName || 'N/A'}</TableCell>
+                  <TableCell>${(row.amount || 0).toFixed(2)}</TableCell>
+                  <TableCell>{row.plan || 'N/A'}</TableCell>
+                  <TableCell>{(row.status || 'N/A').toUpperCase()}</TableCell>
+                  <TableCell>{row.activatedOn ? new Date(row.activatedOn).toLocaleDateString() : 'N/A'}</TableCell>
+                  <TableCell>{row.referenceId || 'N/A'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
