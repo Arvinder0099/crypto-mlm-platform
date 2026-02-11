@@ -103,7 +103,7 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
     if (open) {
       const token = localStorage.getItem('authToken');
       if (token) {
-        fetch('/api/user/dashboard-stats', {
+        fetch('/api/user/profile', {
           headers: { Authorization: `Bearer ${token}` }
         })
           .then(r => r.json())
