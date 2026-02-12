@@ -48,8 +48,25 @@ const MyInvestments = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Helper: calculate duration in days between two dates
+  const getDuration = (purchaseDate, expiryDate) => {
+    if (!purchaseDate || !expiryDate) return 365;
+    const start = new Date(purchaseDate);
+    const end = new Date(expiryDate);
+    return Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
+  };
+
+  // Helper: calculate days elapsed since purchase
+  const getDaysElapsed = (purchaseDate) => {
+    if (!purchaseDate) return 0;
+    const start = new Date(purchaseDate);
+    const now = new Date();
+    return Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
+  };
+
   const calculateProgress = (daysElapsed, duration) => {
-    return (daysElapsed / duration) * 100;
+    if (!duration || duration === 0) return 0;
+    return Math.min(100, (daysElapsed / duration) * 100);
   };
 
   const calculateTimeUntilNextEarning = (nextEarningDate) => {
@@ -66,9 +83,10 @@ const MyInvestments = () => {
     return `${hours}h ${minutes}m ${seconds}s`;
   };
 
-  const totalInvested = investments.reduce((sum, inv) => sum + inv.investment, 0);
-  const totalEarned = investments.reduce((sum, inv) => sum + inv.totalEarned, 0);
-  const dailyEarning = investments.reduce((sum, inv) => sum + inv.dailyEarn, 0);
+  // Use correct API field names: amount, dailyReturn, totalEarned
+  const totalInvested = investments.reduce((sum, inv) => sum + (inv.amount || 0), 0);
+  const totalEarned = investments.reduce((sum, inv) => sum + (inv.totalEarned || 0), 0);
+  const dailyEarning = investments.reduce((sum, inv) => sum + (inv.dailyReturn || 0), 0);
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
@@ -139,7 +157,14 @@ const MyInvestments = () => {
       </Alert>
 
       {/* Active Investments */}
-      {investments.map((investment) => (
+      {investments.map((investment) => {
+        const duration = getDuration(investment.purchaseDate, investment.expiryDate);
+        const daysElapsed = Math.min(getDaysElapsed(investment.purchaseDate), duration);
+        const investAmount = investment.amount || 0;
+        const dailyReturn = investment.dailyReturn || 0;
+        const earned = investment.totalEarned || 0;
+
+        return (
         <Card key={investment.id} sx={{ mb: 3, border: '2px solid #667eea' }}>
           <Box sx={{ 
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
@@ -148,11 +173,13 @@ const MyInvestments = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 1,
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Star sx={{ mr: 1, fontSize: 32 }} />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                {investment.planName}
+                {investment.plan || 'Standard'}
               </Typography>
             </Box>
             <Chip 
@@ -176,21 +203,21 @@ const MyInvestments = () => {
                       <TableBody>
                         <TableRow>
                           <TableCell><strong>Investment Amount:</strong></TableCell>
-                          <TableCell align="right">{investment.investment} USDT</TableCell>
+                          <TableCell align="right">{investAmount} USDT</TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell><strong>Daily Earning:</strong></TableCell>
                           <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 700 }}>
-                            {investment.dailyEarn} USDT
+                            {dailyReturn} USDT
                           </TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell><strong>Duration:</strong></TableCell>
-                          <TableCell align="right">{investment.duration} Days</TableCell>
+                          <TableCell align="right">{duration} Days</TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell><strong>Purchase Date:</strong></TableCell>
-                          <TableCell align="right">{investment.purchaseDate}</TableCell>
+                          <TableCell align="right">{new Date(investment.purchaseDate).toLocaleDateString()}</TableCell>
                         </TableRow>
                       </TableBody>
                     </Table>
@@ -210,25 +237,25 @@ const MyInvestments = () => {
                         <TableRow>
                           <TableCell><strong>Days Elapsed:</strong></TableCell>
                           <TableCell align="right">
-                            {investment.daysElapsed} / {investment.duration} Days
+                            {daysElapsed} / {duration} Days
                           </TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell><strong>Total Earned:</strong></TableCell>
                           <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 700 }}>
-                            {investment.totalEarned.toFixed(2)} USDT
+                            {earned.toFixed(2)} USDT
                           </TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell><strong>Expected Total:</strong></TableCell>
                           <TableCell align="right">
-                            {(investment.dailyEarn * investment.duration).toFixed(2)} USDT
+                            {(dailyReturn * duration).toFixed(2)} USDT
                           </TableCell>
                         </TableRow>
                         <TableRow>
                           <TableCell><strong>Remaining Days:</strong></TableCell>
                           <TableCell align="right">
-                            {investment.duration - investment.daysElapsed} Days
+                            {Math.max(0, duration - daysElapsed)} Days
                           </TableCell>
                         </TableRow>
                       </TableBody>
@@ -245,12 +272,12 @@ const MyInvestments = () => {
                       Investment Progress
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 600, color: '#667eea' }}>
-                      {calculateProgress(investment.daysElapsed, investment.duration).toFixed(2)}%
+                      {calculateProgress(daysElapsed, duration).toFixed(2)}%
                     </Typography>
                   </Box>
                   <LinearProgress 
                     variant="determinate" 
-                    value={calculateProgress(investment.daysElapsed, investment.duration)} 
+                    value={calculateProgress(daysElapsed, duration)} 
                     sx={{ 
                       height: 10, 
                       borderRadius: 5,
@@ -273,7 +300,7 @@ const MyInvestments = () => {
                     border: '2px solid #4caf50',
                   }}
                 >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       Next Earning In:
                     </Typography>
@@ -286,7 +313,8 @@ const MyInvestments = () => {
             </Grid>
           </CardContent>
         </Card>
-      ))}
+        );
+      })}
 
       {investments.length === 0 && (
         <Card sx={{ textAlign: 'center', p: 6 }}>
@@ -300,43 +328,39 @@ const MyInvestments = () => {
         </Card>
       )}
 
-      {/* Earning History Table */}
+      {/* Investment Summary Table */}
       {investments.length > 0 && (
         <Box sx={{ mt: 4 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2, color: '#1a237e' }}>
-            Recent Earnings History
+            Investment Summary
           </Typography>
-          <TableContainer component={Paper}>
-            <Table>
+          <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+            <Table sx={{ minWidth: 500 }}>
               <TableHead sx={{ bgcolor: '#f5f5f5' }}>
                 <TableRow>
-                  <TableCell><strong>Date</strong></TableCell>
                   <TableCell><strong>Plan</strong></TableCell>
                   <TableCell align="right"><strong>Amount</strong></TableCell>
+                  <TableCell align="right"><strong>Daily Return</strong></TableCell>
+                  <TableCell align="right"><strong>Total Earned</strong></TableCell>
                   <TableCell align="center"><strong>Status</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                <TableRow>
-                  <TableCell>2024-12-02</TableCell>
-                  <TableCell>INTRODUCTION PLAN</TableCell>
-                  <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 700 }}>
-                    0.55 USDT
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip label="Credited" color="success" size="small" />
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>2024-12-01</TableCell>
-                  <TableCell>INTRODUCTION PLAN</TableCell>
-                  <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 700 }}>
-                    0.55 USDT
-                  </TableCell>
-                  <TableCell align="center">
-                    <Chip label="Credited" color="success" size="small" />
-                  </TableCell>
-                </TableRow>
+                {investments.map((inv, idx) => (
+                  <TableRow key={inv.id || idx}>
+                    <TableCell>{inv.plan || 'Standard'}</TableCell>
+                    <TableCell align="right">{(inv.amount || 0)} USDT</TableCell>
+                    <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 700 }}>
+                      {(inv.dailyReturn || 0)} USDT
+                    </TableCell>
+                    <TableCell align="right" sx={{ color: '#4caf50', fontWeight: 700 }}>
+                      {(inv.totalEarned || 0).toFixed(2)} USDT
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip label={inv.status || 'active'} color="success" size="small" />
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </TableContainer>

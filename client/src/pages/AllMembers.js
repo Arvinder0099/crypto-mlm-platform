@@ -240,8 +240,8 @@ const AllMembers = () => {
             <CircularProgress />
           </Box>
         ) : (
-          <TableContainer>
-            <Table>
+          <TableContainer sx={{ overflowX: 'auto' }}>
+            <Table sx={{ minWidth: 950 }}>
               <TableHead>
                 <TableRow sx={{ background: 'linear-gradient(90deg, #7b2ff7 0%, #f107a3 100%)' }}>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>#</TableCell>

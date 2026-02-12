@@ -283,21 +283,33 @@ const Deposit = () => {
                 size="small" 
                 sx={{ bgcolor: userWallet.type === 'usdt_trc20' ? '#26A17B' : '#F3BA2F', color: 'white' }}
               />
-              <Typography 
-                variant="body1" 
-                sx={{ 
-                  fontFamily: 'monospace', 
-                  fontWeight: 600,
-                  wordBreak: 'break-all',
-                  flex: 1
-                }}
-              >
-                {userWallet.address || 'No wallet address found'}
-              </Typography>
-              {userWallet.address && (
-                <IconButton size="small" onClick={() => copyToClipboard(userWallet.address, 'user')}>
-                  {copiedAddress === 'user' ? <CheckCircle color="success" /> : <ContentCopy />}
-                </IconButton>
+              {userWallet.address ? (
+                <>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      fontFamily: 'monospace', 
+                      fontWeight: 600,
+                      wordBreak: 'break-all',
+                      flex: 1
+                    }}
+                  >
+                    {userWallet.address}
+                  </Typography>
+                  <IconButton size="small" onClick={() => copyToClipboard(userWallet.address, 'user')}>
+                    {copiedAddress === 'user' ? <CheckCircle color="success" /> : <ContentCopy />}
+                  </IconButton>
+                </>
+              ) : (
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    No wallet address registered yet
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Please update your wallet address in Profile Settings to display it here.
+                  </Typography>
+                </Box>
+              )}
               )}
             </Box>
           </CardContent>

@@ -157,22 +157,26 @@ const AdminPointsManagement = () => {
           severity: 'success' 
         });
         
-        // Update local state
+        // Update local state with server-confirmed values
         if (userInfo) {
           setUserInfo({
             ...userInfo,
-            balance: (userInfo.balance || 0) + pointsAmount,
+            balance: response.newBalance || ((userInfo.balance || 0) + pointsAmount),
           });
         }
         
-        // Deduct from admin pool
-        setAdminPoolBalance(prev => prev - pointsAmount);
+        // Use server-confirmed pool balance if available
+        if (response.adminPoolRemaining !== undefined) {
+          setAdminPoolBalance(response.adminPoolRemaining);
+        } else {
+          setAdminPoolBalance(prev => prev - pointsAmount);
+        }
         
         // Reset form
         setAmount('');
         setDescription('');
         
-        // Reload transactions
+        // Reload transactions and stats from server
         loadRecentTransactions();
         loadStats();
       } else {

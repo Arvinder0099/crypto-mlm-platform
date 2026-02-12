@@ -41,8 +41,8 @@ const AllTransactions = () => {
       ) : rows.length === 0 ? (
         <Alert severity="info" sx={{ mb: 2 }}>No transactions found</Alert>
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
+        <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 700 }}>
             <TableHead>
               <TableRow>
                 <TableCell>S.No</TableCell>
@@ -58,7 +58,7 @@ const AllTransactions = () => {
                 <TableRow key={i}>
                   <TableCell>{r.sNo}</TableCell>
                   <TableCell>{r.userId}</TableCell>
-                  <TableCell>{r.date}</TableCell>
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>{r.date ? new Date(r.date).toLocaleDateString() : '-'}</TableCell>
                   <TableCell>{r.type}</TableCell>
                   <TableCell>{r.amount}</TableCell>
                   <TableCell>{r.reference}</TableCell>

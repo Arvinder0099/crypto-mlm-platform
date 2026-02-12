@@ -102,7 +102,7 @@ const MyDownline = () => {
           History
         </Typography>
         <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table>
+          <Table sx={{ minWidth: 500 }}>
             <TableHead sx={{ bgcolor: 'rgba(0, 0, 0, 0.02)' }}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 600 }}>Member</TableCell>

@@ -306,8 +306,8 @@ const Dashboard = () => {
         <Grid item xs={12} md={6}>
           <SectionCard>
             <Typography variant="h6" gutterBottom>My Recent Referrals</Typography>
-            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflowX: 'auto' }}>
+              <Table size="small" sx={{ minWidth: 400 }}>
                 <TableHead>
                   <TableRow>
                     <TableCell>ID</TableCell>
@@ -343,12 +343,12 @@ const Dashboard = () => {
         <Grid item xs={12}>
           <SectionCard>
             <Typography variant="h6" gutterBottom>Last Transaction History</Typography>
-            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
-              <Table size="small">
+            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, overflowX: 'auto' }}>
+              <Table size="small" sx={{ minWidth: 650 }}>
                 <TableHead>
                   <TableRow>
                     <TableCell>S.No.</TableCell>
-                    <TableCell>Date</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>Date</TableCell>
                     <TableCell>Description</TableCell>
                     <TableCell align="right">Credit</TableCell>
                     <TableCell align="right">Debit</TableCell>
