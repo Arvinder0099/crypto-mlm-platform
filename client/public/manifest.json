@@ -1,9 +1,9 @@
 {
-  "short_name": "CryptoMLM",
-  "name": "Crypto MLM Platform",
+  "short_name": "Hexanova",
+  "name": "Hexanova",
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
+  "theme_color": "#10b981",
   "background_color": "#ffffff",
-  "description": "Multi-Level Marketing Platform for Cryptocurrency"
+  "description": "Hexanova - Smart Investment & Earning Platform"
 }
