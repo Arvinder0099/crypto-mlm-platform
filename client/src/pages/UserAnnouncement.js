@@ -54,11 +54,11 @@ const UserAnnouncement = () => {
   ));
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-          <CampaignIcon sx={{ fontSize: 40, color: '#ffb700', mr: 2 }} />
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: '#1e293b' }}>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4, px: { xs: 1, sm: 3 } }}>
+      <Paper sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3, boxShadow: 3, overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 1 }}>
+          <CampaignIcon sx={{ fontSize: 40, color: '#ffb700', mr: { xs: 0, sm: 2 } }} />
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: '#1e293b', wordBreak: 'break-word', fontSize: { xs: '1.4rem', sm: '2rem' } }}>
             {announcement.title}
           </Typography>
         </Box>
@@ -81,8 +81,8 @@ const UserAnnouncement = () => {
 
         <Divider sx={{ my: 3 }} />
 
-        <Box sx={{ p: 3, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-            <Typography variant="body1" component="div" sx={{ fontSize: '1.1rem', lineHeight: 1.8, color: '#334155' }}>
+        <Box sx={{ p: { xs: 1.5, sm: 3 }, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+            <Typography variant="body1" component="div" sx={{ fontSize: { xs: '0.95rem', sm: '1.1rem' }, lineHeight: 1.8, color: '#334155', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {formattedContent}
             </Typography>
         </Box>

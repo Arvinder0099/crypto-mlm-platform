@@ -10,6 +10,9 @@ const WithdrawalRequest = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [userBalance, setUserBalance] = useState(0);
+  const [myWallet, setMyWallet] = useState(0);
+  const [fundWallet, setFundWallet] = useState(0);
+  const [utilityWallet, setUtilityWallet] = useState(0);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [settings, setSettings] = useState({ minWithdrawal: 50, maxWithdrawal: 50000, withdrawalFeePercent: 0 });
   const [form, setForm] = useState({ amount: '', walletAddress: '', selectedAddress: '', otp: '' });
@@ -44,7 +47,14 @@ const WithdrawalRequest = () => {
       });
       const profileData = await profileRes.json();
       if (profileData.user) {
-        setUserBalance(profileData.user.balance || 0);
+        // Use myWallet as withdrawable balance (server checks myWallet, not total balance)
+        const mw = profileData.user.myWallet || 0;
+        const fw = profileData.user.fundWallet || 0;
+        const uw = profileData.user.utilityWallet || 0;
+        setMyWallet(mw);
+        setFundWallet(fw);
+        setUtilityWallet(uw);
+        setUserBalance(mw); // withdrawable = myWallet only
         if (profileData.user.email) setUserEmail(profileData.user.email);
         // Set primary wallet address
         if (profileData.user.walletAddress) {
@@ -209,13 +219,28 @@ const WithdrawalRequest = () => {
       {/* Balance Card */}
       <Card sx={{ mb: 3, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
         <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
             <AccountBalanceWallet sx={{ fontSize: 40 }} />
             <Box>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>Available Balance</Typography>
-              <Typography variant="h4" sx={{ fontWeight: 'bold' }}>${userBalance.toFixed(2)} USDT</Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>Withdrawable Balance (My Wallet)</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 'bold' }}>${myWallet.toFixed(2)} USDT</Typography>
             </Box>
           </Box>
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.3)', mb: 1.5 }} />
+          <Grid container spacing={2}>
+            <Grid item xs={4}>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>Fund Wallet</Typography>
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>${fundWallet.toFixed(2)}</Typography>
+            </Grid>
+            <Grid item xs={4}>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>Utility Wallet</Typography>
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>${utilityWallet.toFixed(2)}</Typography>
+            </Grid>
+            <Grid item xs={4}>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>Total Balance</Typography>
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>${(myWallet + fundWallet + utilityWallet).toFixed(2)}</Typography>
+            </Grid>
+          </Grid>
         </CardContent>
       </Card>
 

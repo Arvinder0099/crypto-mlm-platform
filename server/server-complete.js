@@ -5323,21 +5323,41 @@ app.get('/api/reports/registrations-datewise', authenticateToken, isAdmin, async
 app.get('/api/user/investments', authenticateToken, async (req, res) => {
   try {
     const investments = await Investment.find({ userId: req.user.id })
+      .populate('planId')
       .sort({ createdAt: -1 });
     
     res.json({ 
-      data: investments.map(inv => ({
-        id: inv._id,
-        plan: inv.planName || 'Standard',
-        amount: inv.amount,
-        dailyReturn: inv.dailyReturn || 0.5,
-        totalReturn: inv.expectedReturn || inv.amount * 2,
-        purchaseDate: inv.createdAt,
-        expiryDate: inv.endDate,
-        nextEarning: inv.nextEarningDate,
-        status: inv.status,
-        totalEarned: inv.totalEarned || 0
-      }))
+      data: investments.map(inv => {
+        const plan = inv.planId; // populated Plan document
+        const duration = plan?.duration || 365;
+        const dailyReturn = plan?.dailyEarn || inv.dailyEarned || 0;
+        const startDate = inv.startDate || inv.createdAt;
+        const endDate = inv.endDate || new Date(new Date(startDate).getTime() + duration * 24 * 60 * 60 * 1000);
+        
+        // Calculate next earning: next day after last earning date
+        let nextEarning = null;
+        if (inv.status === 'active') {
+          const lastEarning = inv.lastEarningDate || startDate;
+          const nextDate = new Date(lastEarning);
+          nextDate.setDate(nextDate.getDate() + 1);
+          nextDate.setHours(0, 0, 0, 0);
+          nextEarning = nextDate;
+        }
+        
+        return {
+          id: inv._id,
+          plan: plan?.name || 'Standard',
+          amount: inv.amount,
+          dailyReturn: dailyReturn,
+          totalReturn: plan?.totalReturn || inv.amount * 2,
+          purchaseDate: startDate,
+          expiryDate: endDate,
+          nextEarning: nextEarning,
+          status: inv.status,
+          totalEarned: inv.totalEarned || 0,
+          duration: duration,
+        };
+      })
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching investments', error: error.message });

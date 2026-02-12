@@ -254,6 +254,7 @@ const UnifiedLayout = ({ children }) => {
       {/* Scrollable Menu Area */}
       <Box sx={{ 
         flex: 1, 
+        minHeight: 0,
         overflowY: 'auto', 
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
@@ -261,7 +262,7 @@ const UnifiedLayout = ({ children }) => {
         '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.3)', borderRadius: 2 },
         '&::-webkit-scrollbar-track': { background: 'transparent' },
       }}>
-      <List sx={{ px: 1, pb: 1 }}>
+      <List sx={{ px: 1, pb: 10 }}>
         {!isAdmin() ? (
           <>
             {/* User Dashboard */}

@@ -70,8 +70,10 @@ const MyInvestments = () => {
   };
 
   const calculateTimeUntilNextEarning = (nextEarningDate) => {
+    if (!nextEarningDate) return 'Pending...';
     const now = new Date();
     const next = new Date(nextEarningDate);
+    if (isNaN(next.getTime())) return 'Pending...';
     const diff = next - now;
 
     if (diff <= 0) return 'Earning in progress...';
@@ -158,7 +160,7 @@ const MyInvestments = () => {
 
       {/* Active Investments */}
       {investments.map((investment) => {
-        const duration = getDuration(investment.purchaseDate, investment.expiryDate);
+        const duration = investment.duration || getDuration(investment.purchaseDate, investment.expiryDate);
         const daysElapsed = Math.min(getDaysElapsed(investment.purchaseDate), duration);
         const investAmount = investment.amount || 0;
         const dailyReturn = investment.dailyReturn || 0;
