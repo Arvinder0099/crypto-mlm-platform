@@ -589,7 +589,7 @@ const CommissionCalculator = () => {
               <FormControl fullWidth sx={{ mt: 2 }}>
                 <InputLabel>Payment Method</InputLabel>
                 <Select defaultValue="crypto">
-                  <MenuItem value="crypto">Crypto Wallet</MenuItem>
+                  <MenuItem value="crypto">Digital Wallet</MenuItem>
                   <MenuItem value="bank">Bank Transfer</MenuItem>
                   <MenuItem value="paypal">PayPal</MenuItem>
                 </Select>

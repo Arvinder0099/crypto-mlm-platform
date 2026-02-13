@@ -17,7 +17,7 @@ const AdminSettingPage = () => {
     siteEmail: 'admin@hexanova.com',
     supportEmail: 'support@hexanova.com',
     contactPhone: '+1-234-567-8900',
-    siteAddress: '123 Blockchain Street, Crypto City',
+    siteAddress: '123 Business District, Hexanova HQ',
     maintenanceMode: false,
     registrationEnabled: true,
     withdrawalEnabled: true,

@@ -63,7 +63,7 @@ const MLMFeatures = () => {
         'Real-time commission calculations',
         'Spillover management'
       ],
-      image: 'https://via.placeholder.com/400x250?text=MLM+Plans'
+      image: 'https://via.placeholder.com/400x250?text=Investment+Plans'
     },
     {
       title: 'Commission Management',
@@ -169,7 +169,7 @@ const MLMFeatures = () => {
       name: 'Sarah Johnson',
       role: 'Network Leader',
       rating: 5,
-      comment: 'This platform has revolutionized how we manage our MLM business. The genealogy tree and commission tracking are outstanding!',
+      comment: 'This platform has revolutionized how we manage our network business. The genealogy tree and commission tracking are outstanding!',
       avatar: 'https://via.placeholder.com/50?text=SJ'
     },
     {
@@ -195,7 +195,7 @@ const MLMFeatures = () => {
       period: 'month',
       features: [
         'Up to 100 members',
-        'Basic MLM plans',
+        'Basic investment plans',
         'Commission tracking',
         'Email support',
         'Mobile responsive'
@@ -208,7 +208,7 @@ const MLMFeatures = () => {
       period: 'month',
       features: [
         'Up to 1,000 members',
-        'All MLM plans',
+        'All investment plans',
         'Advanced analytics',
         'E-commerce integration',
         'Priority support',
@@ -436,7 +436,7 @@ const MLMFeatures = () => {
         {/* CTA Section */}
         <Paper elevation={3} sx={{ p: 4, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
           <Typography variant="h4" gutterBottom>
-            Ready to Transform Your MLM Business?
+            Ready to Transform Your Business?
           </Typography>
           <Typography variant="h6" mb={3}>
             Join thousands of successful businesses using our platform

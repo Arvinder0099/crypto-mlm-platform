@@ -152,7 +152,7 @@ const LearningCenter = () => {
           Learning Center
         </Typography>
         <Typography variant="subtitle1" color="text.secondary">
-          Master cryptocurrency and MLM strategies with our comprehensive courses
+          Master investment and network strategies with our comprehensive courses
         </Typography>
       </Box>
 
@@ -319,7 +319,7 @@ const LearningCenter = () => {
             Test Your Knowledge
           </Typography>
           <Grid container spacing={3}>
-            {['Crypto Basics Quiz', 'MLM Strategies Assessment', 'Investment Risk Quiz', 'Security Best Practices'].map((quiz, index) => (
+            {['Investment Basics Quiz', 'Network Strategies Assessment', 'Investment Risk Quiz', 'Security Best Practices'].map((quiz, index) => (
               <Grid item xs={12} md={6} key={index}>
                 <Card>
                   <CardContent>
@@ -379,10 +379,10 @@ const LearningCenter = () => {
                     <Lock color="disabled" sx={{ mr: 2 }} />
                     <Box>
                       <Typography variant="h6" color="text.secondary">
-                        MLM Master Strategist
+                        Network Master Strategist
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Complete MLM Business Strategies course
+                        Complete Network Business Strategies course
                       </Typography>
                     </Box>
                   </Box>

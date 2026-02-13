@@ -709,7 +709,7 @@ const SupportHub = () => {
                 <MenuItem value="Investment">Investment</MenuItem>
                 <MenuItem value="KYC">KYC</MenuItem>
                 <MenuItem value="Withdrawal">Withdrawal</MenuItem>
-                <MenuItem value="MLM">MLM</MenuItem>
+                <MenuItem value="Network">Network</MenuItem>
                 <MenuItem value="Security">Security</MenuItem>
                 <MenuItem value="Technical">Technical</MenuItem>
               </Select>
@@ -967,7 +967,7 @@ const SupportHub = () => {
                 <ListItemIcon><Info color="info" /></ListItemIcon>
                 <ListItemText
                   primary="New Feature Release"
-                  secondary="Advanced analytics dashboard for MLM tracking - January 15, 2024"
+                  secondary="Advanced analytics dashboard for network tracking - January 15, 2024"
                 />
               </ListItem>
             </List>
@@ -1090,7 +1090,7 @@ const SupportHub = () => {
                   <MenuItem value="Investment">Investment</MenuItem>
                   <MenuItem value="KYC">KYC Verification</MenuItem>
                   <MenuItem value="Withdrawal">Withdrawal</MenuItem>
-                  <MenuItem value="MLM">MLM Network</MenuItem>
+                  <MenuItem value="Network">Network</MenuItem>
                   <MenuItem value="Security">Security</MenuItem>
                   <MenuItem value="Technical">Technical Issue</MenuItem>
                   <MenuItem value="Account">Account Management</MenuItem>

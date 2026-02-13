@@ -699,7 +699,7 @@ const Login = () => {
                   Welcome Back
                 </Typography>
                 <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
-                  Sign in to access your crypto portfolio
+                  Sign in to access your Hexanova portfolio
                 </Typography>
 
                 {error && (

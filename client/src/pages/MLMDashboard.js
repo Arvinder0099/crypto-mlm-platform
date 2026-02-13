@@ -43,10 +43,10 @@ const MLMDashboard = () => {
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h4" gutterBottom>
-        MLM Dashboard
+        Dashboard
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Overview of your MLM network, referrals, and recent activity
+        Overview of your network, referrals, and recent activity
       </Typography>
 
 

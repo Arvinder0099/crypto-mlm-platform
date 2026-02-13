@@ -511,7 +511,7 @@ const MLMNetwork = () => {
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Typography variant="h4" gutterBottom>
-        MLM Network
+        My Network
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         Manage your network, track referrals, and monitor commission earnings

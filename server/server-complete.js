@@ -6692,7 +6692,7 @@ app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
 app.get('/api/learning/courses', authenticateToken, async (req, res) => {
   try {
     const courses = [
-      { id: 1, title: 'Introduction to Hexanova', description: 'Learn the basics of crypto MLM', duration: '2 hours', level: 'Beginner', progress: 0 },
+      { id: 1, title: 'Introduction to Hexanova', description: 'Learn the basics of Hexanova platform', duration: '2 hours', level: 'Beginner', progress: 0 },
       { id: 2, title: 'Advanced Trading Strategies', description: 'Master trading techniques', duration: '4 hours', level: 'Advanced', progress: 0 },
 
       { id: 3, title: 'Building Your Network', description: 'Grow your referral network effectively', duration: '3 hours', level: 'Intermediate', progress: 0 }
@@ -6764,7 +6764,7 @@ app.get('/api/support/faqs', authenticateToken, async (req, res) => {
     const faqs = [
       { id: 1, question: 'How do I reset my password?', answer: 'Go to Settings > Security > Change Password.' },
       { id: 2, question: 'Why is my withdrawal pending?', answer: 'Withdrawals are processed within 24hexanova after admin approval.' },
-      { id: 3, question: 'How to contact support?', answer: 'Create a support ticket or email support@cryptomlm.com.' }
+      { id: 3, question: 'How to contact support?', answer: 'Create a support ticket or email support@hexanova.net.' }
     ];
     res.json({ success: true, data: faqs });
   } catch (error) {

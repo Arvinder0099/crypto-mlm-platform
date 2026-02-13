@@ -44,7 +44,7 @@ const AuthLayout = ({ children, title = 'Hexanova' }) => {
               color="text.secondary"
               sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
             >
-              Professional Crypto Investment Platform
+              Professional Investment Platform
             </Typography>
           </Box>
           {children}

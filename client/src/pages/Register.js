@@ -1370,7 +1370,7 @@ function Register() {
               Hexanova
             </Typography>
             <Typography variant="h6" sx={{ opacity: 0.9, mt: 1, color: 'rgba(255,255,255,0.9)' }}>
-              Build Your Crypto Empire
+              Build Your Investment Empire
             </Typography>
           </Box>
         </Zoom>

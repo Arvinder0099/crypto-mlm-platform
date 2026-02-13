@@ -658,7 +658,7 @@ const ActivationOptions = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
             <CardContent>
-              <Typography variant="h6">Crypto Payments</Typography>
+              <Typography variant="h6">Digital Payments</Typography>
               <Typography variant="h4">
                 {pendingFundRequests.filter(r => r.paymentMethod.includes('Bitcoin') || r.paymentMethod.includes('Ethereum')).length}
               </Typography>

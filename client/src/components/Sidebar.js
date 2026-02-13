@@ -135,7 +135,7 @@ function Sidebar({ open, onToggle }) {
       path: '/activation',
     },
     {
-      text: 'MLM Network',
+      text: 'My Network',
       icon: <NetworkIcon />,
       path: '/network',
       submenu: [

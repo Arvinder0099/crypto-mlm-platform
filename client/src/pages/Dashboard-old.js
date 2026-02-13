@@ -461,7 +461,7 @@ const Dashboard = () => {
                 }}
               >
                 <Avatar sx={{ width: { xs: 64, sm: 96 }, height: { xs: 64, sm: 96 }, mb: 2, bgcolor: 'rgba(255,255,255,0.2)', fontSize: { xs: 28, sm: 40 } }}>FF</Avatar>
-                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: { xs: '1rem', sm: '1.25rem' } }}>Crypto User</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: { xs: '1rem', sm: '1.25rem' } }}>Hexanova User</Typography>
                 <Box mt={2}>
                   <InfoLine label="User ID" value="member" light />
                   <InfoLine label="Email ID" value="member" light />

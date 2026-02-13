@@ -180,10 +180,10 @@ const MLMPlans = () => {
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, width: '100%', minWidth: 0 }}>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom sx={{ fontWeight: 700, color: '#1a237e' }}>
-          MLM Investment Plans
+          Investment Plans
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Choose the perfect plan to start your MLM journey. Higher plans unlock more earning opportunities and benefits.
+          Choose the perfect plan to start your investment journey. Higher plans unlock more earning opportunities and benefits.
         </Typography>
       </Box>
 

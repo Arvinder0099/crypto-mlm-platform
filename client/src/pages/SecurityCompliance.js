@@ -129,11 +129,11 @@ const SecurityCompliance = () => {
     // Simulate API calls
     setTimeout(() => {
       setAuditLogs([
-        { id: 1, timestamp: '2024-01-15 14:30:00', user: 'admin@crypto-mlm.com', action: 'LOGIN_SUCCESS', ip: '192.168.1.100', severity: 'info' },
+        { id: 1, timestamp: '2024-01-15 14:30:00', user: 'admin@hexanova.net', action: 'LOGIN_SUCCESS', ip: '192.168.1.100', severity: 'info' },
         { id: 2, timestamp: '2024-01-15 14:25:00', user: 'user123@email.com', action: 'FAILED_LOGIN_ATTEMPT', ip: '203.45.67.89', severity: 'warning' },
         { id: 3, timestamp: '2024-01-15 14:20:00', user: 'system', action: 'SECURITY_SCAN_COMPLETED', ip: 'localhost', severity: 'info' },
-        { id: 4, timestamp: '2024-01-15 14:15:00', user: 'admin@crypto-mlm.com', action: 'USER_ACCOUNT_SUSPENDED', ip: '192.168.1.100', severity: 'error' },
-        { id: 5, timestamp: '2024-01-15 14:10:00', user: 'compliance@crypto-mlm.com', action: 'KYC_DOCUMENT_APPROVED', ip: '192.168.1.101', severity: 'success' },
+        { id: 4, timestamp: '2024-01-15 14:15:00', user: 'admin@hexanova.net', action: 'USER_ACCOUNT_SUSPENDED', ip: '192.168.1.100', severity: 'error' },
+        { id: 5, timestamp: '2024-01-15 14:10:00', user: 'compliance@hexanova.net', action: 'KYC_DOCUMENT_APPROVED', ip: '192.168.1.101', severity: 'success' },
       ]);
       
       setComplianceReports([
