@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Grid,
   Paper,
@@ -7,24 +7,30 @@ import {
   Card,
   CardContent,
   Divider,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  ToggleButtonGroup,
+  ToggleButton,
+  Chip,
+  CircularProgress,
 } from '@mui/material';
 import {
   TrendingUp,
   MonetizationOn,
   People,
-  EmojiEvents,
   AccountBalance,
   SwapVert,
+  AutoMode,
+  EditNote,
+  Refresh,
 } from '@mui/icons-material';
 import { fetchWithAuth } from '../utils/api';
 
 const AdminPanel = () => {
+  // 'automatic' = live data from API, 'manual' = editable dashboard values
+  const [dataMode, setDataMode] = useState(() => {
+    return localStorage.getItem('adminDashboardMode') || 'automatic';
+  });
+  const [loadingData, setLoadingData] = useState(true);
+
   const [investmentData, setInvestmentData] = useState({
     totalInvestment: 0,
     adminInvestment: 0,
@@ -44,8 +50,6 @@ const AdminPanel = () => {
     suspendedMembers: 0,
   });
 
-  const [rankAchievers, setRankAchievers] = useState([]);
-
   const [creditDebitData, setCreditDebitData] = useState({
     totalCredited: 0,
     todayCredited: 0,
@@ -62,68 +66,121 @@ const AdminPanel = () => {
     rejectedWithdrawal: 0,
   });
 
-  useEffect(() => {
-    const loadSummary = async () => {
-      try {
-        // Load editable dashboard values
-        console.log('AdminPanel: Fetching dashboard values...');
+  const applyManualValues = (values) => {
+    setInvestmentData({
+      totalInvestment: values.totalInvestment || 0,
+      adminInvestment: values.adminInvestment || 0,
+      walletInvestment: values.walletInvestment || 0,
+      directInvestment: values.directInvestment || 0,
+    });
+    setIncomeData({
+      daily: values.dailyAllotted || 0,
+      referral: values.referralBonusAllotted || 0,
+    });
+    setMemberStats({
+      totalMembers: values.totalMembers || 0,
+      activeMembers: values.activeMembers || 0,
+      inactiveMembers: values.inactiveMembers || 0,
+      suspendedMembers: values.suspendedMembers || 0,
+    });
+    setCreditDebitData({
+      totalCredited: values.totalCredited || 0,
+      todayCredited: values.todayCredited || 0,
+      yesterdayCredited: values.yesterdayCredited || 0,
+      totalDebited: values.totalDebited || 0,
+      todayDebited: values.todayDebited || 0,
+      yesterdayDebited: values.yesterdayDebited || 0,
+    });
+    setWithdrawalData({
+      totalWithdrawal: values.totalWithdrawal || 0,
+      pendingWithdrawal: values.pendingWithdrawal || 0,
+      approvedWithdrawal: values.approvedWithdrawal || 0,
+      rejectedWithdrawal: values.rejectedWithdrawal || 0,
+    });
+  };
+
+  const applyLiveData = (data) => {
+    setInvestmentData({
+      totalInvestment: data.investments?.totalInvestment || 0,
+      adminInvestment: data.investments?.adminInvestment || 0,
+      walletInvestment: data.investments?.walletInvestment || 0,
+      directInvestment: data.investments?.directInvestment || 0,
+    });
+    setIncomeData({
+      daily: data.income?.daily || 0,
+      referral: data.income?.referral || 0,
+    });
+    setMemberStats({
+      totalMembers: data.members?.total || 0,
+      activeMembers: data.members?.active || 0,
+      inactiveMembers: data.members?.inactive || 0,
+      suspendedMembers: data.members?.suspended || 0,
+    });
+    setCreditDebitData({
+      totalCredited: data.creditDebit?.totalCredited || 0,
+      todayCredited: data.creditDebit?.todayCredited || 0,
+      yesterdayCredited: data.creditDebit?.yesterdayCredited || 0,
+      totalDebited: data.creditDebit?.totalDebited || 0,
+      todayDebited: data.creditDebit?.todayDebited || 0,
+      yesterdayDebited: data.creditDebit?.yesterdayDebited || 0,
+    });
+    setWithdrawalData({
+      totalWithdrawal: data.withdrawals?.totalWithdrawal || 0,
+      pendingWithdrawal: data.withdrawals?.pendingWithdrawal || 0,
+      approvedWithdrawal: data.withdrawals?.approvedWithdrawal || 0,
+      rejectedWithdrawal: data.withdrawals?.rejectedWithdrawal || 0,
+    });
+  };
+
+  const loadData = useCallback(async (mode) => {
+    setLoadingData(true);
+    try {
+      if (mode === 'automatic') {
+        // Load live data from real API
+        const data = await fetchWithAuth('/api/admin/summary');
+        applyLiveData(data);
+      } else {
+        // Load manual editable values
         const dashboardData = await fetchWithAuth('/api/admin/dashboard-values');
-        console.log('AdminPanel: Received data:', dashboardData);
-        
         if (dashboardData?.values) {
-          const values = dashboardData.values;
-          console.log('AdminPanel: Setting values:', values);
-          
-          setInvestmentData({
-            totalInvestment: values.totalInvestment || 0,
-            adminInvestment: values.adminInvestment || 0,
-            walletInvestment: values.walletInvestment || 0,
-            directInvestment: values.directInvestment || 0,
-          });
-
-          setIncomeData({
-            daily: values.dailyAllotted || 0,
-            referral: values.referralBonusAllotted || 0,
-          });
-
-          setMemberStats({
-            totalMembers: values.totalMembers || 0,
-            activeMembers: values.activeMembers || 0,
-            inactiveMembers: values.inactiveMembers || 0,
-            suspendedMembers: values.suspendedMembers || 0,
-          });
-
-          setCreditDebitData({
-            totalCredited: values.totalCredited || 0,
-            todayCredited: values.todayCredited || 0,
-            yesterdayCredited: values.yesterdayCredited || 0,
-            totalDebited: values.totalDebited || 0,
-            todayDebited: values.todayDebited || 0,
-            yesterdayDebited: values.yesterdayDebited || 0,
-          });
-
-          setWithdrawalData({
-            totalWithdrawal: values.totalWithdrawal || 0,
-            pendingWithdrawal: values.pendingWithdrawal || 0,
-            approvedWithdrawal: values.approvedWithdrawal || 0,
-            rejectedWithdrawal: values.rejectedWithdrawal || 0,
-          });
+          applyManualValues(dashboardData.values);
         }
-
-        // Also try to load rank achievers from summary
-        try {
-          const data = await fetchWithAuth('/api/admin/summary');
-          setRankAchievers(data.rankAchievers || []);
-        } catch (err) {
-          console.log('Could not load rank achievers');
-        }
-      } catch (error) {
-        console.error('Failed to load dashboard values', error);
       }
-    };
-
-    loadSummary();
+    } catch (error) {
+      console.error('Failed to load dashboard data', error);
+      // Fallback: try the other source
+      try {
+        if (mode === 'automatic') {
+          const dashboardData = await fetchWithAuth('/api/admin/dashboard-values');
+          if (dashboardData?.values) applyManualValues(dashboardData.values);
+        } else {
+          const data = await fetchWithAuth('/api/admin/summary');
+          applyLiveData(data);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback also failed', fallbackError);
+      }
+    } finally {
+      setLoadingData(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadData(dataMode);
+  }, [dataMode, loadData]);
+
+  // Auto-refresh every 30s in automatic mode
+  useEffect(() => {
+    if (dataMode !== 'automatic') return;
+    const interval = setInterval(() => loadData('automatic'), 30000);
+    return () => clearInterval(interval);
+  }, [dataMode, loadData]);
+
+  const handleModeChange = (e, newMode) => {
+    if (!newMode) return;
+    setDataMode(newMode);
+    localStorage.setItem('adminDashboardMode', newMode);
+  };
 
   const StatCard = ({ title, value, subtitle, icon: Icon, color = 'primary' }) => (
     <Card sx={{ height: '100%' }}>
@@ -150,19 +207,54 @@ const AdminPanel = () => {
 
   return (
     <Box className="page-container admin-container" sx={{ p: { xs: 2, md: 3 } }}>
-      {/* Welcome Header */}
-      <Typography
-        variant="h4"
-        sx={{
-          mb: 4,
-          fontWeight: 'bold',
-          color: 'primary.main',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-        }}
-      >
-        Welcome Administrator !!!
+      {/* Welcome Header with Mode Toggle */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+        <Typography
+          variant="h4"
+          sx={{
+            fontWeight: 'bold',
+            color: 'primary.main',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+          }}
+        >
+          Welcome Administrator !!!
+        </Typography>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {loadingData && <CircularProgress size={20} />}
+          {dataMode === 'automatic' && (
+            <Chip 
+              label="Live" 
+              color="success" 
+              size="small" 
+              sx={{ animation: 'pulse 2s infinite', '@keyframes pulse': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.6 } } }}
+            />
+          )}
+          <ToggleButtonGroup
+            value={dataMode}
+            exclusive
+            onChange={handleModeChange}
+            size="small"
+            sx={{ bgcolor: 'background.paper' }}
+          >
+            <ToggleButton value="automatic" sx={{ textTransform: 'none', px: 2 }}>
+              <AutoMode sx={{ mr: 0.5, fontSize: 18 }} />
+              Automatic
+            </ToggleButton>
+            <ToggleButton value="manual" sx={{ textTransform: 'none', px: 2 }}>
+              <EditNote sx={{ mr: 0.5, fontSize: 18 }} />
+              Manual
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+      </Box>
+
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        {dataMode === 'automatic' 
+          ? '📡 Showing live data from the database (auto-refreshes every 30s)' 
+          : '✏️ Showing manually set values (edit via Dashboard Settings)'}
       </Typography>
 
       {/* 1. Total Investment Section */}
@@ -259,7 +351,6 @@ const AdminPanel = () => {
       </Box>
 
       {/* 4. Rank Achievers Section (removed) */}
-      {/* Rank achievers feature removed in favor of real data widgets */}
 
       {/* 5. Credit/Debit Section */}
       <Box sx={{ mb: 4 }}>

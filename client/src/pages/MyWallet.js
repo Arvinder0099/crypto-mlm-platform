@@ -63,10 +63,16 @@ const MyWallet = () => {
     setTransferLoading(true);
     try {
       const token = localStorage.getItem('authToken');
-      await axios.post(`${API_BASE}/api/user/transfer/utility-to-mywallet`, 
+      const res = await axios.post(`${API_BASE}/api/user/transfer/utility-to-mywallet`, 
         { amount },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      // Update wallets immediately from response, then re-fetch for full sync
+      setWallets(prev => ({
+        ...prev,
+        myWallet: res.data.myWallet ?? (prev.myWallet + amount),
+        utilityWallet: res.data.utilityWallet ?? (prev.utilityWallet - amount),
+      }));
       setAlert({ open: true, message: `Successfully transferred $${amount} to My Wallet`, severity: 'success' });
       setUtilityToMyDialog(false);
       setTransferAmount('');

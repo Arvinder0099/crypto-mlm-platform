@@ -3953,7 +3953,8 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
     let dailyEarning = user.dailyReturnAmount || 0; // Start with admin-set daily return
     activeInvestments.forEach(inv => {
       if (inv.planId) {
-        dailyEarning += (inv.amount * (inv.planId.dailyReturn || 0)) / 100;
+        // dailyEarn is a fixed USDT amount (not a percentage)
+        dailyEarning += (inv.planId.dailyEarn || inv.dailyEarned || 0);
       }
     });
 
