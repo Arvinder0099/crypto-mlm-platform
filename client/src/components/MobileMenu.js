@@ -18,6 +18,7 @@ const MobileMenu = () => {
     { label: 'Deposit', path: '/deposit' },
     { label: 'Withdraw', path: '/withdrawal/request' },
     { label: 'Activation', path: '/activation' },
+    { label: 'Help', path: '/help' },
   ];
 
   const adminItems = [

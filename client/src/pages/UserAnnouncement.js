@@ -66,7 +66,7 @@ const UserAnnouncement = () => {
         {announcement.imageUrl && (
           <Box sx={{ display: 'flex', justifyContent: 'center', my: 4, bgcolor: '#f1f5f9', p: 2, borderRadius: 4 }}>
             <img 
-              src={announcement.imageUrl} 
+              src={announcement.imageUrl.startsWith('http') ? announcement.imageUrl : (announcement.imageUrl.startsWith('/') ? announcement.imageUrl : `/${announcement.imageUrl}`)} 
               alt="Announcement" 
               style={{ 
                 maxWidth: '100%', 
@@ -74,7 +74,8 @@ const UserAnnouncement = () => {
                 maxHeight: '800px',
                 borderRadius: '12px', 
                 boxShadow: '0 8px 16px rgba(0,0,0,0.1)' 
-              }} 
+              }}
+              onError={(e) => { e.target.style.display = 'none'; }}
             />
           </Box>
         )}

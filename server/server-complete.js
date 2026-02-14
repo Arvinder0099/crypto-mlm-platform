@@ -475,6 +475,15 @@ const announcementSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
+// Help Center Config Schema
+const helpConfigSchema = new mongoose.Schema({
+  whatsappNumber: { type: String, default: '447402078220' },
+  email: { type: String, default: 'help@hexanova.net' },
+  supportHours: { type: String, default: '24/7' },
+  responseTime: { type: String, default: 'Within 2 hours' },
+  updatedAt: { type: Date, default: Date.now }
+}, { timestamps: true });
+
 // Create Models
 const User = mongoose.model('User', userSchema);
 const Plan = mongoose.model('Plan', planSchema);
@@ -490,6 +499,7 @@ const UserNotification = mongoose.model('UserNotification', userNotificationSche
 const SupportChat = mongoose.model('SupportChat', supportChatSchema);
 const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
 const Announcement = mongoose.model('Announcement', announcementSchema);
+const HelpConfig = mongoose.model('HelpConfig', helpConfigSchema);
 
 // Helper function to create user notification
 const createUserNotification = async (userId, type, title, message, data = {}) => {
@@ -7317,6 +7327,47 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Server error' });
 });
 
+// ==================== HELP CONFIG ROUTES ====================
+
+// Get Help Config (Public/User)
+app.get('/api/help-config', async (req, res) => {
+  try {
+    let config = await HelpConfig.findOne();
+    if (!config) {
+      config = await HelpConfig.create({
+        whatsappNumber: '447402078220',
+        email: 'help@hexanova.net',
+        supportHours: '24/7',
+        responseTime: 'Within 2 hours',
+      });
+    }
+    res.json(config);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching help config', error: error.message });
+  }
+});
+
+// Update Help Config (Admin)
+app.put('/api/admin/help-config', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { whatsappNumber, email, supportHours, responseTime } = req.body;
+    let config = await HelpConfig.findOne();
+    if (config) {
+      if (whatsappNumber !== undefined) config.whatsappNumber = whatsappNumber;
+      if (email !== undefined) config.email = email;
+      if (supportHours !== undefined) config.supportHours = supportHours;
+      if (responseTime !== undefined) config.responseTime = responseTime;
+      config.updatedAt = Date.now();
+      await config.save();
+    } else {
+      config = await HelpConfig.create({ whatsappNumber, email, supportHours, responseTime });
+    }
+    res.json({ success: true, message: 'Help config updated', config });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating help config', error: error.message });
+  }
+});
+
 // ==================== ANNOUNCEMENT ROUTES ====================
 
 // Get Announcement (User/Public)
@@ -7330,21 +7381,28 @@ app.get('/api/announcement', async (req, res) => {
   }
 });
 
-// Update Announcement (Admin)
-app.put('/api/admin/announcement', authenticateToken, isAdmin, async (req, res) => {
+// Update Announcement (Admin) - supports both JSON body and file upload
+app.put('/api/admin/announcement', authenticateToken, isAdmin, upload.single('image'), async (req, res) => {
   try {
     const { title, content, imageUrl, isVisible } = req.body;
+    let finalImageUrl = imageUrl;
+    
+    // If a file was uploaded, use that path instead
+    if (req.file) {
+      finalImageUrl = `/uploads/${req.file.filename}`;
+    }
+    
     let announcement = await Announcement.findOne();
     
     if (announcement) {
       announcement.title = title;
       announcement.content = content;
-      if (imageUrl !== undefined) announcement.imageUrl = imageUrl;
-      announcement.isVisible = isVisible;
+      if (finalImageUrl !== undefined) announcement.imageUrl = finalImageUrl;
+      announcement.isVisible = isVisible === true || isVisible === 'true';
       announcement.updatedAt = Date.now();
       await announcement.save();
     } else {
-      announcement = await Announcement.create({ title, content, imageUrl, isVisible });
+      announcement = await Announcement.create({ title, content, imageUrl: finalImageUrl || '', isVisible: isVisible === true || isVisible === 'true' });
     }
     
     res.json({ success: true, message: 'Announcement updated successfully', announcement });

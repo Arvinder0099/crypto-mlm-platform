@@ -288,7 +288,7 @@ const Dashboard = () => {
               <Typography variant="h6">Share your Referral Link</Typography>
               <Button variant="outlined" startIcon={<Person />}>Join now</Button>
             </Box>
-            <Box display="flex" gap={1}>
+            <Box display="flex" gap={1} flexWrap="wrap">
               <TextField fullWidth value={referral} onChange={(e) => setReferral(e.target.value)} size="small" />
               <Button variant="contained" color="success" onClick={copyReferral}><ContentCopy /></Button>
             </Box>

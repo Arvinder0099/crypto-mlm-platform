@@ -115,6 +115,10 @@ import AdminPointsManagement from './pages/AdminPointsManagement';
 // Import My Wallet page
 import MyWallet from './pages/MyWallet';
 
+// Import Help Center pages
+import HelpCenter from './pages/HelpCenter';
+import EditHelpCenter from './pages/EditHelpCenter';
+
 // Import components
 import UnifiedLayout from './layouts/UnifiedLayout';
 import SecurityProvider from './components/SecurityProvider';
@@ -539,6 +543,9 @@ function AppContent() {
                 
                 {/* Referral Bonus System */}
                 <Route path="/referral-bonus" element={<ReferralBonus />} />
+                
+                {/* Help Center */}
+                <Route path="/help" element={<HelpCenter />} />
 
                 {/* Admin-Only Routes */}
                 <Route path="/admin" element={<AdminPanel />} />
@@ -575,6 +582,7 @@ function AppContent() {
                 <Route path="/admin-settings/eliminate-specific-condition" element={<EliminateSpecificCondition />} />
                 <Route path="/admin-settings/admin-setting" element={<AdminSettingPage />} />
                 <Route path="/admin-settings/manage-popup" element={<ManagePopup />} />
+                <Route path="/admin-settings/edit-help" element={<EditHelpCenter />} />
                 <Route path="/admin-settings/edit-transaction-summary" element={<EditTransactionSummary />} />
 
                 {/* Admin Reports Routes */}

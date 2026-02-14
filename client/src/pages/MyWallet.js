@@ -133,7 +133,7 @@ const MyWallet = () => {
           </Box>
           <Typography variant="h6" fontWeight={600}>{title}</Typography>
         </Box>
-        <Typography variant="h3" fontWeight={700} sx={{ mb: 1 }}>
+        <Typography variant="h3" fontWeight={700} sx={{ mb: 1, fontSize: { xs: '1.5rem', sm: '2rem', md: '3rem' }, wordBreak: 'break-word' }}>
           $ {balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </Typography>
         {note && (

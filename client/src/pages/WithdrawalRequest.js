@@ -228,15 +228,15 @@ const WithdrawalRequest = () => {
           </Box>
           <Divider sx={{ borderColor: 'rgba(255,255,255,0.3)', mb: 1.5 }} />
           <Grid container spacing={2}>
-            <Grid item xs={4}>
+            <Grid item xs={12} sm={4}>
               <Typography variant="caption" sx={{ opacity: 0.8 }}>Fund Wallet</Typography>
               <Typography variant="body1" sx={{ fontWeight: 600 }}>${fundWallet.toFixed(2)}</Typography>
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={12} sm={4}>
               <Typography variant="caption" sx={{ opacity: 0.8 }}>Utility Wallet</Typography>
               <Typography variant="body1" sx={{ fontWeight: 600 }}>${utilityWallet.toFixed(2)}</Typography>
             </Grid>
-            <Grid item xs={4}>
+            <Grid item xs={12} sm={4}>
               <Typography variant="caption" sx={{ opacity: 0.8 }}>Total Balance</Typography>
               <Typography variant="body1" sx={{ fontWeight: 600 }}>${(myWallet + fundWallet + utilityWallet).toFixed(2)}</Typography>
             </Grid>
@@ -304,15 +304,15 @@ const WithdrawalRequest = () => {
               <Grid item xs={12}>
                 <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
                   <Grid container spacing={2}>
-                    <Grid item xs={4}>
+                    <Grid item xs={12} sm={4}>
                       <Typography variant="body2" color="text.secondary">Amount</Typography>
                       <Typography variant="h6">${parseFloat(form.amount).toFixed(2)}</Typography>
                     </Grid>
-                    <Grid item xs={4}>
+                    <Grid item xs={12} sm={4}>
                       <Typography variant="body2" color="text.secondary">Charges ({settings.withdrawalFeePercent}%)</Typography>
                       <Typography variant="h6" color="error.main">-${calculateCharges().toFixed(2)}</Typography>
                     </Grid>
-                    <Grid item xs={4}>
+                    <Grid item xs={12} sm={4}>
                       <Typography variant="body2" color="text.secondary">You'll Receive</Typography>
                       <Typography variant="h6" color="success.main">${calculateNetAmount().toFixed(2)}</Typography>
                     </Grid>

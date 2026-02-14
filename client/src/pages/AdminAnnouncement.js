@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Paper, Container, TextField, Button, Switch, FormControlLabel, CircularProgress, Alert } from '@mui/material';
-import { fetchJSON, fetchWithAuth } from '../utils/api';
+import { fetchJSON } from '../utils/api';
 import SaveIcon from '@mui/icons-material/Save';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 const AdminAnnouncement = () => {
   const [formData, setFormData] = useState({
@@ -10,6 +11,8 @@ const AdminAnnouncement = () => {
     imageUrl: '',
     isVisible: true
   });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -29,6 +32,7 @@ const AdminAnnouncement = () => {
             imageUrl: data.imageUrl || '',
             isVisible: data.isVisible ?? true
         });
+        if (data.imageUrl) setImagePreview(data.imageUrl);
       }
     } catch (error) {
       console.error('Error fetching announcement:', error);
@@ -43,6 +47,20 @@ const AdminAnnouncement = () => {
       ...prev,
       [name]: name === 'isVisible' ? checked : value
     }));
+    // If user manually types imageUrl, update preview
+    if (name === 'imageUrl') {
+      setImagePreview(value);
+      setImageFile(null);
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+      setFormData(prev => ({ ...prev, imageUrl: '' })); // Clear URL field when file selected
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -50,11 +68,42 @@ const AdminAnnouncement = () => {
     setSaving(true);
     setMessage(null);
     try {
-      await fetchWithAuth('/api/admin/announcement', {
-        method: 'PUT',
-        body: JSON.stringify(formData)
-      });
+      const token = localStorage.getItem('authToken');
+      
+      if (imageFile) {
+        // Use FormData for file upload
+        const fd = new FormData();
+        fd.append('title', formData.title);
+        fd.append('content', formData.content);
+        fd.append('isVisible', formData.isVisible);
+        fd.append('image', imageFile);
+        
+        const res = await fetch('/api/admin/announcement', {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        });
+        if (!res.ok) throw new Error('Upload failed');
+        const result = await res.json();
+        if (result.announcement?.imageUrl) {
+          setFormData(prev => ({ ...prev, imageUrl: result.announcement.imageUrl }));
+          setImagePreview(result.announcement.imageUrl);
+        }
+      } else {
+        // JSON body (URL-based image)
+        const res = await fetch('/api/admin/announcement', {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        });
+        if (!res.ok) throw new Error('Update failed');
+      }
+      
       setMessage({ type: 'success', text: 'Announcement updated successfully!' });
+      setImageFile(null);
     } catch (error) {
       setMessage({ type: 'error', text: 'Error updating announcement.' });
       console.error(error);
@@ -96,8 +145,37 @@ const AdminAnnouncement = () => {
             value={formData.imageUrl}
             onChange={handleChange}
             margin="normal"
-            helperText="Link to an image (optional)"
+            helperText="Paste an image link, or upload a file below"
+            disabled={!!imageFile}
           />
+
+          <Box sx={{ mt: 1, mb: 2 }}>
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<CloudUploadIcon />}
+              sx={{ mr: 2 }}
+            >
+              Upload Image
+              <input type="file" accept="image/*" hidden onChange={handleFileSelect} />
+            </Button>
+            {imageFile && (
+              <Typography variant="caption" color="text.secondary">
+                {imageFile.name}
+              </Typography>
+            )}
+          </Box>
+
+          {imagePreview && (
+            <Box sx={{ my: 2, textAlign: 'center', bgcolor: '#f5f5f5', p: 2, borderRadius: 2 }}>
+              <img
+                src={imagePreview}
+                alt="Preview"
+                style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8 }}
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+            </Box>
+          )}
 
           <TextField
             fullWidth

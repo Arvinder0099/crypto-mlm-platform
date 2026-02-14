@@ -52,6 +52,7 @@ import {
   PersonAdd as KYCIcon,
   MoreVert as MoreVertIcon,
   Campaign as AnnouncementIcon,
+  HelpOutline as HelpCenterIcon,
 } from '@mui/icons-material';
 
 function Sidebar({ open, onToggle }) {
@@ -181,6 +182,11 @@ function Sidebar({ open, onToggle }) {
         { text: 'Withdrawal Summary', path: '/withdrawal/summary' },
       ],
     },
+    {
+      text: 'Help Center',
+      icon: <HelpCenterIcon />,
+      path: '/help',
+    },
   ];
 
   // Admin-specific menu items
@@ -254,6 +260,7 @@ function Sidebar({ open, onToggle }) {
         { text: 'Deposit Address Setup', path: '/admin-settings/deposit-address-setup' },
         { text: 'Eliminate Specific Condition', path: '/admin-settings/eliminate-specific-condition' },
         { text: 'Manage Popup', path: '/admin-settings/manage-popup' },
+        { text: 'Edit Help Center', path: '/admin-settings/edit-help' },
       ],
     },
     {

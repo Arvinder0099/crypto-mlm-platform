@@ -661,7 +661,7 @@ const FloatingChat = () => {
           onClick={() => setIsOpen(true)}
           sx={{
             position: 'fixed',
-            bottom: 24,
+            bottom: { xs: 80, sm: 120 },
             right: 24,
             zIndex: 1300,
             width: 64,
@@ -686,7 +686,7 @@ const FloatingChat = () => {
         <Box
           sx={{
             position: 'fixed',
-            bottom: 100,
+            bottom: { xs: 155, sm: 195 },
             right: 24,
             zIndex: 1299,
             bgcolor: 'white',

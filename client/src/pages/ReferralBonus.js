@@ -296,7 +296,7 @@ const ReferralBonus = () => {
       {/* Referral History Table */}
       <Card sx={{ border: '2px solid #f5f5f5', borderRadius: 3 }}>
         <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={1}>
             <Typography variant="h6">
               Referral History
             </Typography>
@@ -312,7 +312,7 @@ const ReferralBonus = () => {
                   </InputAdornment>
                 ),
               }}
-              sx={{ width: 250 }}
+              sx={{ width: { xs: '100%', sm: 250 } }}
             />
           </Box>
 

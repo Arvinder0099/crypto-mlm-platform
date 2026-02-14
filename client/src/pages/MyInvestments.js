@@ -110,7 +110,7 @@ const MyInvestments = () => {
                 <AccountBalance sx={{ mr: 1 }} />
                 <Typography variant="body2">Total Invested</Typography>
               </Box>
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}>
                 {totalInvested} USDT
               </Typography>
             </CardContent>
@@ -124,7 +124,7 @@ const MyInvestments = () => {
                 <TrendingUp sx={{ mr: 1 }} />
                 <Typography variant="body2">Total Earned</Typography>
               </Box>
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}>
                 {totalEarned.toFixed(2)} USDT
               </Typography>
             </CardContent>
@@ -138,7 +138,7 @@ const MyInvestments = () => {
                 <Schedule sx={{ mr: 1 }} />
                 <Typography variant="body2">Daily Earning</Typography>
               </Box>
-              <Typography variant="h4" sx={{ fontWeight: 800 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}>
                 {dailyEarning.toFixed(2)} USDT
               </Typography>
             </CardContent>
