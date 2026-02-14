@@ -42,6 +42,7 @@ import {
   CheckCircle,
   CardGiftcard,
   AccountBalanceWallet,
+  HelpOutline,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -198,6 +199,7 @@ const UnifiedLayout = ({ children }) => {
     { label: 'Reports', type: 'dropdown', anchor: reportsAnchor, setter: setReportsAnchor },
     { label: 'Withdrawal', type: 'dropdown', anchor: withdrawalAnchor, setter: setWithdrawalAnchor },
     { label: 'Referral Bonus', path: '/referral-bonus' },
+    { label: 'Help', path: '/help' },
   ];
 
   // Admin Menu Items
@@ -385,6 +387,12 @@ const UnifiedLayout = ({ children }) => {
               <ListItemIcon className="glass-icon"><CardGiftcard /></ListItemIcon>
               <ListItemText primary="Referral Bonus" />
             </ListItemButton>
+
+            {/* Help Center */}
+            <ListItemButton onClick={() => handleMobileNavigate('/help')} sx={{ borderRadius: 2, mb: 0.5 }}>
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><HelpOutline /></ListItemIcon>
+              <ListItemText primary="Help Center" />
+            </ListItemButton>
           </>
         ) : (
           <>
@@ -506,6 +514,9 @@ const UnifiedLayout = ({ children }) => {
                 </ListItemButton>
                 <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/edit-transaction-summary')}>
                   <ListItemText primary="✏️ Edit Transaction Summary" primaryTypographyProps={{ fontSize: 14 }} />
+                </ListItemButton>
+                <ListItemButton sx={{ pl: 6, borderRadius: 2 }} onClick={() => handleMobileNavigate('/admin-settings/edit-help')}>
+                  <ListItemText primary="📞 Edit Help Center" primaryTypographyProps={{ fontSize: 14 }} />
                 </ListItemButton>
               </List>
             </Collapse>
@@ -918,6 +929,9 @@ const UnifiedLayout = ({ children }) => {
           </MenuItem>
           <MenuItem onClick={handleNavigate('/admin-settings/edit-transaction-summary', setSettingsAnchor)}>
             ✏️ Edit Transaction Summary
+          </MenuItem>
+          <MenuItem onClick={handleNavigate('/admin-settings/edit-help', setSettingsAnchor)}>
+            📞 Edit Help Center
           </MenuItem>
         </Menu>
       )}
