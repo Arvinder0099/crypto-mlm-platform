@@ -178,7 +178,6 @@ const theme = createTheme({
           backgroundImage: 'linear-gradient(145deg, #e8f5f0 0%, #d1fae5 50%, #a7f3d0 100%)',
           backgroundAttachment: 'fixed',
           minHeight: '100vh',
-          perspective: '1000px',
           scrollbarColor: '#10b981 #e2e8f0',
           '&::-webkit-scrollbar': {
             width: '8px',

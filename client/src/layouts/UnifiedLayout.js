@@ -226,8 +226,10 @@ const UnifiedLayout = ({ children }) => {
           width: 280,
           display: 'flex',
           flexDirection: 'column',
-          height: '100%',
+          height: '100dvh',
+          maxHeight: '-webkit-fill-available',
           overflowX: 'hidden',
+          overflowY: 'hidden',
           // Reset paper overrides that break drawer
           backgroundImage: 'none',
           borderRadius: 0,
@@ -253,16 +255,22 @@ const UnifiedLayout = ({ children }) => {
       
       {/* Scrollable Menu Area */}
       <Box sx={{ 
-        flex: 1, 
+        flex: '1 1 0%', 
         minHeight: 0,
-        overflowY: 'auto', 
+        height: 0,
+        overflowY: 'scroll', 
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
+        touchAction: 'pan-y',
+        msOverflowStyle: 'auto',
+        transform: 'translateZ(0)',
+        willChange: 'scroll-position',
+        position: 'relative',
         '&::-webkit-scrollbar': { width: 4 },
         '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.3)', borderRadius: 2 },
         '&::-webkit-scrollbar-track': { background: 'transparent' },
       }}>
-      <List sx={{ px: 1, pb: 10 }}>
+      <List sx={{ px: 1, pb: 12 }}>
         {!isAdmin() ? (
           <>
             {/* User Dashboard */}
