@@ -1,17 +1,30 @@
 /**
  * Security Middleware - Rate Limiting, Input Validation, Security Headers
+ * Anti-Tampering, Brute Force Protection, Request Fingerprinting
  * 
  * Features:
- * - Rate limiting per IP
+ * - Rate limiting per IP with progressive penalties
  * - Request size limiting
  * - XSS protection
- * - SQL injection prevention
+ * - SQL/NoSQL injection prevention
  * - CSRF protection
- * - Security headers
+ * - Security headers (HSTS, CSP, etc.)
+ * - Brute force account lockout
+ * - Request fingerprinting & anomaly detection
+ * - Path traversal prevention
+ * - Prototype pollution protection
  */
+
+const crypto = require('crypto');
 
 // In-memory rate limit store (use Redis in production for multi-server)
 const rateLimitStore = new Map();
+
+// Brute force tracking - tracks failed login attempts per account
+const bruteForceStore = new Map();
+
+// Suspicious IP tracking
+const suspiciousIPs = new Map();
 
 /**
  * Rate Limiter Middleware
@@ -72,57 +85,102 @@ function createRateLimiter(options = {}) {
 const rateLimiters = {
   // General API rate limit
   general: createRateLimiter({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    maxRequests: 2000, // Increased for development
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 300,
     message: 'Too many requests. Please try again in 15 minutes.'
   }),
   
   // Strict rate limit for auth endpoints
   auth: createRateLimiter({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 500, // Increased for development
-    message: 'Too many authentication attempts. Please try again in 1 hour.',
-    keyGenerator: (req) => `auth:${req.ip}:${req.body?.email || ''}`
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    maxRequests: 15, // Max 15 login attempts per 15 min per IP+email
+    message: 'Too many authentication attempts. Account temporarily locked for security.',
+    keyGenerator: (req) => `auth:${req.ip}:${(req.body?.email || '').toLowerCase()}`
   }),
   
   // Rate limit for OTP requests
   otp: createRateLimiter({
-    windowMs: 60 * 1000, // 1 minute
-    maxRequests: 20, // Increased for development
-    message: 'Too many OTP requests. Please wait 1 minute.',
+    windowMs: 2 * 60 * 1000, // 2 minutes
+    maxRequests: 3, // Max 3 OTP requests per 2 min
+    message: 'Too many OTP requests. Please wait before trying again.',
     keyGenerator: (req) => `otp:${req.ip}:${req.body?.phone || req.body?.email || ''}`
   }),
   
   // Rate limit for withdrawals
   withdrawal: createRateLimiter({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    maxRequests: 50, // Increased for development
+    windowMs: 60 * 60 * 1000,
+    maxRequests: 10,
     message: 'Too many withdrawal requests. Please try again later.',
     keyGenerator: (req) => `withdraw:${req.user?.id || req.ip}`
   }),
   
   // Rate limit for deposits
   deposit: createRateLimiter({
-    windowMs: 60 * 60 * 1000, // 1 hour
+    windowMs: 60 * 60 * 1000,
     maxRequests: 10,
     message: 'Too many deposit requests. Please try again later.',
     keyGenerator: (req) => `deposit:${req.user?.id || req.ip}`
-  })
+  }),
+
+  // Rate limit for sensitive admin operations
+  adminSensitive: createRateLimiter({
+    windowMs: 5 * 60 * 1000,
+    maxRequests: 20,
+    message: 'Too many admin operations. Slow down.',
+    keyGenerator: (req) => `admin:${req.user?.id || req.ip}`
+  }),
+
+  // Rate limit for password reset
+  passwordReset: createRateLimiter({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    maxRequests: 5,
+    message: 'Too many password reset attempts. Try again in 1 hour.',
+    keyGenerator: (req) => `pwreset:${req.ip}:${req.body?.email || req.body?.phone || ''}`
+  }),
 };
 
 /**
- * Input Sanitizer - Remove potentially dangerous characters
+ * Input Sanitizer - Remove potentially dangerous characters and NoSQL injection vectors
  */
 function sanitizeInput(input) {
   if (typeof input !== 'string') return input;
   
   // Remove potential XSS vectors
-  return input
+  let clean = input
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<[^>]*>/g, '')
     .replace(/javascript:/gi, '')
-    .replace(/on\w+=/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+    .replace(/data:\s*text\/html/gi, '')
+    .replace(/vbscript:/gi, '')
+    .replace(/expression\s*\(/gi, '')
     .trim();
+  
+  // Block NoSQL injection patterns
+  clean = clean.replace(/\$(?:gt|gte|lt|lte|ne|in|nin|regex|where|exists|type|mod|all|size|elemMatch|or|and|not|nor)\b/gi, '');
+  
+  return clean;
+}
+
+/**
+ * Deep sanitize - recursively sanitize objects, protect against prototype pollution
+ */
+function deepSanitize(obj, depth = 0) {
+  if (depth > 10) return obj; // Prevent infinite recursion
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string') return sanitizeInput(obj);
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(item => deepSanitize(item, depth + 1));
+  
+  const clean = {};
+  for (const key of Object.keys(obj)) {
+    // Block prototype pollution
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+    // Block MongoDB operators in keys
+    if (key.startsWith('$')) continue;
+    clean[key] = deepSanitize(obj[key], depth + 1);
+  }
+  return clean;
 }
 
 /**
@@ -130,19 +188,120 @@ function sanitizeInput(input) {
  */
 function sanitizeRequestBody(req, res, next) {
   if (req.body && typeof req.body === 'object') {
-    const sanitize = (obj) => {
-      for (const key in obj) {
-        if (typeof obj[key] === 'string') {
-          obj[key] = sanitizeInput(obj[key]);
-        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-          sanitize(obj[key]);
-        }
-      }
-    };
-    sanitize(req.body);
+    req.body = deepSanitize(req.body);
+  }
+  if (req.query && typeof req.query === 'object') {
+    req.query = deepSanitize(req.query);
+  }
+  if (req.params && typeof req.params === 'object') {
+    req.params = deepSanitize(req.params);
   }
   next();
 }
+
+/**
+ * Block path traversal attacks
+ */
+function blockPathTraversal(req, res, next) {
+  const suspiciousPatterns = [
+    /\.\.\//g, /\.\.\\/, /\.\./,
+    /%2e%2e/gi, /%252e/gi,
+    /\/etc\/passwd/i, /\/proc\//i,
+    /cmd\.exe/i, /powershell/i,
+    /\/bin\/sh/i, /\/bin\/bash/i,
+  ];
+  const fullUrl = req.originalUrl || req.url;
+  for (const pattern of suspiciousPatterns) {
+    if (pattern.test(fullUrl)) {
+      trackSuspiciousIP(req.ip, 'path_traversal');
+      return res.status(400).json({ message: 'Invalid request' });
+    }
+  }
+  next();
+}
+
+/**
+ * Track suspicious IPs for anomaly detection
+ */
+function trackSuspiciousIP(ip, reason) {
+  const record = suspiciousIPs.get(ip) || { count: 0, reasons: [], firstSeen: Date.now() };
+  record.count++;
+  record.reasons.push({ reason, time: Date.now() });
+  record.lastSeen = Date.now();
+  suspiciousIPs.set(ip, record);
+  
+  // Auto-log high threat IPs
+  if (record.count >= 10) {
+    console.warn(`⚠️ SECURITY: Suspicious IP ${ip} - ${record.count} violations: ${record.reasons.map(r => r.reason).join(', ')}`);
+  }
+}
+
+/**
+ * Brute force protection for login
+ */
+function bruteForceProtection(req, res, next) {
+  const key = `bf:${(req.body?.email || '').toLowerCase().trim()}`;
+  const record = bruteForceStore.get(key);
+  
+  if (record) {
+    // Account locked
+    if (record.lockedUntil && record.lockedUntil > Date.now()) {
+      const waitMinutes = Math.ceil((record.lockedUntil - Date.now()) / 60000);
+      trackSuspiciousIP(req.ip, 'brute_force_locked');
+      return res.status(423).json({ 
+        message: `Account temporarily locked due to too many failed attempts. Try again in ${waitMinutes} minute(s).`,
+        lockedUntil: record.lockedUntil 
+      });
+    }
+    // Progressive lockout: 5 failures = 5 min, 10 = 30 min, 15 = 2 hours
+    if (record.failures >= 15) {
+      record.lockedUntil = Date.now() + (2 * 60 * 60 * 1000);
+      bruteForceStore.set(key, record);
+      trackSuspiciousIP(req.ip, 'brute_force_severe');
+      return res.status(423).json({ message: 'Account locked for 2 hours due to repeated failed attempts.' });
+    }
+    if (record.failures >= 10) {
+      record.lockedUntil = Date.now() + (30 * 60 * 1000);
+      bruteForceStore.set(key, record);
+      return res.status(423).json({ message: 'Account locked for 30 minutes due to repeated failed attempts.' });
+    }
+    if (record.failures >= 5) {
+      record.lockedUntil = Date.now() + (5 * 60 * 1000);
+      bruteForceStore.set(key, record);
+      return res.status(423).json({ message: 'Account locked for 5 minutes due to repeated failed attempts.' });
+    }
+  }
+  
+  // Attach helpers for login handler
+  req.bruteForceKey = key;
+  req.recordLoginFailure = () => {
+    const r = bruteForceStore.get(key) || { failures: 0, firstFailure: Date.now() };
+    r.failures++;
+    r.lastFailure = Date.now();
+    bruteForceStore.set(key, r);
+  };
+  req.resetBruteForce = () => {
+    bruteForceStore.delete(key);
+  };
+  
+  next();
+}
+
+// Cleanup brute force records every 3 hours
+setInterval(() => {
+  const now = Date.now();
+  const threeHours = 3 * 60 * 60 * 1000;
+  for (const [key, record] of bruteForceStore.entries()) {
+    if (now - (record.lastFailure || record.firstFailure) > threeHours) {
+      bruteForceStore.delete(key);
+    }
+  }
+  for (const [ip, record] of suspiciousIPs.entries()) {
+    if (now - record.lastSeen > 24 * 60 * 60 * 1000) {
+      suspiciousIPs.delete(ip);
+    }
+  }
+}, 3 * 60 * 60 * 1000);
 
 /**
  * Input Validators
@@ -233,7 +392,7 @@ function validateRequest(rules) {
 }
 
 /**
- * Security Headers Middleware
+ * Security Headers Middleware - Production-hardened
  */
 function securityHeaders(req, res, next) {
   // Prevent clickjacking
@@ -245,16 +404,47 @@ function securityHeaders(req, res, next) {
   // XSS Protection
   res.setHeader('X-XSS-Protection', '1; mode=block');
   
-  // Referrer Policy
+  // Referrer Policy - don't leak URLs to external sites
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   
-  // Content Security Policy
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;");
+  // Content Security Policy - strict
+  res.setHeader('Content-Security-Policy', 
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data: https: blob:; " +
+    "connect-src 'self' https://wa.me https://*.hexanova.net; " +
+    "frame-ancestors 'none'; " +
+    "base-uri 'self'; " +
+    "form-action 'self'; " +
+    "upgrade-insecure-requests"
+  );
   
-  // HSTS (only in production with HTTPS)
+  // HSTS - force HTTPS (1 year, with preload)
   if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   }
+  
+  // Prevent browser from caching sensitive responses
+  if (req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  
+  // Permissions Policy - disable unnecessary browser features
+  res.setHeader('Permissions-Policy', 
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()'
+  );
+  
+  // Cross-Origin policies
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  
+  // Remove server identification headers
+  res.removeHeader('X-Powered-By');
+  res.removeHeader('Server');
   
   next();
 }
@@ -341,11 +531,15 @@ module.exports = {
   createRateLimiter,
   rateLimiters,
   sanitizeInput,
+  deepSanitize,
   sanitizeRequestBody,
   validators,
   validateRequest,
   securityHeaders,
   requestLogger,
   createIPFilter,
-  corsOptions
+  corsOptions,
+  blockPathTraversal,
+  bruteForceProtection,
+  trackSuspiciousIP,
 };

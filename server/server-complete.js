@@ -13,81 +13,151 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cron = require('node-cron');
 const path = require('path');
+const helmet = require('helmet');
+const crypto = require('crypto');
 require('dotenv').config();
 
 // Import Services
 const { emailService } = require('./services/email.service');
 const { OTPService, TwilioService, MSG91Service, ConsoleSMSService, SMSServiceFactory } = require('./services/otp.service');
 const { KYCService, createMulterConfig, KYCStatus, KYCDocumentTypes } = require('./services/kyc.service');
-const { rateLimiters, sanitizeRequestBody, securityHeaders, validateRequest, validators } = require('./middleware/security.middleware');
+const { rateLimiters, sanitizeRequestBody, securityHeaders, validateRequest, validators, blockPathTraversal, bruteForceProtection } = require('./middleware/security.middleware');
 
 const app = express();
 
+// ==================== SECURITY HARDENING ====================
+// Disable x-powered-by header
+app.disable('x-powered-by');
+// Disable ETag to prevent information leakage
+app.disable('etag');
+
+// Helmet security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Handled by custom securityHeaders middleware
+  crossOriginEmbedderPolicy: false, // Allow loading external resources
+  hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
+  frameguard: { action: 'deny' },
+  noSniff: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}));
+
 // ==================== MIDDLEWARE ====================
-// CORS - allow all origins (DigitalOcean app platform uses same domain)
+// CORS - restrict origins in production
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ['https://hexanova.net', 'https://www.hexanova.net'];
+
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, server-to-server)
+    if (!origin) return callback(null, true);
+    // In development, allow all
+    if (process.env.NODE_ENV !== 'production') return callback(null, true);
+    // In production, check whitelist
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS BLOCKED: Request from unauthorized origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  maxAge: 86400, // Cache preflight for 24 hours
 }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(sanitizeRequestBody);
 app.use(securityHeaders);
+app.use(blockPathTraversal);
 
-// Serve uploaded files (KYC documents) - with authentication in production
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Strip internal error details from responses in production
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    const originalJson = res.json.bind(res);
+    res.json = function(body) {
+      if (res.statusCode >= 400 && body && typeof body === 'object') {
+        // Remove internal error details
+        delete body.error;
+        delete body.stack;
+        delete body.trace;
+      }
+      return originalJson(body);
+    };
+    next();
+  });
+}
 
-// Health check root route
+// Serve uploaded files (KYC documents) - restrict file types
+app.use('/uploads', (req, res, next) => {
+  // Only allow image file extensions
+  const allowed = /\.(jpg|jpeg|png|gif|webp|pdf)$/i;
+  if (!allowed.test(req.path)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+  next();
+}, express.static(path.join(__dirname, 'uploads'), {
+  dotfiles: 'deny',
+  index: false,
+  maxAge: '1d',
+}));
+
+// Health check root route - minimal info
 app.get('/', (req, res) => {
-  res.send('Backend system is running. API is at /api');
+  res.status(200).json({ status: 'ok' });
 });
 
 // Apply general rate limiting to all routes
 app.use('/api/', rateLimiters.general);
 
 // ==================== DATABASE CONNECTION ====================
+// Enforce strict query mode to prevent accidental field injection
+mongoose.set('strictQuery', true);
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/crypto-mlm', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
 .then(async () => {
   console.log('✅ MongoDB Connected');
-  // Auto-create admin account if it doesn't exist
+  // Auto-create admin account if it doesn't exist (credentials from env vars only)
   try {
-    const adminEmail = 'arvindersaini2523@gmail.com';
-    const existingAdmin = await mongoose.connection.db.collection('users').findOne({ email: adminEmail });
-    if (!existingAdmin) {
-      const bcryptLib = require('bcryptjs');
-      const hashedPw = await bcryptLib.hash('Arvinder2001@', 10);
-      await mongoose.connection.db.collection('users').insertOne({
-        userId: 'ARV2523',
-        firstName: 'Arvinder',
-        lastName: 'Saini',
-        email: adminEmail,
-        password: hashedPw,
-        phone: '7276192503',
-        phoneCountryCode: '+91',
-        role: 'admin',
-        status: 'active',
-        referralCode: 'HEXNOVA-ARV2523',
-        directReferrals: [],
-        downlineUsers: [],
-        balance: 0, myWallet: 0, fundWallet: 0, utilityWallet: 0,
-        totalInvested: 0, totalEarned: 0, totalWithdrawn: 0,
-        createdAt: new Date(), updatedAt: new Date()
-      });
-      console.log('✅ Admin account created: arvindersaini2523@gmail.com');
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (adminEmail && adminPassword) {
+      const existingAdmin = await mongoose.connection.db.collection('users').findOne({ email: adminEmail });
+      if (!existingAdmin) {
+        const bcryptLib = require('bcryptjs');
+        const hashedPw = await bcryptLib.hash(adminPassword, 12);
+        await mongoose.connection.db.collection('users').insertOne({
+          userId: 'ARV2523',
+          firstName: 'Admin',
+          lastName: 'User',
+          email: adminEmail,
+          password: hashedPw,
+          phone: process.env.ADMIN_PHONE || '',
+          phoneCountryCode: '+91',
+          role: 'admin',
+          status: 'active',
+          referralCode: 'HEXNOVA-ARV2523',
+          directReferrals: [],
+          downlineUsers: [],
+          balance: 0, myWallet: 0, fundWallet: 0, utilityWallet: 0,
+          totalInvested: 0, totalEarned: 0, totalWithdrawn: 0,
+          loginAttempts: 0,
+          createdAt: new Date(), updatedAt: new Date()
+        });
+        console.log('✅ Admin account created');
+      } else {
+        // Only ensure admin role is correct, never reset password on every restart
+        await mongoose.connection.db.collection('users').updateOne(
+          { email: adminEmail },
+          { $set: { role: 'admin', status: 'active' } }
+        );
+        console.log('✅ Admin account verified');
+      }
     } else {
-      // Always ensure admin has correct password, role and status
-      const bcryptLib = require('bcryptjs');
-      const hashedPw = await bcryptLib.hash('Arvinder2001@', 10);
-      await mongoose.connection.db.collection('users').updateOne(
-        { email: adminEmail },
-        { $set: { role: 'admin', status: 'active', password: hashedPw } }
-      );
-      console.log('✅ Admin account verified: arvindersaini2523@gmail.com');
+      console.log('⚠️  ADMIN_EMAIL and ADMIN_PASSWORD env vars not set - skipping admin auto-creation');
     }
   } catch (adminErr) {
     console.log('Admin setup note:', adminErr.message);
@@ -116,8 +186,12 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/crypto-ml
 })
 .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
-// JWT Configuration
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+// JWT Configuration - use strong secret with fallback warning
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  const fallback = crypto.randomBytes(64).toString('hex');
+  console.warn('⚠️ SECURITY WARNING: No JWT_SECRET set in environment. Using random secret (tokens will invalidate on restart).');
+  return fallback;
+})();
 
 // ==================== SCHEMAS ====================
 
@@ -547,16 +621,25 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'Access token required' });
   
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ message: 'Invalid or expired token' });
+  jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }, (err, user) => {
+    if (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: 'Token expired. Please login again.' });
+      }
+      return res.status(403).json({ message: 'Invalid token' });
+    }
+    // Validate token payload has required fields
+    if (!user.id || !user.role) {
+      return res.status(403).json({ message: 'Invalid token payload' });
+    }
     req.user = user;
     next();
   });
 };
 
 const isAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Admin access required' });
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Access denied' });
   }
   next();
 };
@@ -714,7 +797,11 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
       console.log(`✅ Referral registration: ${firstName} ${lastName} referred by ${referrer.firstName} ${referrer.lastName}`);
     }
     
-    const token = jwt.sign({ id: user._id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '24h', algorithm: 'HS256' }
+    );
     
     // Send welcome email
     const referrer = referrerId ? await User.findById(referrerId) : null;
@@ -920,7 +1007,7 @@ app.post('/api/auth/verify-phone-otp', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', rateLimiters.auth, async (req, res) => {
+app.post('/api/auth/login', rateLimiters.auth, bruteForceProtection, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -933,16 +1020,44 @@ app.post('/api/auth/login', rateLimiters.auth, async (req, res) => {
     const user = isEmail
       ? await User.findOne({ email: loginValue.toLowerCase() })
       : await User.findOne({ userId: loginValue.toUpperCase() });
-    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+    
+    if (!user) {
+      if (req.recordLoginFailure) req.recordLoginFailure();
+      // Generic message to prevent user enumeration
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    
+    // Check database-level lockout
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const waitMin = Math.ceil((user.lockedUntil - Date.now()) / 60000);
+      return res.status(423).json({ message: `Account locked. Try again in ${waitMin} minute(s).` });
+    }
     
     const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) return res.status(401).json({ message: 'Invalid credentials' });
+    if (!isValidPassword) {
+      if (req.recordLoginFailure) req.recordLoginFailure();
+      // Increment DB login attempts
+      const attempts = (user.loginAttempts || 0) + 1;
+      const updateFields = { loginAttempts: attempts };
+      // Lock at DB level after 10 attempts
+      if (attempts >= 10) {
+        updateFields.lockedUntil = new Date(Date.now() + 30 * 60 * 1000);
+      }
+      await User.updateOne({ _id: user._id }, { $set: updateFields });
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
     if (user.status !== 'active') return res.status(403).json({ message: 'Account is suspended' });
     
-    // Update login info without triggering full validation
-    await User.updateOne({ _id: user._id }, { $set: { lastLogin: new Date(), loginAttempts: 0 } });
+    // Reset brute force on success
+    if (req.resetBruteForce) req.resetBruteForce();
+    // Update login info
+    await User.updateOne({ _id: user._id }, { $set: { lastLogin: new Date(), loginAttempts: 0, lockedUntil: null } });
     
-    const token = jwt.sign({ id: user._id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '24h', algorithm: 'HS256' }
+    );
     
     res.json({
       success: true,
@@ -951,7 +1066,7 @@ app.post('/api/auth/login', rateLimiters.auth, async (req, res) => {
       user: { id: user._id, userId: user.userId, firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role, balance: user.balance, totalEarned: user.totalEarned, totalInvested: user.totalInvested },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Login failed', error: error.message });
+    res.status(500).json({ message: 'Login failed' });
   }
 });
 
@@ -1011,7 +1126,7 @@ app.post('/api/auth/forgot-password/verify-otp', rateLimiters.auth, async (req, 
     }
     
     // Generate a reset token
-    const resetToken = jwt.sign({ userId: user._id, phone }, JWT_SECRET, { expiresIn: '15m' });
+    const resetToken = jwt.sign({ userId: user._id, phone, purpose: 'phone-reset' }, JWT_SECRET, { expiresIn: '15m', algorithm: 'HS256' });
     
     res.json({ 
       success: true, 
@@ -1071,10 +1186,11 @@ app.post('/api/auth/forgot-password/reset', rateLimiters.auth, async (req, res) 
 
 app.get('/api/auth/verify', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id).select('-password -loginAttempts -lockedUntil');
+    if (!user) return res.status(401).json({ message: 'User not found' });
     res.json({ user });
   } catch (error) {
-    res.status(500).json({ message: 'Verification failed', error: error.message });
+    res.status(500).json({ message: 'Verification failed' });
   }
 });
 
@@ -1271,7 +1387,7 @@ app.post('/api/auth/forgot-password', rateLimiters.auth, async (req, res) => {
     }
     
     // Generate reset token
-    const resetToken = jwt.sign({ id: user._id, purpose: 'password-reset' }, JWT_SECRET, { expiresIn: '1h' });
+    const resetToken = jwt.sign({ id: user._id, purpose: 'password-reset' }, JWT_SECRET, { expiresIn: '1h', algorithm: 'HS256' });
     const resetLink = `https://hexanova.net/reset-password?token=${resetToken}`;
     
     // Send email
@@ -7322,9 +7438,15 @@ app.get('/api/chat/unread-count', authenticateToken, async (req, res) => {
 
 // ==================== ERROR HANDLING ====================
 
+// Catch 404 - unknown routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ message: 'Endpoint not found' });
+});
+
 app.use((err, req, res, next) => {
-  console.error('Global error:', err);
-  res.status(500).json({ message: 'Internal server error', error: process.env.NODE_ENV === 'development' ? err.message : 'Server error' });
+  // Log error internally but never expose to client
+  console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
+  res.status(err.status || 500).json({ message: 'Something went wrong. Please try again.' });
 });
 
 // ==================== HELP CONFIG ROUTES ====================
@@ -7592,9 +7714,9 @@ app.listen(PORT, () => {
     🚀 Hexanova Server Running
     =====================================
     📍 Port: ${PORT}
-    🔐 JWT Secret: ${JWT_SECRET.substring(0, 5)}...
+    🔐 JWT Secret: [CONFIGURED]
     🗄️  MongoDB: Connected
-    ⚡ Real-time Earnings: Active (Hourly)
+    🛡️  Security: Hardened
     =====================================
   `);
 });

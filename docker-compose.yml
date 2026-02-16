@@ -6,8 +6,7 @@ services:
     image: mongo:6.0
     container_name: crypto-mlm-mongodb
     restart: always
-    ports:
-      - "27017:27017"
+    # No ports exposed - only accessible within Docker network
     volumes:
       - mongodb_data:/data/db
     environment:
@@ -31,6 +30,10 @@ services:
       - PORT=3040
       - MONGODB_URI=mongodb://mongodb:27017/crypto-mlm
       - JWT_SECRET=${JWT_SECRET}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ADMIN_PHONE=${ADMIN_PHONE}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://hexanova.net,https://www.hexanova.net}
       - EMAIL_PROVIDER=smtp
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
@@ -40,6 +43,8 @@ services:
       - MSG91_API_KEY=${MSG91_API_KEY}
     networks:
       - crypto-mlm-network
+    security_opt:
+      - no-new-privileges:true
 
   # Frontend React App
   frontend:

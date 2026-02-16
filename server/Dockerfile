@@ -25,15 +25,21 @@ COPY --from=build /app/middleware ./middleware
 COPY --from=build /app/models ./models
 COPY --from=build /app/services ./services
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Create uploads directory and non-root user
+RUN mkdir -p uploads && \
+    addgroup -g 1001 -S nodejs && \
+    adduser -S nodeuser -u 1001 -G nodejs && \
+    chown -R nodeuser:nodejs /app
+
+# Switch to non-root user
+USER nodeuser
 
 # Expose port
 EXPOSE 3040
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3040/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3040/ || exit 1
 
 # Start the server
 CMD ["node", "server-complete.js"]

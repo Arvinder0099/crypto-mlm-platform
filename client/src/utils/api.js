@@ -1,5 +1,8 @@
 const API_BASE = process.env.REACT_APP_API_URL || '';
 
+// Request timeout (30 seconds)
+const REQUEST_TIMEOUT = 30000;
+
 function resolveUrl(url) {
   if (typeof url !== 'string') return url;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
@@ -20,6 +23,16 @@ function resolveUrl(url) {
   return url;
 }
 
+// Handle 401 responses globally — auto-logout on expired/invalid token
+function handleUnauthorized() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('userData');
+  // Redirect to login if not already there
+  if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+    window.location.href = '/login';
+  }
+}
+
 export async function fetchJSON(url, options = {}) {
   // Extract headers from options to merge properly
   const { headers: optionHeaders, ...restOptions } = options;
@@ -28,23 +41,61 @@ export async function fetchJSON(url, options = {}) {
     'Content-Type': 'application/json',
     ...(optionHeaders || {}),
   };
+
+  // Add timeout via AbortController
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
   
-  const res = await fetch(resolveUrl(url), {
-    ...restOptions,
-    headers: mergedHeaders,
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`Request failed: ${res.status} ${res.statusText} - ${text}`);
+  try {
+    const res = await fetch(resolveUrl(url), {
+      ...restOptions,
+      headers: mergedHeaders,
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (res.status === 401) {
+      handleUnauthorized();
+      throw new Error('Session expired. Please login again.');
+    }
+    
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      // Don't expose raw server errors to potential attackers
+      let safeMessage = 'Request failed';
+      try {
+        const parsed = JSON.parse(text);
+        safeMessage = parsed.message || safeMessage;
+      } catch {
+        if (res.status === 429) safeMessage = 'Too many requests. Please try again later.';
+        else if (res.status === 403) safeMessage = 'Access denied.';
+        else if (res.status === 404) safeMessage = 'Not found.';
+        else if (res.status >= 500) safeMessage = 'Server error. Please try again.';
+      }
+      throw new Error(safeMessage);
+    }
+    return res.json();
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw err;
   }
-  return res.json();
 }
 
 export function authHeaders() {
   try {
     // Align with AuthContext storage key
     const token = localStorage.getItem('authToken');
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    if (!token) return {};
+    // Basic token format validation
+    if (token.split('.').length !== 3) {
+      localStorage.removeItem('authToken');
+      return {};
+    }
+    return { Authorization: `Bearer ${token}` };
   } catch (_) {
     return {};
   }
