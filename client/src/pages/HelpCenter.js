@@ -50,7 +50,20 @@ const HelpCenter = () => {
   const config = helpConfig || defaultConfig;
 
   const handleWhatsApp = () => {
-    const url = `https://wa.me/${config.whatsappNumber}`;
+    const prefilledMessage = encodeURIComponent(
+`Hello Hexanova Support! 👋
+
+I need help with:
+
+1️⃣ Deposit / Fund Wallet
+2️⃣ Withdrawal Issue
+3️⃣ Account / Profile Settings
+4️⃣ Investment Plans & Returns
+5️⃣ Referral & Bonus
+
+Please reply with the number of your query and we'll assist you right away!`
+    );
+    const url = `https://wa.me/${config.whatsappNumber}?text=${prefilledMessage}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
