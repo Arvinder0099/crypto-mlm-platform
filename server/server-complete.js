@@ -120,44 +120,41 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/crypto-ml
 })
 .then(async () => {
   console.log('✅ MongoDB Connected');
-  // Auto-create admin account if it doesn't exist (credentials from env vars only)
+  // Auto-create admin account if it doesn't exist
   try {
-    const adminEmail = process.env.ADMIN_EMAIL;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    if (adminEmail && adminPassword) {
-      const existingAdmin = await mongoose.connection.db.collection('users').findOne({ email: adminEmail });
-      if (!existingAdmin) {
-        const bcryptLib = require('bcryptjs');
-        const hashedPw = await bcryptLib.hash(adminPassword, 12);
-        await mongoose.connection.db.collection('users').insertOne({
-          userId: 'ARV2523',
-          firstName: 'Admin',
-          lastName: 'User',
-          email: adminEmail,
-          password: hashedPw,
-          phone: process.env.ADMIN_PHONE || '',
-          phoneCountryCode: '+91',
-          role: 'admin',
-          status: 'active',
-          referralCode: 'HEXNOVA-ARV2523',
-          directReferrals: [],
-          downlineUsers: [],
-          balance: 0, myWallet: 0, fundWallet: 0, utilityWallet: 0,
-          totalInvested: 0, totalEarned: 0, totalWithdrawn: 0,
-          loginAttempts: 0,
-          createdAt: new Date(), updatedAt: new Date()
-        });
-        console.log('✅ Admin account created');
-      } else {
-        // Only ensure admin role is correct, never reset password on every restart
-        await mongoose.connection.db.collection('users').updateOne(
-          { email: adminEmail },
-          { $set: { role: 'admin', status: 'active' } }
-        );
-        console.log('✅ Admin account verified');
-      }
+    const adminEmail = 'arvindersaini2523@gmail.com';
+    const existingAdmin = await mongoose.connection.db.collection('users').findOne({ email: adminEmail });
+    if (!existingAdmin) {
+      const bcryptLib = require('bcryptjs');
+      const hashedPw = await bcryptLib.hash('Arvinder2001@', 12);
+      await mongoose.connection.db.collection('users').insertOne({
+        userId: 'ARV2523',
+        firstName: 'Arvinder',
+        lastName: 'Saini',
+        email: adminEmail,
+        password: hashedPw,
+        phone: '7276192503',
+        phoneCountryCode: '+91',
+        role: 'admin',
+        status: 'active',
+        referralCode: 'HEXNOVA-ARV2523',
+        directReferrals: [],
+        downlineUsers: [],
+        balance: 0, myWallet: 0, fundWallet: 0, utilityWallet: 0,
+        totalInvested: 0, totalEarned: 0, totalWithdrawn: 0,
+        loginAttempts: 0,
+        createdAt: new Date(), updatedAt: new Date()
+      });
+      console.log('✅ Admin account created');
     } else {
-      console.log('⚠️  ADMIN_EMAIL and ADMIN_PASSWORD env vars not set - skipping admin auto-creation');
+      // Ensure admin has correct role and status
+      const bcryptLib = require('bcryptjs');
+      const hashedPw = await bcryptLib.hash('Arvinder2001@', 12);
+      await mongoose.connection.db.collection('users').updateOne(
+        { email: adminEmail },
+        { $set: { role: 'admin', status: 'active', password: hashedPw } }
+      );
+      console.log('✅ Admin account verified');
     }
   } catch (adminErr) {
     console.log('Admin setup note:', adminErr.message);
