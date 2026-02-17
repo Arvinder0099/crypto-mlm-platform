@@ -190,11 +190,11 @@ const UnifiedLayout = ({ children }) => {
   const userMenuItems = [
     { label: 'Dashboard', path: '/dashboard' },
     { label: 'Announcements', path: '/announcements' },
-    { label: 'My Investments', path: '/my-investments' },
-    { label: 'My Wallet', path: '/my-wallet' },
-    { label: 'Profile', type: 'dropdown', anchor: profileAnchor, setter: setProfileAnchor },
     { label: 'Deposit', path: '/deposit' },
+    { label: 'My Wallet', path: '/my-wallet' },
     { label: 'Activation', path: '/activation' },
+    { label: 'My Investments', path: '/my-investments' },
+    { label: 'Profile', type: 'dropdown', anchor: profileAnchor, setter: setProfileAnchor },
     { label: 'Genealogy', type: 'dropdown', anchor: genealogyAnchor, setter: setGenealogyAnchor },
     { label: 'Reports', type: 'dropdown', anchor: reportsAnchor, setter: setReportsAnchor },
     { label: 'Withdrawal', type: 'dropdown', anchor: withdrawalAnchor, setter: setWithdrawalAnchor },
@@ -287,6 +287,24 @@ const UnifiedLayout = ({ children }) => {
               <ListItemText primary="Announcements" />
             </ListItemButton>
 
+            {/* Deposit */}
+            <ListItemButton onClick={() => handleMobileNavigate('/deposit')} sx={{ borderRadius: 2, mb: 0.5 }}>
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><AccountBalance /></ListItemIcon>
+              <ListItemText primary="Deposit" />
+            </ListItemButton>
+
+            {/* My Wallet */}
+            <ListItemButton onClick={() => handleMobileNavigate('/my-wallet')} sx={{ borderRadius: 2, mb: 0.5 }}>
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><AccountBalance /></ListItemIcon>
+              <ListItemText primary="My Wallet" />
+            </ListItemButton>
+
+            {/* Activation */}
+            <ListItemButton onClick={() => handleMobileNavigate('/activation')} sx={{ borderRadius: 2, mb: 0.5 }}>
+              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><ChevronRight /></ListItemIcon>
+              <ListItemText primary="Activation" />
+            </ListItemButton>
+
             {/* My Investments */}
             <ListItemButton onClick={() => handleMobileNavigate('/my-investments')} sx={{ borderRadius: 2, mb: 0.5 }}>
               <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><MonetizationOn /></ListItemIcon>
@@ -312,24 +330,6 @@ const UnifiedLayout = ({ children }) => {
                 </ListItemButton>
               </List>
             </Collapse>
-
-            {/* Deposit */}
-            <ListItemButton onClick={() => handleMobileNavigate('/deposit')} sx={{ borderRadius: 2, mb: 0.5 }}>
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><AccountBalance /></ListItemIcon>
-              <ListItemText primary="Deposit" />
-            </ListItemButton>
-
-            {/* My Wallet */}
-            <ListItemButton onClick={() => handleMobileNavigate('/my-wallet')} sx={{ borderRadius: 2, mb: 0.5 }}>
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><AccountBalance /></ListItemIcon>
-              <ListItemText primary="My Wallet" />
-            </ListItemButton>
-
-            {/* Activation */}
-            <ListItemButton onClick={() => handleMobileNavigate('/activation')} sx={{ borderRadius: 2, mb: 0.5 }}>
-              <ListItemIcon sx={{ color: 'white', minWidth: 40 }}><ChevronRight /></ListItemIcon>
-              <ListItemText primary="Activation" />
-            </ListItemButton>
 
             {/* Genealogy Submenu */}
             <ListItemButton onClick={() => setGenealogyOpen(!genealogyOpen)} sx={{ borderRadius: 2, mb: 0.5 }}>

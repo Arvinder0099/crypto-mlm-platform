@@ -263,7 +263,7 @@ const Dashboard = () => {
         </Grid>
       </Box>
 
-      {/* Section 2: Wallet Overview */}
+      {/* Section 2: Wallet Overview & Team Summary */}
       <Grid container spacing={3} sx={{ mt: 1 }}>
         {/* Wallet Overview */}
         <Grid item xs={12} md={6}>
@@ -276,6 +276,21 @@ const Dashboard = () => {
             <KeyValue label="My Wallet" value={`$ ${dashboardData.wallet.myWallet.toLocaleString()}`} />
             <KeyValue label="Fund Wallet" value={`$ ${dashboardData.wallet.fundWallet.toLocaleString()}`} />
             <KeyValue label="Utility Wallet" value={`$ ${dashboardData.wallet.utilityWallet.toLocaleString()}`} />
+          </SectionCard>
+        </Grid>
+
+        {/* Team Summary */}
+        <Grid item xs={12} md={6}>
+          <SectionCard>
+            <Typography variant="h6" gutterBottom>Team Summary</Typography>
+            <Typography variant="h4" sx={{ color: 'primary.main', mb: 1 }}>
+              {(teamSummary.myDirect + teamSummary.myDownlines).toLocaleString()} Members
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <KeyValue label="My Direct Referrals" value={teamSummary.myDirect} />
+            <KeyValue label="My Downlines" value={teamSummary.myDownlines} />
+            <KeyValue label="Active Downlines" value={teamSummary.activeDownlines} />
+            <KeyValue label="Inactive Downlines" value={teamSummary.inactiveDownlines} />
           </SectionCard>
         </Grid>
       </Grid>

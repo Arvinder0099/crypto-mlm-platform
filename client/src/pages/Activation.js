@@ -77,7 +77,8 @@ const Activation = () => {
           roi: p.roi,
           minWithdraw: getMinWithdraw(p.name),
         }));
-        // Show all plans including Platinum
+        // Sort plans by investment amount (lowest first)
+        mappedPlans.sort((a, b) => a.investment - b.investment);
         setPlans(mappedPlans);
       } else {
         setPlans(defaultPlans);

@@ -824,6 +824,156 @@ class EmailServiceWrapper {
   async send(to, subject, html) {
     return this.sendEmail(to, subject, html);
   }
+
+  async sendDepositSubmitted(to, { name, amount, currency = 'USDT' }) {
+    const subject = `Deposit Request Submitted: ${amount} ${currency}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #3b82f6; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; }
+          .amount { font-size: 28px; color: #3b82f6; font-weight: bold; text-align: center; margin: 15px 0; }
+          .footer { text-align: center; padding: 15px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>📤 Deposit Request Submitted</h2>
+          </div>
+          <div class="content">
+            <p>Hi <strong>${name}</strong>,</p>
+            <p>Your deposit request has been submitted and is pending review.</p>
+            <div class="amount">${amount} ${currency}</div>
+            <p>Our team will review and approve your deposit shortly. You'll receive an email once it's processed.</p>
+            <p style="color: #666; font-size: 13px;">If you didn't make this request, please contact support immediately.</p>
+          </div>
+          <div class="footer">
+            <p>Hexanova - Your Trusted Digital Platform</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(to, subject, html);
+  }
+
+  async sendDepositApproved(to, { name, amount, currency = 'USDT' }) {
+    const subject = `✅ Deposit Approved: ${amount} ${currency}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #27ae60; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; }
+          .amount { font-size: 28px; color: #27ae60; font-weight: bold; text-align: center; margin: 15px 0; }
+          .footer { text-align: center; padding: 15px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>✅ Deposit Approved</h2>
+          </div>
+          <div class="content">
+            <p>Hi <strong>${name}</strong>,</p>
+            <p>Great news! Your deposit has been approved and credited to your Fund Wallet.</p>
+            <div class="amount">${amount} ${currency}</div>
+            <p>You can now use these funds to activate investment plans.</p>
+          </div>
+          <div class="footer">
+            <p>Hexanova - Your Trusted Digital Platform</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(to, subject, html);
+  }
+
+  async sendDepositRejected(to, { name, amount, currency = 'USDT', reason }) {
+    const subject = `❌ Deposit Rejected: ${amount} ${currency}`;
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #e74c3c; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; }
+          .amount { font-size: 28px; color: #e74c3c; font-weight: bold; text-align: center; margin: 15px 0; }
+          .footer { text-align: center; padding: 15px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>❌ Deposit Rejected</h2>
+          </div>
+          <div class="content">
+            <p>Hi <strong>${name}</strong>,</p>
+            <p>Unfortunately, your deposit request has been rejected.</p>
+            <div class="amount">${amount} ${currency}</div>
+            <p><strong>Reason:</strong> ${reason || 'Please contact support for details.'}</p>
+            <p>If you believe this is an error, please reach out to our support team.</p>
+          </div>
+          <div class="footer">
+            <p>Hexanova - Your Trusted Digital Platform</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(to, subject, html);
+  }
+
+  async sendLoginAlert(to, { name, ip, time, device }) {
+    const subject = '🔐 New Login to Your Account';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #6366f1; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #ffffff; padding: 30px; border-radius: 0 0 10px 10px; }
+          .info-box { background: #f0f0f0; padding: 15px; border-radius: 8px; margin: 15px 0; }
+          .footer { text-align: center; padding: 15px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>🔐 New Login Detected</h2>
+          </div>
+          <div class="content">
+            <p>Hi <strong>${name}</strong>,</p>
+            <p>A new login was detected on your Hexanova account.</p>
+            <div class="info-box">
+              <p><strong>Time:</strong> ${time}</p>
+              <p><strong>IP Address:</strong> ${ip || 'Unknown'}</p>
+              <p><strong>Device:</strong> ${device || 'Unknown'}</p>
+            </div>
+            <p style="color: #e74c3c;">If this wasn't you, please change your password immediately and contact support.</p>
+          </div>
+          <div class="footer">
+            <p>Hexanova - Your Trusted Digital Platform</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    return this.sendEmail(to, subject, html);
+  }
 }
 
 // Export instances

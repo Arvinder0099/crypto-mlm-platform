@@ -461,7 +461,7 @@ const referralBonusSchema = new mongoose.Schema({
 
 // Admin Notification Schema - notifies admin of referral registrations
 const adminNotificationSchema = new mongoose.Schema({
-  type: { type: String, enum: ['referral_registration', 'referral_bonus_pending', 'withdrawal_request', 'deposit', 'kyc_submission', 'system_alert', 'investment', 'plan_activation', 'other'], required: true },
+  type: { type: String, enum: ['new_registration', 'referral_registration', 'referral_bonus_pending', 'withdrawal_request', 'withdrawal_completed', 'withdrawal_rejected', 'deposit', 'deposit_approved', 'deposit_rejected', 'kyc_submission', 'system_alert', 'investment', 'plan_activation', 'login_alert', 'other'], required: true },
   title: { type: String, required: true },
   message: { type: String, required: true },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -491,7 +491,7 @@ const userNotificationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   type: { 
     type: String, 
-    enum: ['deposit_approved', 'deposit_rejected', 'withdrawal_approved', 'withdrawal_rejected', 
+    enum: ['deposit_submitted', 'deposit_approved', 'deposit_rejected', 'withdrawal_submitted', 'withdrawal_approved', 'withdrawal_rejected', 
            'investment_activated', 'commission_received', 'referral_joined', 'referral_bonus',
            'roi_earned', 'rank_achieved', 'system_message', 'welcome', 'welcome_bonus'], 
     required: true 
@@ -745,6 +745,20 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
       `Hello ${firstName}! Your account has been created successfully. Start investing to earn daily returns!`,
       {}
     );
+
+    // Create admin notification for ALL new registrations
+    const regAdminNotification = new AdminNotification({
+      type: 'new_registration',
+      title: 'New User Registration 🆕',
+      message: `${firstName} ${lastName} (${email}) has registered on the platform.`,
+      userId: user._id,
+      data: {
+        newUserName: `${firstName} ${lastName}`,
+        newUserEmail: email,
+      },
+      priority: 'normal',
+    });
+    await regAdminNotification.save();
     
     if (referrerId) {
       await User.findByIdAndUpdate(referrerId, {
@@ -1049,6 +1063,14 @@ app.post('/api/auth/login', rateLimiters.auth, bruteForceProtection, async (req,
     if (req.resetBruteForce) req.resetBruteForce();
     // Update login info
     await User.updateOne({ _id: user._id }, { $set: { lastLogin: new Date(), loginAttempts: 0, lockedUntil: null } });
+    
+    // Send login alert email
+    emailService.sendLoginAlert(user.email, {
+      name: user.firstName,
+      ip: req.ip || req.headers['x-forwarded-for'] || 'Unknown',
+      time: new Date().toLocaleString('en-US', { timeZone: 'UTC' }) + ' UTC',
+      device: req.headers['user-agent'] || 'Unknown'
+    }).catch(console.error);
     
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
@@ -2123,7 +2145,7 @@ app.get('/api/network/stats', authenticateToken, async (req, res) => {
 
 app.get('/api/plans', async (req, res) => {
   try {
-    const plans = await Plan.find({ isActive: true });
+    const plans = await Plan.find({ isActive: true }).sort({ investment: 1 });
     res.json({ plans });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching plans', error: error.message });
@@ -2535,6 +2557,30 @@ app.post('/api/withdrawals', authenticateToken, async (req, res) => {
       walletAddress: walletAddress || user.walletAddress,
       network: 'TRC20'
     }).catch(console.error);
+
+    // Create user notification for withdrawal submitted
+    await createUserNotification(
+      user._id,
+      'withdrawal_submitted',
+      'Withdrawal Submitted 📤',
+      `Your withdrawal request of $${amount} has been submitted and is pending admin approval.`,
+      { amount }
+    );
+
+    // Create admin notification for new withdrawal request
+    const adminNotification = new AdminNotification({
+      type: 'withdrawal_request',
+      title: 'New Withdrawal Request 💸',
+      message: `${user.firstName} ${user.lastName} (${user.email}) requested a withdrawal of $${amount} to wallet ${walletAddress || user.walletAddress}`,
+      userId: user._id,
+      data: {
+        investmentAmount: amount,
+        newUserName: `${user.firstName} ${user.lastName}`,
+        newUserEmail: user.email,
+      },
+      priority: 'high',
+    });
+    await adminNotification.save();
     
     res.status(201).json({ message: 'Withdrawal request submitted', withdrawal });
   } catch (error) {
@@ -2584,6 +2630,43 @@ app.post('/api/deposits', authenticateToken, upload.single('slip'), async (req, 
 
     const deposit = new Deposit(depositData);
     await deposit.save();
+
+    // Fetch user for notifications
+    const user = await User.findById(req.user.id);
+    if (user) {
+      const currency = deposit.network === 'usdt_trc20' ? 'USDT' : 'BNB';
+
+      // Send email notification for deposit submitted
+      emailService.sendDepositSubmitted(user.email, {
+        name: user.firstName,
+        amount: deposit.amount,
+        currency
+      }).catch(console.error);
+
+      // Create user notification for deposit submitted
+      await createUserNotification(
+        user._id,
+        'deposit_submitted',
+        'Deposit Submitted 📤',
+        `Your deposit of $${deposit.amount} ${currency} has been submitted and is pending admin review.`,
+        { amount: deposit.amount }
+      );
+
+      // Create admin notification for new deposit
+      const adminNotification = new AdminNotification({
+        type: 'deposit',
+        title: 'New Deposit Request 💰',
+        message: `${user.firstName} ${user.lastName} (${user.email}) submitted a deposit of $${deposit.amount} ${currency}. Transaction: ${deposit.transactionHash}`,
+        userId: user._id,
+        data: {
+          investmentAmount: deposit.amount,
+          newUserName: `${user.firstName} ${user.lastName}`,
+          newUserEmail: user.email,
+        },
+        priority: 'high',
+      });
+      await adminNotification.save();
+    }
 
     res.status(201).json({ 
       success: true, 
@@ -2708,6 +2791,30 @@ app.post('/api/admin/deposits/:id/approve', authenticateToken, isAdmin, async (r
         `Your deposit of $${deposit.amount} has been approved and credited to your Fund Wallet.`,
         { amount: deposit.amount, transactionId: transaction._id }
       );
+
+      // Send email notification for approved deposit
+      const currency = deposit.network === 'usdt_trc20' ? 'USDT' : 'BNB';
+      emailService.sendDepositApproved(user.email, {
+        name: user.firstName,
+        amount: deposit.amount,
+        currency
+      }).catch(console.error);
+
+      // Create admin notification for approved deposit
+      const adminNotification = new AdminNotification({
+        type: 'deposit_approved',
+        title: 'Deposit Approved ✅',
+        message: `Deposit of $${deposit.amount} for ${user.firstName} ${user.lastName} (${user.email}) has been approved and credited.`,
+        userId: user._id,
+        data: {
+          investmentAmount: deposit.amount,
+          newUserName: `${user.firstName} ${user.lastName}`,
+          newUserEmail: user.email,
+          transactionId: transaction._id,
+        },
+        priority: 'normal',
+      });
+      await adminNotification.save();
     }
 
     res.json({ 
@@ -2749,6 +2856,33 @@ app.post('/api/admin/deposits/:id/reject', authenticateToken, isAdmin, async (re
       `Your deposit of $${deposit.amount} was rejected. Reason: ${reason || 'Not specified'}`,
       { amount: deposit.amount }
     );
+
+    // Fetch user for email notification
+    const user = await User.findById(deposit.userId);
+    if (user) {
+      const currency = deposit.network === 'usdt_trc20' ? 'USDT' : 'BNB';
+      emailService.sendDepositRejected(user.email, {
+        name: user.firstName,
+        amount: deposit.amount,
+        currency,
+        reason: reason || 'Not specified'
+      }).catch(console.error);
+
+      // Create admin notification for rejected deposit
+      const adminNotification = new AdminNotification({
+        type: 'deposit_rejected',
+        title: 'Deposit Rejected ❌',
+        message: `Deposit of $${deposit.amount} for ${user.firstName} ${user.lastName} (${user.email}) was rejected. Reason: ${reason || 'Not specified'}`,
+        userId: user._id,
+        data: {
+          investmentAmount: deposit.amount,
+          newUserName: `${user.firstName} ${user.lastName}`,
+          newUserEmail: user.email,
+        },
+        priority: 'normal',
+      });
+      await adminNotification.save();
+    }
 
     res.json({ 
       success: true, 
@@ -2808,6 +2942,22 @@ app.post('/api/withdrawals/:id/approve', authenticateToken, isAdmin, async (req,
       `Your withdrawal of $${withdrawal.amount} has been processed and sent to your wallet.`,
       { amount: withdrawal.amount, transactionId: transaction._id }
     );
+
+    // Create admin notification for approved withdrawal
+    const adminNotifApproval = new AdminNotification({
+      type: 'withdrawal_completed',
+      title: 'Withdrawal Approved ✅',
+      message: `Withdrawal of $${withdrawal.amount} for ${user.firstName} ${user.lastName} (${user.email}) has been approved and processed.`,
+      userId: user._id,
+      data: {
+        investmentAmount: withdrawal.amount,
+        newUserName: `${user.firstName} ${user.lastName}`,
+        newUserEmail: user.email,
+        transactionId: transaction._id,
+      },
+      priority: 'normal',
+    });
+    await adminNotifApproval.save();
     
     res.json({ message: 'Withdrawal approved', withdrawal });
   } catch (error) {
@@ -2845,6 +2995,21 @@ app.post('/api/withdrawals/:id/reject', authenticateToken, isAdmin, async (req, 
       `Your withdrawal request of $${withdrawal.amount} was rejected. Reason: ${rejectionReason || 'Not specified'}`,
       { amount: withdrawal.amount }
     );
+
+    // Create admin notification for rejected withdrawal
+    const adminNotifRejection = new AdminNotification({
+      type: 'withdrawal_rejected',
+      title: 'Withdrawal Rejected ❌',
+      message: `Withdrawal of $${withdrawal.amount} for ${user.firstName} ${user.lastName} (${user.email}) was rejected. Reason: ${rejectionReason || 'Not specified'}`,
+      userId: user._id,
+      data: {
+        investmentAmount: withdrawal.amount,
+        newUserName: `${user.firstName} ${user.lastName}`,
+        newUserEmail: user.email,
+      },
+      priority: 'normal',
+    });
+    await adminNotifRejection.save();
     
     res.json({ message: 'Withdrawal rejected', withdrawal });
   } catch (error) {
