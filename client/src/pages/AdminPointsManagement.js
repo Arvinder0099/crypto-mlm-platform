@@ -261,6 +261,37 @@ const AdminPointsManagement = () => {
     }
   };
 
+  const [processingDaily, setProcessingDaily] = useState(false);
+  const [processResult, setProcessResult] = useState(null);
+
+  const handleProcessDailyReturns = async () => {
+    if (!window.confirm('Are you sure you want to process daily returns & ROI for all eligible users? This will credit their My Wallet.')) return;
+    try {
+      setProcessingDaily(true);
+      setProcessResult(null);
+      const response = await fetchWithAuth('/api/admin/daily-returns/process', {
+        method: 'POST',
+      });
+
+      if (response.success) {
+        setProcessResult(response);
+        setSnackbar({ 
+          open: true, 
+          message: `Daily returns processed: ${response.processedUsers} users, $${response.totalDistributed} total`, 
+          severity: 'success' 
+        });
+        loadDailyReturnUsers();
+      } else {
+        setSnackbar({ open: true, message: response.message || 'Failed to process daily returns', severity: 'error' });
+      }
+    } catch (error) {
+      console.error('Process daily returns error:', error);
+      setSnackbar({ open: true, message: error.message || 'Failed to process daily returns', severity: 'error' });
+    } finally {
+      setProcessingDaily(false);
+    }
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       searchUser();
@@ -542,6 +573,7 @@ const AdminPointsManagement = () => {
 
       {/* Tab 1: Set Daily Return */}
       {tabValue === 1 && (
+        <>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <Paper elevation={3} sx={{ p: 3, borderRadius: 3 }}>
@@ -694,6 +726,57 @@ const AdminPointsManagement = () => {
             </Paper>
           </Grid>
         </Grid>
+
+        {/* Process Daily Returns Button */}
+        <Paper elevation={3} sx={{ p: 3, borderRadius: 3, mt: 3, background: 'linear-gradient(135deg, #667eea22 0%, #764ba222 100%)', border: '2px solid #667eea' }}>
+          <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2}>
+            <Box>
+              <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <TrendingUp color="primary" />
+                Process Daily Returns & ROI
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Click to distribute daily returns (admin-set amounts) and investment ROI earnings to all eligible users. Credits go to My Wallet.
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={handleProcessDailyReturns}
+              disabled={processingDaily}
+              startIcon={processingDaily ? <CircularProgress size={20} color="inherit" /> : <TrendingUp />}
+              sx={{
+                py: 1.5,
+                px: 4,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #5a6fd6 0%, #6a4192 100%)',
+                },
+                fontWeight: 'bold',
+                fontSize: '1rem',
+              }}
+            >
+              {processingDaily ? 'Processing...' : 'Process Daily Returns Now'}
+            </Button>
+          </Box>
+          {processResult && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" fontWeight="bold">
+                Last Process Result: {processResult.processedUsers} users processed, {'$'}{processResult.totalDistributed?.toLocaleString()} USDT distributed
+              </Typography>
+              {processResult.details && processResult.details.length > 0 && (
+                <Box sx={{ mt: 1, maxHeight: 200, overflowY: 'auto' }}>
+                  {processResult.details.map((d, i) => (
+                    <Typography key={i} variant="body2">
+                      {'•'} {d.name} ({d.userId}): {'$'}{d.amount} ({d.source === 'admin_set' ? 'Admin Set' : 'Investment ROI'})
+                    </Typography>
+                  ))}
+                </Box>
+              )}
+            </Alert>
+          )}
+        </Paper>
+        </>
       )}
 
       {/* Tab 2: Transaction History */}

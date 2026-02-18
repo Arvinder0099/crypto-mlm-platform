@@ -652,7 +652,8 @@ const calculateEndDate = (startDate, durationDays) => {
   return endDate;
 };
 const calculateDailyEarning = (investment, dailyEarn) => {
-  return (investment * dailyEarn) / 100;
+  // dailyEarn is already the fixed dollar amount per day (e.g. $10 for GOLD plan)
+  return dailyEarn;
 };
 
 // ==================== HEALTH CHECK ====================
@@ -2386,11 +2387,12 @@ app.get('/api/investments/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// ==================== REAL-TIME EARNING CRON (Every Hour) ====================
+// ==================== INVESTMENT STATUS CHECK (Every Hour) ====================
+// NOTE: Daily earnings are NOT auto-credited. Admin must trigger via /api/admin/daily-returns/process
+// This cron only checks for expired/completed investments.
 
 cron.schedule('0 * * * *', async () => {
   try {
-    console.log('🔄 Running hourly earning calculation...');
     const activeInvestments = await Investment.find({ status: 'active' }).populate('planId userId');
     
     for (const investment of activeInvestments) {
@@ -2398,52 +2400,26 @@ cron.schedule('0 * * * *', async () => {
       const user = investment.userId;
       if (!plan || !user) continue;
       
-      const dailyEarning = calculateDailyEarning(investment.amount, plan.dailyEarn);
       const daysElapsed = Math.floor((new Date() - investment.startDate) / (1000 * 60 * 60 * 24));
       
+      // Only mark completed investments
       if (daysElapsed > plan.duration) {
         investment.status = 'completed';
         investment.daysCompleted = plan.duration;
-        investment.totalEarned = plan.totalReturn;
         await investment.save();
         
-        user.activeInvestments -= 1;
-        user.balance += plan.totalReturn;
-        user.totalEarned += plan.totalReturn;
+        user.activeInvestments = Math.max(0, (user.activeInvestments || 1) - 1);
         await user.save();
         
-        const transaction = new Transaction({
-          userId: user._id, type: 'earning', amount: plan.totalReturn, previousBalance: user.balance - plan.totalReturn,
-          newBalance: user.balance, status: 'completed', description: `Investment completed: ${plan.name}`, investmentId: investment._id,
-        });
-        await transaction.save();
+        console.log(`✅ Investment completed for ${user.email}: ${plan.name}`);
       } else {
-        if (!investment.lastEarningDate || (new Date() - investment.lastEarningDate) / (1000 * 60 * 60 * 24) >= 1) {
-          investment.dailyEarned = dailyEarning;
-          investment.totalEarned += dailyEarning;
-          investment.daysCompleted = daysElapsed;
-          investment.lastEarningDate = new Date();
-          await investment.save();
-          
-          user.utilityWallet = (user.utilityWallet || 0) + dailyEarning;
-          user.totalEarned += dailyEarning;
-          await user.save();
-          
-          const transaction = new Transaction({
-            userId: user._id, type: 'earning', amount: dailyEarning, previousBalance: (user.utilityWallet || 0) - dailyEarning,
-            newBalance: user.utilityWallet, status: 'completed', description: `Daily earning from ${plan.name}`, investmentId: investment._id,
-          });
-          await transaction.save();
-          
-          investment.earningHistory.push({ date: new Date(), amount: dailyEarning, status: 'credited' });
-          await investment.save();
-          
-          console.log(`✅ Daily earning credited to ${user.email}: ${dailyEarning}`);
-        }
+        // Just update days count, no money credited
+        investment.daysCompleted = daysElapsed;
+        await investment.save();
       }
     }
   } catch (error) {
-    console.error('❌ Earning calculation error:', error);
+    console.error('❌ Investment status check error:', error);
   }
 });
 
@@ -4694,14 +4670,19 @@ app.post('/api/admin/daily-returns/remove', authenticateToken, isAdmin, async (r
   }
 });
 
-// Process daily returns (call this daily via cron or manually)
+// Process daily returns - ADMIN TRIGGERED ONLY (no automatic processing)
+// Admin clicks "Process Daily Returns" button to distribute ROI to eligible users
 app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Find all users with active daily returns who haven't received today
-    const users = await User.find({
+    let processedCount = 0;
+    let totalDistributed = 0;
+    const results = [];
+
+    // PART 1: Process admin-set daily return amounts
+    const usersWithDailyReturn = await User.find({
       dailyReturnAmount: { $gt: 0 },
       $or: [
         { lastDailyReturnDate: { $lt: today } },
@@ -4709,44 +4690,120 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
       ]
     });
 
-    let processedCount = 0;
-    let totalDistributed = 0;
-
-    for (const user of users) {
+    for (const user of usersWithDailyReturn) {
       const amount = user.dailyReturnAmount;
-      const previousBalance = user.balance || 0;
 
-      // Add to user's balance
-      user.balance = previousBalance + amount;
+      // Credit to My Wallet (earnings wallet)
+      user.myWallet = (user.myWallet || 0) + amount;
       user.totalDailyReturnsReceived = (user.totalDailyReturnsReceived || 0) + amount;
       user.totalEarned = (user.totalEarned || 0) + amount;
+      user.todayEarning = amount;
       user.lastDailyReturnDate = new Date();
+      // Keep balance in sync
+      user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
       await user.save();
 
-      // Create transaction record
       const transaction = new Transaction({
         userId: user._id,
         type: 'daily_return',
         amount: amount,
-        description: 'Daily return credited',
+        description: `Admin daily return - $${amount} credited to My Wallet`,
         status: 'completed',
-        balanceBefore: previousBalance,
-        balanceAfter: user.balance,
+        previousBalance: (user.myWallet || 0) - amount,
+        newBalance: user.myWallet,
         processedAt: new Date()
       });
       await transaction.save();
 
+      results.push({ userId: user.userId, name: `${user.firstName} ${user.lastName}`, amount, source: 'admin_set' });
       processedCount++;
       totalDistributed += amount;
     }
 
-    console.log(`Daily returns processed: ${processedCount} users, $${totalDistributed} total`);
+    // PART 2: Process investment-based daily earnings (ROI)
+    const activeInvestments = await Investment.find({ status: 'active' }).populate('planId userId');
+    
+    // Group earnings by user to avoid multiple saves
+    const userEarnings = {};
+    
+    for (const investment of activeInvestments) {
+      const plan = investment.planId;
+      const user = investment.userId;
+      if (!plan || !user) continue;
+      
+      const daysElapsed = Math.floor((new Date() - investment.startDate) / (1000 * 60 * 60 * 24));
+      
+      // Skip if investment is past duration
+      if (daysElapsed > plan.duration) continue;
+      
+      // Skip if already earned today
+      if (investment.lastEarningDate) {
+        const lastEarnDate = new Date(investment.lastEarningDate);
+        lastEarnDate.setHours(0, 0, 0, 0);
+        if (lastEarnDate >= today) continue;
+      }
+      
+      // dailyEarn is the fixed dollar amount per day
+      const dailyEarning = plan.dailyEarn;
+      
+      // Update investment record
+      investment.dailyEarned = dailyEarning;
+      investment.totalEarned = (investment.totalEarned || 0) + dailyEarning;
+      investment.daysCompleted = daysElapsed;
+      investment.lastEarningDate = new Date();
+      investment.earningHistory.push({ date: new Date(), amount: dailyEarning, status: 'credited' });
+      await investment.save();
+      
+      // Accumulate per user
+      const uid = user._id.toString();
+      if (!userEarnings[uid]) {
+        userEarnings[uid] = { user, total: 0, details: [] };
+      }
+      userEarnings[uid].total += dailyEarning;
+      userEarnings[uid].details.push({ planName: plan.name, amount: dailyEarning, investmentId: investment._id });
+    }
+    
+    // Credit accumulated earnings to each user's My Wallet
+    for (const uid of Object.keys(userEarnings)) {
+      const { user, total, details } = userEarnings[uid];
+      
+      // Skip if this user already got admin-set daily return (avoid double processing)
+      // Investment earnings are separate from admin-set daily returns
+      const freshUser = await User.findById(user._id);
+      
+      freshUser.myWallet = (freshUser.myWallet || 0) + total;
+      freshUser.totalEarned = (freshUser.totalEarned || 0) + total;
+      freshUser.todayEarning = (freshUser.todayEarning || 0) + total;
+      freshUser.balance = (freshUser.myWallet || 0) + (freshUser.fundWallet || 0) + (freshUser.utilityWallet || 0);
+      await freshUser.save();
+      
+      // Create one transaction per investment
+      for (const detail of details) {
+        const transaction = new Transaction({
+          userId: freshUser._id,
+          type: 'earning',
+          amount: detail.amount,
+          description: `Daily ROI from ${detail.planName} - $${detail.amount} credited to My Wallet`,
+          status: 'completed',
+          investmentId: detail.investmentId,
+          processedAt: new Date()
+        });
+        await transaction.save();
+      }
+      
+      results.push({ userId: freshUser.userId, name: `${freshUser.firstName} ${freshUser.lastName}`, amount: total, source: 'investment_roi' });
+      processedCount++;
+      totalDistributed += total;
+    }
+
+    console.log(`✅ Daily returns processed by admin: ${processedCount} users, $${totalDistributed} total`);
 
     res.json({
       success: true,
-      message: `Daily returns processed`,
+      message: `Daily returns processed for ${processedCount} users`,
       processedUsers: processedCount,
-      totalDistributed: totalDistributed
+      totalDistributed: totalDistributed,
+      details: results
     });
   } catch (error) {
     console.error('Process daily returns error:', error);
@@ -4754,56 +4811,7 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
   }
 });
 
-// Auto-process daily returns (runs every 24 hours)
-const processDailyReturnsAutomatically = async () => {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const users = await User.find({
-      dailyReturnAmount: { $gt: 0 },
-      $or: [
-        { lastDailyReturnDate: { $lt: today } },
-        { lastDailyReturnDate: null }
-      ]
-    });
-
-    for (const user of users) {
-      const amount = user.dailyReturnAmount;
-      const previousBalance = user.balance || 0;
-
-      user.balance = previousBalance + amount;
-      user.totalDailyReturnsReceived = (user.totalDailyReturnsReceived || 0) + amount;
-      user.totalEarned = (user.totalEarned || 0) + amount;
-      user.lastDailyReturnDate = new Date();
-      await user.save();
-
-      const transaction = new Transaction({
-        userId: user._id,
-        type: 'daily_return',
-        amount: amount,
-        description: 'Daily return credited',
-        status: 'completed',
-        balanceBefore: previousBalance,
-        balanceAfter: user.balance,
-        processedAt: new Date()
-      });
-      await transaction.save();
-    }
-
-    if (users.length > 0) {
-      console.log(`✅ Auto-processed daily returns for ${users.length} users`);
-    }
-  } catch (error) {
-    console.error('Auto daily returns error:', error);
-  }
-};
-
-// Run daily returns every 24 hours (86400000 ms)
-setInterval(processDailyReturnsAutomatically, 24 * 60 * 60 * 1000);
-
-// Also run once on server start (after 10 seconds to ensure DB connection)
-setTimeout(processDailyReturnsAutomatically, 10000);
+// NOTE: No automatic daily return processing - admin must trigger manually
 
 // ==================== ADMIN REPORTS API ====================
 
