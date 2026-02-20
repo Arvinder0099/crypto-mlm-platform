@@ -63,8 +63,8 @@ const EditProfile = () => {
       if (response.ok) {
         setSnack({ open: true, message: 'Profile updated successfully', severity: 'success' });
         // Update local user data if needed
-        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-        localStorage.setItem('user', JSON.stringify({ ...currentUser, ...data.user }));
+        const currentUser = JSON.parse(localStorage.getItem('userData') || '{}');
+        localStorage.setItem('userData', JSON.stringify({ ...currentUser, ...data.user }));
       } else {
         throw new Error(data.message || 'Failed to update profile');
       }

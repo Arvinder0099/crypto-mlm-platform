@@ -339,10 +339,10 @@ const Dashboard = () => {
       })
       .catch((err) => console.warn('Failed to load referrals', err?.message || err));
     
-    // Set referral link with user ID
-    const userData = JSON.parse(localStorage.getItem('user') || '{}');
-    const userId = userData.userId || userData._id || '';
-    setReferral(`${window.location.origin}/register?ref=${userId}`);
+    // Set referral link with referral code
+    const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+    const refCode = userData.referralCode || userData.userId || '';
+    setReferral(`${window.location.origin}/register?ref=${refCode}`);
   }, []);
 
   const copyReferral = async () => {

@@ -97,7 +97,7 @@ const Activation = () => {
       console.error('Failed to fetch data:', error);
       setPlans(defaultPlans);
       try {
-        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
         setFundWalletBalance(userData.fundWallet || 0);
       } catch (e) {
         console.error('Could not get user balance', e);

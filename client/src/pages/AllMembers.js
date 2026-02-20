@@ -87,7 +87,7 @@ const AllMembers = () => {
     setProcessing(true);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_BASE}/api/admin/users/${statusDialog.member._id}/status`, {
+      const response = await fetch(`${API_BASE}/api/admin/users/${statusDialog.member.id || statusDialog.member._id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

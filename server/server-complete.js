@@ -742,7 +742,7 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
     
     let referrerId = null;
     if (referralCode) {
-      const referrer = await User.findOne({ referralCode });
+      const referrer = await User.findOne({ referralCode: { $regex: new RegExp('^' + referralCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') } });
       if (referrer) referrerId = referrer._id;
     }
     
@@ -867,7 +867,7 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
 app.get('/api/auth/check-referral/:code', async (req, res) => {
   try {
     const { code } = req.params;
-    const referrer = await User.findOne({ referralCode: code });
+    const referrer = await User.findOne({ referralCode: { $regex: new RegExp('^' + code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') } });
     
     if (referrer) {
       res.json({
@@ -1110,7 +1110,7 @@ app.post('/api/auth/login', rateLimiters.auth, bruteForceProtection, async (req,
       success: true,
       message: 'Login successful', 
       token,
-      user: { id: user._id, userId: user.userId, firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role, balance: user.balance, totalEarned: user.totalEarned, totalInvested: user.totalInvested },
+      user: { id: user._id, userId: user.userId, firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role, balance: user.balance, totalEarned: user.totalEarned, totalInvested: user.totalInvested, referralCode: user.referralCode, status: user.status },
     });
   } catch (error) {
     res.status(500).json({ message: 'Login failed' });
@@ -4327,7 +4327,7 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
 
         // Referral Info
         referralCode: user.referralCode,
-        referralLink: `https://hexanova.net/register?ref=${user.userId}`
+        referralLink: `https://hexanova.net/register?ref=${user.referralCode}`
       }
     });
   } catch (error) {
@@ -4986,7 +4986,7 @@ app.get('/api/admin/withdrawals/pending', authenticateToken, isAdmin, async (req
 // Get APPROVED withdrawals - REAL DATA
 app.get('/api/admin/withdrawals/approved', authenticateToken, isAdmin, async (req, res) => {
   try {
-    const approvedWithdrawals = await Withdrawal.find({ status: 'approved' })
+    const approvedWithdrawals = await Withdrawal.find({ status: { $in: ['approved', 'completed'] } })
       .populate('userId', 'userId firstName lastName email')
       .sort({ approvedAt: -1 })
       .limit(100);
@@ -7087,7 +7087,7 @@ app.get('/api/support/faqs', authenticateToken, async (req, res) => {
   try {
     const faqs = [
       { id: 1, question: 'How do I reset my password?', answer: 'Go to Settings > Security > Change Password.' },
-      { id: 2, question: 'Why is my withdrawal pending?', answer: 'Withdrawals are processed within 24hexanova after admin approval.' },
+      { id: 2, question: 'Why is my withdrawal pending?', answer: 'Withdrawals are processed within 24 hours after admin approval.' },
       { id: 3, question: 'How to contact support?', answer: 'Create a support ticket or email support@hexanova.net.' }
     ];
     res.json({ success: true, data: faqs });
@@ -7384,7 +7384,7 @@ app.post('/api/chat/close', authenticateToken, async (req, res) => {
 });
 
 // ADMIN: Get all chats
-app.get('/api/admin/chats', authenticateToken, async (req, res) => {
+app.get('/api/admin/chats', authenticateToken, isAdmin, async (req, res) => {
   try {
     console.log('📥 Admin chats request, user role:', req.user.role);
     
@@ -7465,7 +7465,7 @@ app.get('/api/admin/chats', authenticateToken, async (req, res) => {
 });
 
 // ADMIN: Get specific chat messages
-app.get('/api/admin/chats/:chatId', authenticateToken, async (req, res) => {
+app.get('/api/admin/chats/:chatId', authenticateToken, isAdmin, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Admin access required' });
@@ -7525,7 +7525,7 @@ app.get('/api/admin/chats/:chatId', authenticateToken, async (req, res) => {
 });
 
 // ADMIN: Reply to chat
-app.post('/api/admin/chats/:chatId/reply', authenticateToken, async (req, res) => {
+app.post('/api/admin/chats/:chatId/reply', authenticateToken, isAdmin, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Admin access required' });
@@ -7579,7 +7579,7 @@ app.post('/api/admin/chats/:chatId/reply', authenticateToken, async (req, res) =
 });
 
 // ADMIN: Update chat status
-app.patch('/api/admin/chats/:chatId/status', authenticateToken, async (req, res) => {
+app.patch('/api/admin/chats/:chatId/status', authenticateToken, isAdmin, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Admin access required' });
@@ -7631,19 +7631,6 @@ app.get('/api/chat/unread-count', authenticateToken, async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error fetching unread count' });
   }
-});
-
-// ==================== ERROR HANDLING ====================
-
-// Catch 404 - unknown routes
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ message: 'Endpoint not found' });
-});
-
-app.use((err, req, res, next) => {
-  // Log error internally but never expose to client
-  console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
-  res.status(err.status || 500).json({ message: 'Something went wrong. Please try again.' });
 });
 
 // ==================== HELP CONFIG ROUTES ====================
@@ -7773,9 +7760,9 @@ initializeAnnouncement();
 app.get('/api/admin/overview-stats', authenticateToken, isAdmin, async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
-    const activeMembers = await User.countDocuments({ isActive: true });
+    const activeMembers = await User.countDocuments({ status: 'active' });
     const totalInvestments = await Investment.aggregate([{ $group: { _id: null, total: { $sum: '$amount' } } }]);
-    const totalWithdrawals = await Withdrawal.aggregate([{ $match: { status: 'approved' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]);
+    const totalWithdrawals = await Withdrawal.aggregate([{ $match: { status: { $in: ['approved', 'completed'] } } }, { $group: { _id: null, total: { $sum: '$amount' } } }]);
     res.json({
       success: true,
       data: {
@@ -7793,14 +7780,14 @@ app.get('/api/admin/overview-stats', authenticateToken, isAdmin, async (req, res
 // /api/admin/top-performers — used by ReportsAnalytics.js
 app.get('/api/admin/top-performers', authenticateToken, isAdmin, async (req, res) => {
   try {
-    const topUsers = await User.find({ isActive: true })
-      .sort({ 'wallet.totalIncome': -1 })
+    const topUsers = await User.find({ status: 'active' })
+      .sort({ totalEarned: -1 })
       .limit(10)
-      .select('userId fullName username wallet rank');
+      .select('userId firstName lastName totalEarned rank');
     const data = topUsers.map(u => ({
-      name: u.fullName || u.username || u.userId,
+      name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.userId,
       rank: u.rank || 'Member',
-      earnings: u.wallet?.totalIncome || 0,
+      earnings: u.totalEarned || 0,
       teamSize: 0
     }));
     res.json({ success: true, data });
@@ -7832,28 +7819,28 @@ app.get('/api/mlm/summary', authenticateToken, async (req, res) => {
     const user = await User.findById(req.user.id || req.user.userId);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    const directs = await User.find({ referredBy: user.userId }).select('userId fullName username isActive createdAt');
+    const directs = await User.find({ referredBy: user._id }).select('_id firstName lastName status createdAt');
     const investments = await Investment.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5);
     const deposits = await Deposit.find({ userId: user._id }).sort({ createdAt: -1 }).limit(5);
 
     const levels = [];
-    let currentLevel = [user.userId];
+    let currentLevel = [user._id];
     for (let lvl = 1; lvl <= 5; lvl++) {
-      const refs = await User.find({ referredBy: { $in: currentLevel } }).select('userId isActive');
+      const refs = await User.find({ referredBy: { $in: currentLevel } }).select('_id status');
       if (refs.length === 0) break;
       levels.push({
         level: lvl,
         members: refs.length,
-        active: refs.filter(r => r.isActive).length
+        active: refs.filter(r => r.status === 'active').length
       });
-      currentLevel = refs.map(r => r.userId);
+      currentLevel = refs.map(r => r._id);
     }
 
     res.json({
       success: true,
       data: {
         totalDirects: directs.length,
-        activeDirects: directs.filter(d => d.isActive).length,
+        activeDirects: directs.filter(d => d.status === 'active').length,
         levels,
         recentActivations: investments.map(i => ({
           userId: i.userId,
@@ -7899,6 +7886,19 @@ app.get('/api/products', authenticateToken, async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
+});
+
+// ==================== ERROR HANDLING ====================
+
+// Catch 404 - unknown routes (MUST be after all route definitions)
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ message: 'Endpoint not found' });
+});
+
+app.use((err, req, res, next) => {
+  // Log error internally but never expose to client
+  console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
+  res.status(err.status || 500).json({ message: 'Something went wrong. Please try again.' });
 });
 
 // ==================== SERVER START ====================

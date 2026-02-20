@@ -48,7 +48,7 @@ const ReferralBonus = () => {
   const [copied, setCopied] = useState(false);
 
   // Get referral link
-  const userData = JSON.parse(localStorage.getItem('user') || '{}');
+  const userData = JSON.parse(localStorage.getItem('userData') || '{}');
   const referralLink = `${window.location.origin}/register?ref=${userData.referralCode || userData.userId || ''}`;
 
   useEffect(() => {

@@ -117,8 +117,8 @@ const Dashboard = () => {
       } catch (err) {
         console.warn('Failed to load dashboard stats', err?.message || err);
         // Set referral from localStorage fallback
-        const userData = JSON.parse(localStorage.getItem('user') || '{}');
-        setReferral(`https://hexanova.net/register?ref=${userData.userId || userData._id || ''}`);
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        setReferral(`https://hexanova.net/register?ref=${userData.referralCode || userData.userId || ''}`);
       }
 
       try {
