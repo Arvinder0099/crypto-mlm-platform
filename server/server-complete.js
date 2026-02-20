@@ -45,7 +45,7 @@ app.use(helmet({
 // CORS - restrict origins in production
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ['https://hexanova.net', 'https://www.hexanova.net'];
+  : ['https://hexanova.net', 'https://www.hexanova.net', 'http://localhost', 'https://localhost', 'capacitor://localhost', 'ionic://localhost'];
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -102,6 +102,33 @@ app.use('/uploads', (req, res, next) => {
   index: false,
   maxAge: '1d',
 }));
+
+// Serve APK download
+app.get('/download/app', (req, res) => {
+  const apkPath = path.join(__dirname, 'downloads', 'Hexanova.apk');
+  if (!require('fs').existsSync(apkPath)) {
+    return res.status(404).json({ message: 'APK not found' });
+  }
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.setHeader('Content-Disposition', 'attachment; filename="Hexanova.apk"');
+  res.sendFile(apkPath);
+});
+
+// APK info endpoint
+app.get('/api/app/info', (req, res) => {
+  const apkPath = path.join(__dirname, 'downloads', 'Hexanova.apk');
+  const fs = require('fs');
+  if (!fs.existsSync(apkPath)) {
+    return res.json({ available: false });
+  }
+  const stats = fs.statSync(apkPath);
+  res.json({
+    available: true,
+    version: '1.0',
+    size: (stats.size / (1024 * 1024)).toFixed(2) + ' MB',
+    lastUpdated: stats.mtime.toISOString().split('T')[0],
+  });
+});
 
 // Health check root route - minimal info
 app.get('/', (req, res) => {

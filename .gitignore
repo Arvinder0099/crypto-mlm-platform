@@ -36,6 +36,7 @@ tmp-input.txt
 client/android/.gradle/
 client/android/app/build/
 client/android/capacitor-cordova-android-plugins/build/
+apk-output/
 
 # Test files
 test-*.js

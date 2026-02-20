@@ -1,4 +1,4 @@
-package com.cryptomlmplatform.app;
+package com.hexanova.app;
 
 import com.getcapacitor.BridgeActivity;
 

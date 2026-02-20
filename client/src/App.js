@@ -6,6 +6,7 @@ import { Box, CircularProgress } from '@mui/material';
 import GlobalStyles from '@mui/material/GlobalStyles';
 
 // Import pages
+import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -466,6 +467,9 @@ function AppContent() {
   return (
     <Router>
       <Routes>
+        {/* Landing page - App or Web chooser */}
+        <Route path="/" element={<LandingPage />} />
+        
         {/* Auth routes - no layout */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -596,7 +600,7 @@ function AppContent() {
                 {/* KYC admin route removed (KYC disabled) */}
                 <Route path="/mlm" element={<MLMDashboard />} />
                 
-                <Route path="*" element={<Navigate to="/mlm" replace />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </UnifiedLayout>
           </ProtectedRoute>

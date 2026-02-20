@@ -30,6 +30,8 @@ import {
   Groups,
   CheckCircle,
   CurrencyBitcoin,
+  PhoneAndroid,
+  CloudDownload,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -833,6 +835,45 @@ const Login = () => {
                         {badge}
                       </Typography>
                     ))}
+                  </Box>
+
+                  {/* Download App Banner */}
+                  <Box
+                    onClick={() => {
+                      const apiBase = process.env.REACT_APP_API_URL || '';
+                      window.location.href = `${apiBase}/download/app`;
+                    }}
+                    sx={{
+                      mt: 2.5, p: 2, borderRadius: 2.5, cursor: 'pointer',
+                      background: 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.04) 100%)',
+                      border: '1px solid rgba(16,185,129,0.2)',
+                      display: 'flex', alignItems: 'center', gap: 2,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(16,185,129,0.08) 100%)',
+                        border: '1px solid rgba(16,185,129,0.4)',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 15px rgba(16,185,129,0.15)',
+                      },
+                    }}
+                  >
+                    <Box sx={{
+                      width: 44, height: 44, borderRadius: 2, flexShrink: 0,
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
+                    }}>
+                      <PhoneAndroid sx={{ fontSize: 22, color: 'white' }} />
+                    </Box>
+                    <Box sx={{ flex: 1, textAlign: 'left' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: '#059669', lineHeight: 1.3 }}>
+                        Download Android App
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        Get faster access with the native app
+                      </Typography>
+                    </Box>
+                    <CloudDownload sx={{ fontSize: 22, color: '#10b981' }} />
                   </Box>
 
                   {twoFARequired && (
