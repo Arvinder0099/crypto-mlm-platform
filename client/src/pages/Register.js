@@ -423,7 +423,7 @@ function Register() {
 
   // Send Phone OTP — server sends real SMS to the user
   const sendPhoneOtp = async () => {
-    if (!formData.phone || formData.phone.length < 10) {
+    if (!formData.phone || formData.phone.length < 7) {
       setFieldErrors(prev => ({ ...prev, phone: 'Enter a valid phone number first' }));
       return;
     }
