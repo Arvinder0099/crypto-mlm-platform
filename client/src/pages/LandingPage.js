@@ -82,7 +82,15 @@ const LandingPage = () => {
   const handleDownloadApp = () => {
     setDownloading(true);
     const apiBase = process.env.REACT_APP_API_URL || '';
-    window.location.href = `${apiBase}/download/app`;
+    // Use an anchor element with download attribute to prevent page navigation
+    const link = document.createElement('a');
+    link.href = `${apiBase}/download/app`;
+    link.setAttribute('download', 'Hexanova.apk');
+    link.setAttribute('target', '_blank');
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     setTimeout(() => setDownloading(false), 3000);
   };
 

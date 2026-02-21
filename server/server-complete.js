@@ -107,10 +107,14 @@ app.use('/uploads', (req, res, next) => {
 app.get('/download/app', (req, res) => {
   const apkPath = path.join(__dirname, 'downloads', 'Hexanova.apk');
   if (!require('fs').existsSync(apkPath)) {
-    return res.status(404).json({ message: 'APK not found' });
+    return res.status(404).json({ message: 'APK not found. Please contact support.' });
   }
+  const stats = require('fs').statSync(apkPath);
   res.setHeader('Content-Type', 'application/vnd.android.package-archive');
   res.setHeader('Content-Disposition', 'attachment; filename="Hexanova.apk"');
+  res.setHeader('Content-Length', stats.size);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-cache');
   res.sendFile(apkPath);
 });
 
