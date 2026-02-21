@@ -4244,14 +4244,21 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
     const totalInvested = user.totalInvested || allInvestments.reduce((sum, inv) => sum + (inv.amount || 0), 0);
     const totalEarned = user.totalEarned || allInvestments.reduce((sum, inv) => sum + (inv.earned || 0), 0);
     
-    // Calculate daily earning based on active investments + admin-set daily return
-    let dailyEarning = user.dailyReturnAmount || 0; // Start with admin-set daily return
-    activeInvestments.forEach(inv => {
-      if (inv.planId) {
-        // dailyEarn is a fixed USDT amount (not a percentage)
-        dailyEarning += (inv.planId.dailyEarn || inv.dailyEarned || 0);
-      }
-    });
+    // Calculate daily earning — use ONE source only:
+    // If admin has set dailyReturnAmount → show that
+    // Otherwise → sum investment-based ROI from active plans
+    let dailyEarning = 0;
+    if (user.dailyReturnAmount && user.dailyReturnAmount > 0) {
+      // Admin-set daily return takes priority (does NOT stack with investment ROI)
+      dailyEarning = user.dailyReturnAmount;
+    } else {
+      // No admin-set return, use investment-based ROI
+      activeInvestments.forEach(inv => {
+        if (inv.planId) {
+          dailyEarning += (inv.planId.dailyEarn || inv.dailyEarned || 0);
+        }
+      });
+    }
 
     // Get pending withdrawals
     const pendingWithdrawals = await Withdrawal.find({ userId: req.user.id, status: 'pending' });
@@ -4703,6 +4710,10 @@ app.post('/api/admin/daily-returns/remove', authenticateToken, isAdmin, async (r
 
 // Process daily returns - ADMIN TRIGGERED ONLY (no automatic processing)
 // Admin clicks "Process Daily Returns" button to distribute ROI to eligible users
+// RULE: Each user gets ONLY ONE source of daily income:
+//   - If admin has set dailyReturnAmount for a user → use that (PART 1)
+//   - Otherwise → use investment-based ROI from their active plans (PART 2)
+//   - They NEVER stack together
 app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (req, res) => {
   try {
     const today = new Date();
@@ -4711,6 +4722,9 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
     let processedCount = 0;
     let totalDistributed = 0;
     const results = [];
+    
+    // Track users who got admin-set daily return so we skip them in PART 2
+    const usersWithAdminReturn = new Set();
 
     // PART 1: Process admin-set daily return amounts
     const usersWithDailyReturn = await User.find({
@@ -4728,17 +4742,20 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
       user.myWallet = (user.myWallet || 0) + amount;
       user.totalDailyReturnsReceived = (user.totalDailyReturnsReceived || 0) + amount;
       user.totalEarned = (user.totalEarned || 0) + amount;
-      user.todayEarning = amount;
+      user.todayEarning = amount; // Reset to today's amount (not accumulate)
       user.lastDailyReturnDate = new Date();
       // Keep balance in sync
       user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
       await user.save();
+      
+      // Mark this user so PART 2 skips them
+      usersWithAdminReturn.add(user._id.toString());
 
       const transaction = new Transaction({
         userId: user._id,
         type: 'daily_return',
         amount: amount,
-        description: `Admin daily return - $${amount} credited to My Wallet`,
+        description: `Daily return - $${amount} credited to My Wallet`,
         status: 'completed',
         previousBalance: (user.myWallet || 0) - amount,
         newBalance: user.myWallet,
@@ -4752,6 +4769,7 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
     }
 
     // PART 2: Process investment-based daily earnings (ROI)
+    // ONLY for users who do NOT have an admin-set dailyReturnAmount
     const activeInvestments = await Investment.find({ status: 'active' }).populate('planId userId');
     
     // Group earnings by user to avoid multiple saves
@@ -4761,6 +4779,13 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
       const plan = investment.planId;
       const user = investment.userId;
       if (!plan || !user) continue;
+      
+      // SKIP users who already got admin-set daily return (prevents stacking)
+      const uid = user._id.toString();
+      if (usersWithAdminReturn.has(uid)) continue;
+      
+      // Also skip users who have dailyReturnAmount > 0 (already processed or will be)
+      if (user.dailyReturnAmount && user.dailyReturnAmount > 0) continue;
       
       const daysElapsed = Math.floor((new Date() - investment.startDate) / (1000 * 60 * 60 * 24));
       
@@ -4786,7 +4811,6 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
       await investment.save();
       
       // Accumulate per user
-      const uid = user._id.toString();
       if (!userEarnings[uid]) {
         userEarnings[uid] = { user, total: 0, details: [] };
       }
@@ -4797,14 +4821,11 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
     // Credit accumulated earnings to each user's My Wallet
     for (const uid of Object.keys(userEarnings)) {
       const { user, total, details } = userEarnings[uid];
-      
-      // Skip if this user already got admin-set daily return (avoid double processing)
-      // Investment earnings are separate from admin-set daily returns
       const freshUser = await User.findById(user._id);
       
       freshUser.myWallet = (freshUser.myWallet || 0) + total;
       freshUser.totalEarned = (freshUser.totalEarned || 0) + total;
-      freshUser.todayEarning = (freshUser.todayEarning || 0) + total;
+      freshUser.todayEarning = total; // Set to today's amount (not accumulate)
       freshUser.balance = (freshUser.myWallet || 0) + (freshUser.fundWallet || 0) + (freshUser.utilityWallet || 0);
       await freshUser.save();
       

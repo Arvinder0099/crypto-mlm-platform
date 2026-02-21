@@ -5,6 +5,7 @@ import {
   MenuItem, Divider, Chip
 } from '@mui/material';
 import { AccountBalanceWallet, Send, Warning, CheckCircle } from '@mui/icons-material';
+import notificationService from '../services/notificationService';
 
 const WithdrawalRequest = () => {
   const [loading, setLoading] = useState(true);
@@ -189,6 +190,8 @@ const WithdrawalRequest = () => {
           message: `Withdrawal request submitted! Request ID: ${data.requestId}`, 
           severity: 'success' 
         });
+        // Send notification
+        notificationService.notifyWithdrawal(parseFloat(form.amount) || 0, 'submitted').catch(() => {});
         setForm({ amount: '', walletAddress: form.walletAddress, selectedAddress: form.selectedAddress, otp: '' });
         setUserBalance(data.newBalance);
       } else {

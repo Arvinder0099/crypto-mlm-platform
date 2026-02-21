@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Box, Typography, TextField, Button, Grid, Snackbar, Alert, Paper, Select, FormControl, MenuItem, InputLabel, Card, CardContent, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip, Chip, alpha } from '@mui/material';
 import { fetchJSON } from '../utils/api';
 import { Warning, Info, Email, Send, Verified, CheckCircle } from '@mui/icons-material';
+import notificationService from '../services/notificationService';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
 
@@ -159,6 +160,11 @@ const Activation = () => {
           message: `Successfully invested in ${data.investment.planName}! Your daily earning: ${data.investment.dailyReturn} USDT`, 
           severity: 'success' 
         });
+        // Send mobile notification
+        notificationService.notifyActivation(
+          data.investment.planName, 
+          data.investment.amount
+        ).catch(() => {});
         // Reset form
         setSelectedPlanId('');
         setOtpVerified(false);

@@ -31,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../contexts/AuthContext';
+import notificationService from '../services/notificationService';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
 
@@ -237,6 +238,8 @@ const Deposit = () => {
       const data = await response.json();
       if (response.ok) {
         setSnack({ open: true, message: 'Deposit request submitted successfully! Admin will review and approve.', severity: 'success' });
+        // Send notification
+        notificationService.notifyDeposit(parseFloat(form.amount) || 0).catch(() => {});
         setForm({ amount: '', transactionHash: '', otp: '', slip: null });
         setPreviewUrl(null);
       } else {

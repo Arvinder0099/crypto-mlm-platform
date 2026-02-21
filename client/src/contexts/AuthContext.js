@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 
 // Add API helper for token verification
 import { fetchWithAuth } from '../utils/api';
+import notificationService from '../services/notificationService';
 
 const AuthContext = createContext();
 
@@ -144,6 +145,9 @@ export const AuthProvider = ({ children }) => {
     setUser(safeUserData);
     setIsAuthenticated(true);
     scheduleAutoLogout(token);
+    
+    // Send welcome notification on login (non-blocking)
+    notificationService.notifyWelcome(safeUserData.firstName || 'User').catch(() => {});
   };
 
   const logout = useCallback(() => {

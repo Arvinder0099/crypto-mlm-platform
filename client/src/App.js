@@ -125,6 +125,8 @@ import UnifiedLayout from './layouts/UnifiedLayout';
 import SecurityProvider from './components/SecurityProvider';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import NotificationPermission from './components/NotificationPermission';
+import notificationService from './services/notificationService';
 
 const theme = createTheme({
   palette: {
@@ -451,6 +453,11 @@ function App() {
 function AppContent() {
   const { isAuthenticated, loading } = useAuth();
 
+  // Initialize notification service on mount
+  React.useEffect(() => {
+    notificationService.initialize().catch(console.error);
+  }, []);
+
   if (loading) {
     return (
       <Box 
@@ -477,6 +484,8 @@ function AppContent() {
         {/* All other routes use UnifiedLayout */}
         <Route path="/*" element={
           <ProtectedRoute>
+            {/* Notification permission prompt - shows once after login on mobile */}
+            <NotificationPermission />
             <UnifiedLayout>
               <Routes>
                 {/* Root: role-based redirect */}
