@@ -104,7 +104,7 @@ app.use('/uploads', (req, res, next) => {
 }));
 
 // Serve APK download
-app.get('/download/app', (req, res) => {
+app.get('/api/download/app', (req, res) => {
   const apkPath = path.join(__dirname, 'downloads', 'Hexanova.apk');
   if (!require('fs').existsSync(apkPath)) {
     return res.status(404).json({ message: 'APK not found. Please contact support.' });

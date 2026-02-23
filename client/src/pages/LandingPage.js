@@ -84,7 +84,7 @@ const LandingPage = () => {
     const apiBase = process.env.REACT_APP_API_URL || '';
     // Use an anchor element with download attribute to prevent page navigation
     const link = document.createElement('a');
-    link.href = `${apiBase}/download/app`;
+    link.href = `${apiBase}/api/download/app`;
     link.setAttribute('download', 'Hexanova.apk');
     link.setAttribute('target', '_blank');
     link.rel = 'noopener noreferrer';
