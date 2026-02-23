@@ -127,6 +127,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import NotificationPermission from './components/NotificationPermission';
 import notificationService from './services/notificationService';
+import { Capacitor } from '@capacitor/core';
 
 const theme = createTheme({
   palette: {
@@ -474,8 +475,8 @@ function AppContent() {
   return (
     <Router>
       <Routes>
-        {/* Landing page - App or Web chooser */}
-        <Route path="/" element={<LandingPage />} />
+        {/* Landing page - only shown on web; native app goes straight to login */}
+        <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/login" replace /> : <LandingPage />} />
         
         {/* Auth routes - no layout */}
         <Route path="/login" element={<Login />} />
