@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody, Stack, TextField, FormControl, InputLabel, Select, MenuItem, Button, TablePagination, TableContainer, Alert, CircularProgress } from '@mui/material';
+import { Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody, Stack, TextField, FormControl, InputLabel, Select, MenuItem, Button, TablePagination, TableContainer, Alert, CircularProgress, Chip } from '@mui/material';
 
 function toCSV(data) {
   const headers = ['S.No','User ID','Downline User ID','Investment ($)','Level','Income %','Amount Earned ($)','Credit On','Wallet Type','Status'];
@@ -113,7 +113,8 @@ const DailyLevelIncome = () => {
           <Button variant="contained" onClick={handleExport}>Export CSV</Button>
         </Stack>
       </Paper>
-      <Paper>
+      {/* Desktop Table (hidden on small screens) */}
+      <Paper sx={{ display: { xs: 'none', md: 'block' } }}>
         <TableContainer component={Paper}>
           <Table size="small">
            <TableHead>
@@ -147,8 +148,31 @@ const DailyLevelIncome = () => {
              ))}
            </TableBody>
            </Table>
-           </TableContainer>
-           <TablePagination
+        </TableContainer>
+      </Paper>
+
+      {/* Mobile Card List (visible on xs/sm) */}
+      <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+        <Stack spacing={1.5}>
+          {paginated.map((r, i) => (
+            <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="subtitle2" sx={{ wordBreak: 'break-word' }}>Downline: {r.downlineUserId}</Typography>
+                <Chip label={r.status} size="small" color={r.status === 'Credited' ? 'success' : 'warning'} />
+              </Box>
+              <Typography variant="body2" color="text.secondary">Level {r.level} • {r.incomePct}% • {r.creditOn}</Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                <Chip size="small" variant="outlined" label={`Investment: $${r.investment}`} />
+                <Chip size="small" variant="outlined" label={`Earned: $${r.amountEarned}`} color="success" />
+                <Chip size="small" variant="outlined" label={r.walletType} />
+              </Box>
+            </Paper>
+          ))}
+        </Stack>
+      </Box>
+
+      {/* Shared Pagination */}
+      <TablePagination
            component="div"
            count={filtered.length}
            page={page}
@@ -157,7 +181,6 @@ const DailyLevelIncome = () => {
            onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
            rowsPerPageOptions={[5, 10, 25]}
          />
-         </Paper>
         </>
       )}
     </Box>

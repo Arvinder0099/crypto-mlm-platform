@@ -113,7 +113,7 @@ const RankIncome = () => {
       </Paper>
       <Paper>
         {/* Mobile-friendly cards (show on small screens) */}
-        <Box sx={{ display: { xs: 'block', sm: 'none' }, p: 2 }}>
+        <Box sx={{ display: { xs: 'block', md: 'none' }, p: 2 }}>
           <Stack spacing={2}>
             {paginated.map((r, i) => (
               <Paper variant="outlined" sx={{ p: 2 }} key={i}>
@@ -129,7 +129,7 @@ const RankIncome = () => {
         </Box>
 
         {/* Original table (hide on small screens) */}
-        <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
           <TableContainer component={Paper}>
             <Table size="small">
                <TableHead>

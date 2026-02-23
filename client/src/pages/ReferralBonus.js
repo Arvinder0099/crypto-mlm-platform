@@ -316,68 +316,113 @@ const ReferralBonus = () => {
             />
           </Box>
 
-          <TableContainer component={Paper} variant="outlined">
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                  <TableCell sx={{ fontWeight: 'bold' }}>User</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Joined Date</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="center">Bonus %</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="right">Bonus Amount</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }} align="center">Status</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredBonuses.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">
-                        {searchTerm ? 'No matching referrals found' : 'No referrals yet. Share your link to start earning!'}
-                      </Typography>
-                    </TableCell>
+          {/* Desktop Table */}
+          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                    <TableCell sx={{ fontWeight: 'bold' }}>User</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Joined Date</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }} align="center">Bonus %</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }} align="right">Bonus Amount</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }} align="center">Status</TableCell>
                   </TableRow>
-                ) : (
-                  filteredBonuses.map((bonus) => (
-                    <TableRow key={bonus.id} hover>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                            {bonus.referredUser?.name?.charAt(0) || 'U'}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight="600">
-                              {bonus.referredUser?.name || 'N/A'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {bonus.referredUser?.userId || ''}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>{bonus.referredUser?.email || 'N/A'}</TableCell>
-                      <TableCell>
-                        {bonus.referredUser?.joinedAt 
-                          ? new Date(bonus.referredUser.joinedAt).toLocaleDateString()
-                          : 'N/A'}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Chip size="small" label={`${bonus.bonusPercentage}%`} color="info" />
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography fontWeight="600" color={bonus.status === 'credited' ? 'success.main' : 'text.secondary'}>
-                          ${(bonus.bonusAmount || 0).toFixed(2)}
+                </TableHead>
+                <TableBody>
+                  {filteredBonuses.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                        <Typography color="text.secondary">
+                          {searchTerm ? 'No matching referrals found' : 'No referrals yet. Share your link to start earning!'}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">
-                        {getStatusChip(bonus.status, bonus.bonusAmount)}
-                      </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  ) : (
+                    filteredBonuses.map((bonus) => (
+                      <TableRow key={bonus.id} hover>
+                        <TableCell>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                              {bonus.referredUser?.name?.charAt(0) || 'U'}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" fontWeight="600">
+                                {bonus.referredUser?.name || 'N/A'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {bonus.referredUser?.userId || ''}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>{bonus.referredUser?.email || 'N/A'}</TableCell>
+                        <TableCell>
+                          {bonus.referredUser?.joinedAt 
+                            ? new Date(bonus.referredUser.joinedAt).toLocaleDateString()
+                            : 'N/A'}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip size="small" label={`${bonus.bonusPercentage}%`} color="info" />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography fontWeight="600" color={bonus.status === 'credited' ? 'success.main' : 'text.secondary'}>
+                            ${(bonus.bonusAmount || 0).toFixed(2)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          {getStatusChip(bonus.status, bonus.bonusAmount)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+
+          {/* Mobile Card List */}
+          <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+            {filteredBonuses.length === 0 ? (
+              <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+                {searchTerm ? 'No matching referrals found' : 'No referrals yet. Share your link to start earning!'}
+              </Typography>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {filteredBonuses.map((bonus) => (
+                  <Paper key={bonus.id} variant="outlined" sx={{ p: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                          {bonus.referredUser?.name?.charAt(0) || 'U'}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight="600">
+                            {bonus.referredUser?.name || 'N/A'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {bonus.referredUser?.userId || ''}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      {getStatusChip(bonus.status, bonus.bonusAmount)}
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1, wordBreak: 'break-all' }}>
+                      {bonus.referredUser?.email || 'N/A'}
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      <Chip size="small" variant="outlined" label={`Bonus: ${bonus.bonusPercentage}%`} color="info" />
+                      <Chip size="small" variant="outlined" label={`$${(bonus.bonusAmount || 0).toFixed(2)}`} color={bonus.status === 'credited' ? 'success' : 'default'} />
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      Joined: {bonus.referredUser?.joinedAt ? new Date(bonus.referredUser.joinedAt).toLocaleDateString() : 'N/A'}
+                    </Typography>
+                  </Paper>
+                ))}
+              </Box>
+            )}
+          </Box>
         </CardContent>
       </Card>
     </Box>

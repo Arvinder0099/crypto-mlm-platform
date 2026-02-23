@@ -162,7 +162,8 @@ const DailyIncome = () => {
           <Button variant="contained" onClick={handleExport}>Export CSV</Button>
         </Stack>
       </Paper>
-      <Paper>
+      {/* Desktop Table (hidden on small screens) */}
+      <Paper sx={{ display: { xs: 'none', md: 'block' } }}>
         <TableContainer component={Paper}>
           <Table size="small">
             <TableHead>
@@ -194,19 +195,38 @@ const DailyIncome = () => {
               ))}
             </TableBody>
           </Table>
-          </TableContainer>
-          <Paper>
-          <TablePagination
-            component="div"
-            count={filtered.length}
-            page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
-            rowsPerPageOptions={[5, 10, 25]}
-          />
-          </Paper>
+        </TableContainer>
       </Paper>
+
+      {/* Mobile Card List (visible on xs/sm) */}
+      <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+        <Stack spacing={1.5}>
+          {paginated.map((r, i) => (
+            <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="subtitle2">{r.plan}</Typography>
+                <Chip label={r.status} size="small" color={r.status === 'completed' ? 'success' : 'warning'} />
+              </Box>
+              <Typography variant="body2" color="text.secondary">{r.date}</Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                <Chip size="small" variant="outlined" label={`Income: $${r.dailyIncome.toFixed(2)}`} color="success" />
+                <Chip size="small" variant="outlined" label={r.userId} />
+              </Box>
+            </Paper>
+          ))}
+        </Stack>
+      </Box>
+
+      {/* Shared Pagination */}
+      <TablePagination
+        component="div"
+        count={filtered.length}
+        page={page}
+        onPageChange={(_, newPage) => setPage(newPage)}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+        rowsPerPageOptions={[5, 10, 25]}
+      />
         </>
       )}
     </Box>

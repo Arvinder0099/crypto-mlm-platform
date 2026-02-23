@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody, Stack, TextField, FormControl, InputLabel, Select, MenuItem, Button, TablePagination, CircularProgress, Alert, TableContainer } from '@mui/material';
+import { Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody, Stack, TextField, FormControl, InputLabel, Select, MenuItem, Button, TablePagination, CircularProgress, Alert, TableContainer, Chip } from '@mui/material';
 import { fetchWithAuth } from '../utils/api';
 
 // Sample rows removed; data is now fetched from backend
@@ -123,36 +123,61 @@ const ActivationReport = () => {
         </Stack>
       </Paper>
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>S.No</TableCell>
-              <TableCell>User ID</TableCell>
-              <TableCell>Activation Type</TableCell>
-              <TableCell>Investment ($)</TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell>Credit On</TableCell>
-              <TableCell>Wallet Type</TableCell>
-              <TableCell>Status</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {paginated.map((row) => (
-              <TableRow key={`${row.sNo}-${row.userId}`}>
-                <TableCell>{row.sNo}</TableCell>
-                <TableCell>{row.userId}</TableCell>
-                <TableCell>{row.activationType}</TableCell>
-                <TableCell>{row.investment}</TableCell>
-                <TableCell>{row.date}</TableCell>
-                <TableCell>{row.creditOn}</TableCell>
-                <TableCell>{row.walletType}</TableCell>
-                <TableCell>{row.status}</TableCell>
+      {/* Desktop Table (hidden on small screens) */}
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>S.No</TableCell>
+                <TableCell>User ID</TableCell>
+                <TableCell>Activation Type</TableCell>
+                <TableCell>Investment ($)</TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Credit On</TableCell>
+                <TableCell>Wallet Type</TableCell>
+                <TableCell>Status</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {paginated.map((row) => (
+                <TableRow key={`${row.sNo}-${row.userId}`}>
+                  <TableCell>{row.sNo}</TableCell>
+                  <TableCell>{row.userId}</TableCell>
+                  <TableCell>{row.activationType}</TableCell>
+                  <TableCell>{row.investment}</TableCell>
+                  <TableCell>{row.date}</TableCell>
+                  <TableCell>{row.creditOn}</TableCell>
+                  <TableCell>{row.walletType}</TableCell>
+                  <TableCell>
+                    <Chip label={row.status} size="small" color={row.status === 'Activated' ? 'success' : row.status === 'Failed' ? 'error' : 'warning'} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
+
+      {/* Mobile Card List (visible on xs/sm) */}
+      <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+        <Stack spacing={1.5}>
+          {paginated.map((row) => (
+            <Paper key={`${row.sNo}-${row.userId}`} variant="outlined" sx={{ p: 1.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="subtitle2" fontWeight="bold">{row.activationType}</Typography>
+                <Chip label={row.status} size="small" color={row.status === 'Activated' ? 'success' : row.status === 'Failed' ? 'error' : 'warning'} />
+              </Box>
+              <Typography variant="body2" color="text.secondary">{row.date}</Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                <Chip size="small" variant="outlined" label={`Investment: $${row.investment}`} />
+                <Chip size="small" variant="outlined" label={row.walletType} />
+                <Chip size="small" variant="outlined" label={row.userId} />
+              </Box>
+            </Paper>
+          ))}
+        </Stack>
+      </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
         <TablePagination
