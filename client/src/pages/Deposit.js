@@ -112,6 +112,7 @@ const Deposit = () => {
             type: data.user.walletType || 'usdt_trc20',
           });
           setSelectedNetwork(data.user.walletType || 'usdt_trc20');
+          if (data.user.email) setUserEmail(data.user.email);
         }
       } catch (err) {
         console.error('Failed to fetch user wallet:', err);
@@ -122,15 +123,7 @@ const Deposit = () => {
     fetchUserWallet();
   }, [token]);
 
-  // Auto-fetch user email & OTP timer
-  useEffect(() => {
-    if (token) {
-      fetch(`${API_BASE}/api/user/profile`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.json())
-        .then(data => { if (data?.user?.email) setUserEmail(data.user.email); })
-        .catch(() => {});
-    }
-  }, [token]);
+  // OTP timer
   useEffect(() => {
     if (otpTimer <= 0) return;
     const interval = setInterval(() => setOtpTimer(t => t - 1), 1000);
@@ -312,7 +305,6 @@ const Deposit = () => {
                     Please update your wallet address in Profile Settings to display it here.
                   </Typography>
                 </Box>
-              )}
               )}
             </Box>
           </CardContent>

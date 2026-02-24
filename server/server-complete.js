@@ -3046,18 +3046,22 @@ app.get('/api/transactions', authenticateToken, async (req, res) => {
 
 app.get('/api/reports/daily-income', authenticateToken, async (req, res) => {
   try {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
-    const earnings = await Transaction.find({ userId: req.user.id, type: 'earning', createdAt: { $gte: startDate } });
+    const filter = req.user.role === 'admin' ? {} : { userId: req.user.id };
+    const transactions = await Transaction.find({ ...filter, type: 'earning' })
+      .populate('userId', 'userId firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(100);
     
-    const dailyIncomeMap = {};
-    earnings.forEach(earning => {
-      const date = earning.createdAt.toISOString().split('T')[0];
-      dailyIncomeMap[date] = (dailyIncomeMap[date] || 0) + earning.amount;
+    res.json({ 
+      data: transactions.map(t => ({
+        userId: t.userId?.userId || 'N/A',
+        plan: 'Standard',
+        percentage: 0.5,
+        dailyIncome: t.amount,
+        roiDate: t.createdAt,
+        status: t.status || 'completed'
+      }))
     });
-    
-    const data = Object.keys(dailyIncomeMap).map(date => ({ date, amount: dailyIncomeMap[date] }));
-    res.json({ data });
   } catch (error) {
     res.status(500).json({ message: 'Error generating report', error: error.message });
   }
@@ -3065,9 +3069,22 @@ app.get('/api/reports/daily-income', authenticateToken, async (req, res) => {
 
 app.get('/api/reports/direct-income', authenticateToken, async (req, res) => {
   try {
-    const directReferrals = await User.find({ referredBy: req.user.id }).select('firstName lastName email totalInvested balance');
-    const totalDirectIncome = directReferrals.reduce((sum, user) => sum + user.totalInvested, 0);
-    res.json({ directReferrals: directReferrals.length, totalDirectIncome, referrals: directReferrals });
+    const filter = req.user.role === 'admin' ? {} : { userId: req.user.id };
+    const transactions = await Transaction.find({ ...filter, type: 'commission' })
+      .populate('userId', 'userId firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(100);
+    
+    res.json({ 
+      data: transactions.map(t => ({
+        userId: t.userId?.userId || 'N/A',
+        childId: t.referenceId || 'N/A',
+        childPlan: 'Standard',
+        directIncome: t.amount,
+        date: t.createdAt,
+        status: t.status || 'completed'
+      }))
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error generating report', error: error.message });
   }
@@ -4916,97 +4933,10 @@ app.get('/api/admin/withdrawal-addresses', authenticateToken, isAdmin, async (re
   }
 });
 
-// Get pending withdrawal requests
-app.get('/api/admin/withdrawals/pending', authenticateToken, isAdmin, async (req, res) => {
-  try {
-    const withdrawals = await Withdrawal.find({ status: 'pending' })
-      .populate('userId', 'userId firstName lastName')
-      .sort({ createdAt: -1 });
-    
-    res.json({ 
-      data: withdrawals.map((w, idx) => ({
-        orderNo: `#${String(w._id).slice(-6)}`,
-        id: w._id,
-        userId: w.userId?.userId || 'N/A',
-        userName: w.userId ? `${w.userId.firstName} ${w.userId.lastName}` : 'N/A',
-        amount: w.amount,
-        withdrawalDate: w.createdAt,
-        paymentMode: w.currency || 'USDT',
-        paymentAddress: w.walletAddress || 'N/A',
-        status: w.status
-      }))
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching pending withdrawals', error: error.message });
-  }
-});
+// NOTE: GET /api/admin/withdrawals/pending is already defined above (first definition takes precedence in Express)
+// NOTE: GET /api/admin/withdrawals/summary is already defined above (first definition takes precedence in Express)
 
-// Get withdrawal summary - ALL withdrawals with REAL DATA
-app.get('/api/admin/withdrawals/summary', authenticateToken, isAdmin, async (req, res) => {
-  try {
-    const withdrawals = await Withdrawal.find()
-      .populate('userId', 'userId firstName lastName email phone balance')
-      .sort({ createdAt: -1 })
-      .limit(100);
-    
-    res.json({ 
-      data: withdrawals.map(w => ({
-        id: w._id,
-        date: w.createdAt,
-        userId: w.userId?.userId || 'N/A',
-        userName: w.userId ? `${w.userId.firstName} ${w.userId.lastName}` : 'N/A',
-        email: w.userId?.email || 'N/A',
-        phone: w.userId?.phone || 'N/A',
-        amount: w.amount,
-        deductionCharges: w.fee || 0,
-        payableAmount: w.netAmount || w.amount,
-        toAddress: w.walletAddress || 'N/A',
-        transactionHash: w.transactionHash || 'N/A',
-        status: w.status,
-        approvedOn: w.approvedAt,
-        processedOn: w.processedAt
-      }))
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching withdrawal summary', error: error.message });
-  }
-});
-
-// Get PENDING withdrawals only - REAL DATA
-app.get('/api/admin/withdrawals/pending', authenticateToken, isAdmin, async (req, res) => {
-  try {
-    const pendingWithdrawals = await Withdrawal.find({ status: 'pending' })
-      .populate('userId', 'userId firstName lastName email phone balance')
-      .sort({ createdAt: -1 });
-    
-    const pendingCount = pendingWithdrawals.length;
-    const pendingAmount = pendingWithdrawals.reduce((sum, w) => sum + (w.netAmount || w.amount), 0);
-    
-    res.json({
-      success: true,
-      count: pendingCount,
-      totalAmount: pendingAmount,
-      data: pendingWithdrawals.map(w => ({
-        id: w._id,
-        date: w.createdAt,
-        userId: w.userId?.userId || 'N/A',
-        userName: w.userId ? `${w.userId.firstName} ${w.userId.lastName}` : 'N/A',
-        email: w.userId?.email || 'N/A',
-        phone: w.userId?.phone || 'N/A',
-        currentBalance: w.userId?.balance || 0,
-        amount: w.amount,
-        deductionCharges: w.fee || 0,
-        payableAmount: w.netAmount || w.amount,
-        toAddress: w.walletAddress || 'N/A',
-        network: w.network || 'TRX',
-        status: w.status,
-        requestedOn: w.createdAt
-      }))
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching pending withdrawals', error: error.message });
-  }
-});
+// Get PENDING withdrawals only - REAL DATA (NOTE: Route already defined above at /api/admin/withdrawals/pending, this is dead code - removed duplicate)
 
 // Get APPROVED withdrawals - REAL DATA
 app.get('/api/admin/withdrawals/approved', authenticateToken, isAdmin, async (req, res) => {
@@ -5436,52 +5366,7 @@ app.get('/api/admin/roi-setup', authenticateToken, isAdmin, async (req, res) => 
   }
 });
 
-// Get income reports
-app.get('/api/reports/daily-income', authenticateToken, async (req, res) => {
-  try {
-    const filter = req.user.role === 'admin' ? {} : { userId: req.user.id };
-    const transactions = await Transaction.find({ ...filter, type: 'earning' })
-      .populate('userId', 'userId firstName lastName')
-      .sort({ createdAt: -1 })
-      .limit(100);
-    
-    res.json({ 
-      data: transactions.map(t => ({
-        userId: t.userId?.userId || 'N/A',
-        plan: 'Standard',
-        percentage: 0.5,
-        dailyIncome: t.amount,
-        roiDate: t.createdAt,
-        status: t.status || 'completed'
-      }))
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching daily income', error: error.message });
-  }
-});
-
-app.get('/api/reports/direct-income', authenticateToken, async (req, res) => {
-  try {
-    const filter = req.user.role === 'admin' ? {} : { userId: req.user.id };
-    const transactions = await Transaction.find({ ...filter, type: 'commission' })
-      .populate('userId', 'userId firstName lastName')
-      .sort({ createdAt: -1 })
-      .limit(100);
-    
-    res.json({ 
-      data: transactions.map(t => ({
-        userId: t.userId?.userId || 'N/A',
-        childId: t.referenceId || 'N/A',
-        childPlan: 'Standard',
-        directIncome: t.amount,
-        date: t.createdAt,
-        status: t.status || 'completed'
-      }))
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching direct income', error: error.message });
-  }
-});
+// NOTE: /api/reports/daily-income and /api/reports/direct-income already defined in REPORTS ROUTES section above
 
 app.get('/api/reports/level-income', authenticateToken, async (req, res) => {
   try {

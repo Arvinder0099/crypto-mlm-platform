@@ -11,7 +11,7 @@ import {
   CheckCircle,
   ArrowForward,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchJSON } from '../utils/api';
 
 // Animations
@@ -59,6 +59,8 @@ const spin = keyframes`
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const refCode = searchParams.get('ref') || '';
   const [appInfo, setAppInfo] = useState(null);
   const [particles, setParticles] = useState([]);
   const [downloading, setDownloading] = useState(false);
@@ -95,7 +97,12 @@ const LandingPage = () => {
   };
 
   const handleOpenWeb = () => {
-    navigate('/login');
+    // Preserve referral code if present in URL
+    if (refCode) {
+      navigate(`/register?ref=${refCode}`);
+    } else {
+      navigate('/login');
+    }
   };
 
   return (

@@ -301,18 +301,17 @@ const Dashboard = () => {
           <SectionCard>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
               <Typography variant="h6">Share your Referral Link</Typography>
-              <Button variant="outlined" startIcon={<Person />}>Join now</Button>
             </Box>
             <Box display="flex" gap={1} flexWrap="wrap">
-              <TextField fullWidth value={referral} onChange={(e) => setReferral(e.target.value)} size="small" />
+              <TextField fullWidth value={referral} size="small" InputProps={{ readOnly: true }} />
               <Button variant="contained" color="success" onClick={copyReferral}><ContentCopy /></Button>
             </Box>
             <Box display="flex" gap={1} mt={2}>
-              <Tooltip title="WhatsApp"><IconButton color="success"><WhatsApp /></IconButton></Tooltip>
-              <Tooltip title="Telegram"><IconButton color="primary"><Telegram /></IconButton></Tooltip>
-              <Tooltip title="LinkedIn"><IconButton color="primary"><LinkedIn /></IconButton></Tooltip>
+              <Tooltip title="WhatsApp"><IconButton color="success" onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent('Join Hexanova! ' + referral)}`, '_blank')}><WhatsApp /></IconButton></Tooltip>
+              <Tooltip title="Telegram"><IconButton color="primary" onClick={() => window.open(`https://t.me/share/url?url=${encodeURIComponent(referral)}&text=${encodeURIComponent('Join Hexanova!')}`, '_blank')}><Telegram /></IconButton></Tooltip>
+              <Tooltip title="LinkedIn"><IconButton color="primary" onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referral)}`, '_blank')}><LinkedIn /></IconButton></Tooltip>
               <Tooltip title="Copy"><IconButton onClick={copyReferral}><LinkIcon /></IconButton></Tooltip>
-              <Tooltip title="Share"><IconButton><Share /></IconButton></Tooltip>
+              <Tooltip title="Share"><IconButton onClick={() => { if (navigator.share) { navigator.share({ title: 'Hexanova', text: 'Join Hexanova!', url: referral }); } else { copyReferral(); } }}><Share /></IconButton></Tooltip>
             </Box>
             {copied && <Typography variant="caption" color="success.main">Copied!</Typography>}
           </SectionCard>

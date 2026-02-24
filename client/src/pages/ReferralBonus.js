@@ -49,7 +49,7 @@ const ReferralBonus = () => {
 
   // Get referral link
   const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-  const referralLink = `${window.location.origin}/register?ref=${userData.referralCode || userData.userId || ''}`;
+  const referralLink = `https://hexanova.net/register?ref=${userData.referralCode || userData.userId || ''}`;
 
   useEffect(() => {
     fetchReferralBonuses();

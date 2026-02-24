@@ -7,6 +7,8 @@ import {
 import { AccountBalanceWallet, Send, Warning, CheckCircle } from '@mui/icons-material';
 import notificationService from '../services/notificationService';
 
+const API_BASE = process.env.REACT_APP_API_URL || '';
+
 const WithdrawalRequest = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +45,7 @@ const WithdrawalRequest = () => {
     const token = localStorage.getItem('authToken');
     try {
       // Fetch user profile for balance
-      const profileRes = await fetch('/api/user/profile', {
+      const profileRes = await fetch(`${API_BASE}/api/user/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const profileData = await profileRes.json();
@@ -98,7 +100,7 @@ const WithdrawalRequest = () => {
     setSendingOtp(true); setOtpMessage('');
     try {
       const token = localStorage.getItem('authToken');
-      const resp = await fetch('/api/otp/send-email', {
+      const resp = await fetch(`${API_BASE}/api/otp/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
         body: JSON.stringify({ email: userEmail })
@@ -115,7 +117,7 @@ const WithdrawalRequest = () => {
     setVerifyingOtp(true);
     try {
       const token = localStorage.getItem('authToken');
-      const resp = await fetch('/api/otp/verify', {
+      const resp = await fetch(`${API_BASE}/api/otp/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
         body: JSON.stringify({ target: userEmail, otp: otpCode, type: 'email' })
@@ -170,7 +172,7 @@ const WithdrawalRequest = () => {
 
     setSubmitting(true);
     try {
-      const response = await fetch('/api/withdrawals/request', {
+      const response = await fetch(`${API_BASE}/api/withdrawals/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
