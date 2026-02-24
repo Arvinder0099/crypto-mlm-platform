@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 // Add API helper for token verification
 import { fetchWithAuth } from '../utils/api';
 import notificationService from '../services/notificationService';
+import notificationPoller from '../services/notificationPoller';
 
 const AuthContext = createContext();
 
@@ -95,6 +96,8 @@ export const AuthProvider = ({ children }) => {
                 setUser(response.user);
                 setIsAuthenticated(true);
                 scheduleAutoLogout(token);
+                // Start notification polling for returning users
+                notificationPoller.start();
               } else {
                 throw new Error('Invalid response');
               }
@@ -105,6 +108,7 @@ export const AuthProvider = ({ children }) => {
               setUser(parsedUser);
               setIsAuthenticated(true);
               scheduleAutoLogout(token);
+              notificationPoller.start();
             }
           } else {
             if (!isMounted) return;
@@ -148,10 +152,15 @@ export const AuthProvider = ({ children }) => {
     
     // Send welcome notification on login (non-blocking)
     notificationService.notifyWelcome(safeUserData.firstName || 'User').catch(() => {});
+    
+    // Start background notification polling
+    notificationPoller.start();
   };
 
   const logout = useCallback(() => {
     if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
+    // Stop notification polling
+    notificationPoller.stop();
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     setUser(null);

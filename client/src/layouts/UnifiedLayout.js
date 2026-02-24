@@ -48,6 +48,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import FloatingChat from '../components/FloatingChat';
 
+const API_BASE = process.env.REACT_APP_API_URL || '';
+
 const UnifiedLayout = ({ children }) => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -94,7 +96,7 @@ const UnifiedLayout = ({ children }) => {
       const token = localStorage.getItem('authToken');
       if (!token) return;
       
-      const endpoint = isAdmin() ? '/api/admin/notifications' : '/api/user/notifications';
+      const endpoint = isAdmin() ? `${API_BASE}/api/admin/notifications` : `${API_BASE}/api/user/notifications`;
       const response = await fetch(endpoint, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -113,8 +115,8 @@ const UnifiedLayout = ({ children }) => {
     try {
       const token = localStorage.getItem('authToken');
       const endpoint = isAdmin() 
-        ? `/api/admin/notifications/${notificationId}/read` 
-        : `/api/user/notifications/${notificationId}/read`;
+        ? `${API_BASE}/api/admin/notifications/${notificationId}/read` 
+        : `${API_BASE}/api/user/notifications/${notificationId}/read`;
       
       await fetch(endpoint, {
         method: 'PUT',
@@ -135,8 +137,8 @@ const UnifiedLayout = ({ children }) => {
     try {
       const token = localStorage.getItem('authToken');
       const endpoint = isAdmin() 
-        ? '/api/admin/notifications/mark-all-read' 
-        : '/api/user/notifications/mark-all-read';
+        ? `${API_BASE}/api/admin/notifications/mark-all-read` 
+        : `${API_BASE}/api/user/notifications/mark-all-read`;
       
       await fetch(endpoint, {
         method: 'PUT',
