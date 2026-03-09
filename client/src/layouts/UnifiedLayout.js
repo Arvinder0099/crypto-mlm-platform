@@ -47,6 +47,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import FloatingChat from '../components/FloatingChat';
+import DailyROIClaimPopup from '../components/DailyROIClaimPopup';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
 
@@ -987,6 +988,9 @@ const UnifiedLayout = ({ children }) => {
           {children}
         </Box>
       </Box>
+
+      {/* Daily ROI Claim Popup for non-admin users */}
+      {!isAdmin() && <DailyROIClaimPopup />}
 
       {/* Floating Chat for non-admin users */}
       {!isAdmin() && <FloatingChat />}

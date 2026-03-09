@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody, Stack, TextField, FormControl, InputLabel, Select, MenuItem, Button, TablePagination, TableContainer, Alert, CircularProgress, Card, CardContent, Grid, Chip } from '@mui/material';
-import { TrendingUp, AccountBalanceWallet, CalendarToday } from '@mui/icons-material';
+import { TrendingUp, AccountBalanceWallet, CalendarToday, CheckCircle, Cancel, AccessTime } from '@mui/icons-material';
 
 function toCSV(data) {
   const headers = ['S.No','User ID','Plan','Date','Daily Income ($)','Status'];
@@ -51,7 +51,10 @@ const DailyIncome = () => {
             date,
             dateStr,
             dailyIncome: amount,
-            status: item.status || 'completed'
+            status: item.status || 'completed',
+            claimedAt: item.claimedAt,
+            missedAt: item.missedAt,
+            source: item.source
           };
         });
         
@@ -152,8 +155,10 @@ const DailyIncome = () => {
             <InputLabel id="status-label">Status</InputLabel>
             <Select labelId="status-label" label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
               <MenuItem value="All">All</MenuItem>
+              <MenuItem value="claimed">Claimed</MenuItem>
+              <MenuItem value="missed">Missed</MenuItem>
+              <MenuItem value="claimable">Claimable</MenuItem>
               <MenuItem value="completed">Completed</MenuItem>
-              <MenuItem value="pending">Pending</MenuItem>
             </Select>
           </FormControl>
           <TextField label="Start Date" type="date" size="small" InputLabelProps={{ shrink: true }} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -186,9 +191,19 @@ const DailyIncome = () => {
                   <TableCell sx={{ color: '#4caf50', fontWeight: 600 }}>${r.dailyIncome.toFixed(2)}</TableCell>
                   <TableCell>
                     <Chip 
-                      label={r.status} 
+                      label={r.status.toUpperCase()} 
                       size="small" 
-                      color={r.status === 'completed' ? 'success' : 'warning'}
+                      icon={
+                        r.status === 'claimed' || r.status === 'completed' ? <CheckCircle /> :
+                        r.status === 'missed' ? <Cancel /> :
+                        <AccessTime />
+                      }
+                      color={
+                        r.status === 'claimed' || r.status === 'completed' ? 'success' :
+                        r.status === 'missed' ? 'error' :
+                        'warning'
+                      }
+                      sx={{ fontWeight: 700 }}
                     />
                   </TableCell>
                 </TableRow>
@@ -205,7 +220,21 @@ const DailyIncome = () => {
             <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="subtitle2">{r.plan}</Typography>
-                <Chip label={r.status} size="small" color={r.status === 'completed' ? 'success' : 'warning'} />
+                <Chip
+                  label={r.status.toUpperCase()}
+                  size="small"
+                  icon={
+                    r.status === 'claimed' || r.status === 'completed' ? <CheckCircle /> :
+                    r.status === 'missed' ? <Cancel /> :
+                    <AccessTime />
+                  }
+                  color={
+                    r.status === 'claimed' || r.status === 'completed' ? 'success' :
+                    r.status === 'missed' ? 'error' :
+                    'warning'
+                  }
+                  sx={{ fontWeight: 700 }}
+                />
               </Box>
               <Typography variant="body2" color="text.secondary">{r.date}</Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>

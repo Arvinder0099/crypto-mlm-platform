@@ -517,6 +517,26 @@ const adminNotificationSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
+// ROI Claim Schema - tracks daily ROI claims by users
+const roiClaimSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  date: { type: Date, required: true }, // The day this ROI is for (midnight-normalized)
+  amount: { type: Number, required: true }, // Total claimable ROI amount for the day
+  status: { type: String, enum: ['claimable', 'claimed', 'missed'], default: 'claimable' },
+  claimedAt: Date,
+  missedAt: Date,
+  source: { type: String, enum: ['investment_roi', 'admin_set'], default: 'investment_roi' },
+  details: [{ // Breakdown per investment/source
+    investmentId: mongoose.Schema.Types.ObjectId,
+    planName: String,
+    amount: Number,
+  }],
+  createdAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+roiClaimSchema.index({ userId: 1, date: 1 }, { unique: true });
+roiClaimSchema.index({ status: 1, date: 1 });
+
 // User Notification Schema - for user-facing notifications
 const userNotificationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -524,7 +544,7 @@ const userNotificationSchema = new mongoose.Schema({
     type: String, 
     enum: ['deposit_submitted', 'deposit_approved', 'deposit_rejected', 'withdrawal_submitted', 'withdrawal_approved', 'withdrawal_rejected', 
            'investment_activated', 'commission_received', 'referral_joined', 'referral_bonus',
-           'roi_earned', 'rank_achieved', 'system_message', 'welcome', 'welcome_bonus'], 
+           'roi_earned', 'roi_claim', 'roi_missed', 'rank_achieved', 'system_message', 'welcome', 'welcome_bonus'], 
     required: true 
   },
   title: { type: String, required: true },
@@ -602,6 +622,7 @@ const SupportChat = mongoose.model('SupportChat', supportChatSchema);
 const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
 const Announcement = mongoose.model('Announcement', announcementSchema);
 const HelpConfig = mongoose.model('HelpConfig', helpConfigSchema);
+const RoiClaim = mongoose.model('RoiClaim', roiClaimSchema);
 
 // Helper function to create user notification
 const createUserNotification = async (userId, type, title, message, data = {}) => {
@@ -3047,21 +3068,49 @@ app.get('/api/transactions', authenticateToken, async (req, res) => {
 app.get('/api/reports/daily-income', authenticateToken, async (req, res) => {
   try {
     const filter = req.user.role === 'admin' ? {} : { userId: req.user.id };
-    const transactions = await Transaction.find({ ...filter, type: 'earning' })
+    
+    // Get transaction-based earnings
+    const transactions = await Transaction.find({ ...filter, type: { $in: ['earning', 'daily_return'] } })
       .populate('userId', 'userId firstName lastName')
       .sort({ createdAt: -1 })
       .limit(100);
     
-    res.json({ 
-      data: transactions.map(t => ({
+    // Get ROI claim history for richer data
+    const claimFilter = req.user.role === 'admin' ? {} : { userId: req.user.id };
+    const claims = await RoiClaim.find(claimFilter)
+      .populate('userId', 'userId firstName lastName')
+      .sort({ date: -1 })
+      .limit(100);
+
+    // Merge: use claims as primary, fall back to transactions for older data
+    const claimData = claims.map(c => ({
+      userId: c.userId?.userId || 'N/A',
+      plan: c.details?.[0]?.planName || 'Investment Plan',
+      percentage: 0.5,
+      dailyIncome: c.amount,
+      roiDate: c.date,
+      status: c.status, // 'claimed', 'missed', 'claimable'
+      claimedAt: c.claimedAt,
+      missedAt: c.missedAt,
+      source: c.source
+    }));
+
+    // Add older transaction data not covered by claims
+    const claimDates = new Set(claims.map(c => c.date.toISOString().split('T')[0]));
+    const txData = transactions
+      .filter(t => !claimDates.has(new Date(t.createdAt).toISOString().split('T')[0]))
+      .map(t => ({
         userId: t.userId?.userId || 'N/A',
         plan: 'Standard',
         percentage: 0.5,
         dailyIncome: t.amount,
         roiDate: t.createdAt,
-        status: t.status || 'completed'
-      }))
-    });
+        status: 'claimed',
+        claimedAt: t.createdAt,
+        source: t.type === 'daily_return' ? 'admin_set' : 'investment_roi'
+      }));
+
+    res.json({ data: [...claimData, ...txData] });
   } catch (error) {
     res.status(500).json({ message: 'Error generating report', error: error.message });
   }
@@ -4725,8 +4774,9 @@ app.post('/api/admin/daily-returns/remove', authenticateToken, isAdmin, async (r
   }
 });
 
-// Process daily returns - ADMIN TRIGGERED ONLY (no automatic processing)
-// Admin clicks "Process Daily Returns" button to distribute ROI to eligible users
+// Process daily returns - ADMIN TRIGGERED ONLY
+// Creates CLAIMABLE ROI entries. Users must log in and click "Claim ROI" to receive their earnings.
+// If not claimed by end of day, it is marked as "missed".
 // RULE: Each user gets ONLY ONE source of daily income:
 //   - If admin has set dailyReturnAmount for a user → use that (PART 1)
 //   - Otherwise → use investment-based ROI from their active plans (PART 2)
@@ -4737,13 +4787,12 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
     today.setHours(0, 0, 0, 0);
 
     let processedCount = 0;
-    let totalDistributed = 0;
+    let totalClaimable = 0;
     const results = [];
     
-    // Track users who got admin-set daily return so we skip them in PART 2
     const usersWithAdminReturn = new Set();
 
-    // PART 1: Process admin-set daily return amounts
+    // PART 1: Process admin-set daily return amounts → create claimable entry
     const usersWithDailyReturn = await User.find({
       dailyReturnAmount: { $gt: 0 },
       $or: [
@@ -4755,41 +4804,46 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
     for (const user of usersWithDailyReturn) {
       const amount = user.dailyReturnAmount;
 
-      // Credit to My Wallet (earnings wallet)
-      user.myWallet = (user.myWallet || 0) + amount;
-      user.totalDailyReturnsReceived = (user.totalDailyReturnsReceived || 0) + amount;
-      user.totalEarned = (user.totalEarned || 0) + amount;
-      user.todayEarning = amount; // Reset to today's amount (not accumulate)
+      // Check if claim entry already exists for today
+      const existing = await RoiClaim.findOne({ userId: user._id, date: today });
+      if (existing) {
+        usersWithAdminReturn.add(user._id.toString());
+        continue;
+      }
+
+      // Create claimable ROI entry (NOT credited yet)
+      await RoiClaim.create({
+        userId: user._id,
+        date: today,
+        amount,
+        status: 'claimable',
+        source: 'admin_set',
+        details: [{ planName: 'Admin Set Return', amount }]
+      });
+
+      // Mark processed date so it's not re-processed
       user.lastDailyReturnDate = new Date();
-      // Keep balance in sync
-      user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
       await user.save();
-      
-      // Mark this user so PART 2 skips them
+
       usersWithAdminReturn.add(user._id.toString());
 
-      const transaction = new Transaction({
-        userId: user._id,
-        type: 'daily_return',
-        amount: amount,
-        description: `Daily return - $${amount} credited to My Wallet`,
-        status: 'completed',
-        previousBalance: (user.myWallet || 0) - amount,
-        newBalance: user.myWallet,
-        processedAt: new Date()
-      });
-      await transaction.save();
+      // Notify user
+      await createUserNotification(
+        user._id,
+        'roi_claim',
+        'Daily ROI Available! 💰',
+        `Your daily ROI of $${amount.toFixed(2)} is ready to claim. Open the app and click "Claim ROI" to receive it!`,
+        { amount }
+      );
 
-      results.push({ userId: user.userId, name: `${user.firstName} ${user.lastName}`, amount, source: 'admin_set' });
+      results.push({ userId: user.userId, name: `${user.firstName} ${user.lastName}`, amount, source: 'admin_set', status: 'claimable' });
       processedCount++;
-      totalDistributed += amount;
+      totalClaimable += amount;
     }
 
-    // PART 2: Process investment-based daily earnings (ROI)
-    // ONLY for users who do NOT have an admin-set dailyReturnAmount
+    // PART 2: Process investment-based daily earnings (ROI) → create claimable entries
     const activeInvestments = await Investment.find({ status: 'active' }).populate('planId userId');
     
-    // Group earnings by user to avoid multiple saves
     const userEarnings = {};
     
     for (const investment of activeInvestments) {
@@ -4797,37 +4851,28 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
       const user = investment.userId;
       if (!plan || !user) continue;
       
-      // SKIP users who already got admin-set daily return (prevents stacking)
       const uid = user._id.toString();
       if (usersWithAdminReturn.has(uid)) continue;
-      
-      // Also skip users who have dailyReturnAmount > 0 (already processed or will be)
       if (user.dailyReturnAmount && user.dailyReturnAmount > 0) continue;
       
       const daysElapsed = Math.floor((new Date() - investment.startDate) / (1000 * 60 * 60 * 24));
-      
-      // Skip if investment is past duration
       if (daysElapsed > plan.duration) continue;
       
-      // Skip if already earned today
+      // Skip if already has a claim entry for today
       if (investment.lastEarningDate) {
         const lastEarnDate = new Date(investment.lastEarningDate);
         lastEarnDate.setHours(0, 0, 0, 0);
         if (lastEarnDate >= today) continue;
       }
       
-      // dailyEarn is the fixed dollar amount per day
       const dailyEarning = plan.dailyEarn;
       
-      // Update investment record
-      investment.dailyEarned = dailyEarning;
-      investment.totalEarned = (investment.totalEarned || 0) + dailyEarning;
+      // Update investment record's last earning date (marks as processed for today)
       investment.daysCompleted = daysElapsed;
       investment.lastEarningDate = new Date();
-      investment.earningHistory.push({ date: new Date(), amount: dailyEarning, status: 'credited' });
+      investment.earningHistory.push({ date: new Date(), amount: dailyEarning, status: 'pending' });
       await investment.save();
       
-      // Accumulate per user
       if (!userEarnings[uid]) {
         userEarnings[uid] = { user, total: 0, details: [] };
       }
@@ -4835,43 +4880,44 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
       userEarnings[uid].details.push({ planName: plan.name, amount: dailyEarning, investmentId: investment._id });
     }
     
-    // Credit accumulated earnings to each user's My Wallet
+    // Create claimable ROI entries per user
     for (const uid of Object.keys(userEarnings)) {
       const { user, total, details } = userEarnings[uid];
-      const freshUser = await User.findById(user._id);
-      
-      freshUser.myWallet = (freshUser.myWallet || 0) + total;
-      freshUser.totalEarned = (freshUser.totalEarned || 0) + total;
-      freshUser.todayEarning = total; // Set to today's amount (not accumulate)
-      freshUser.balance = (freshUser.myWallet || 0) + (freshUser.fundWallet || 0) + (freshUser.utilityWallet || 0);
-      await freshUser.save();
-      
-      // Create one transaction per investment
-      for (const detail of details) {
-        const transaction = new Transaction({
-          userId: freshUser._id,
-          type: 'earning',
-          amount: detail.amount,
-          description: `Daily ROI from ${detail.planName} - $${detail.amount} credited to My Wallet`,
-          status: 'completed',
-          investmentId: detail.investmentId,
-          processedAt: new Date()
-        });
-        await transaction.save();
-      }
-      
-      results.push({ userId: freshUser.userId, name: `${freshUser.firstName} ${freshUser.lastName}`, amount: total, source: 'investment_roi' });
+
+      // Check if claim entry already exists for today
+      const existing = await RoiClaim.findOne({ userId: user._id, date: today });
+      if (existing) continue;
+
+      await RoiClaim.create({
+        userId: user._id,
+        date: today,
+        amount: total,
+        status: 'claimable',
+        source: 'investment_roi',
+        details: details.map(d => ({ investmentId: d.investmentId, planName: d.planName, amount: d.amount }))
+      });
+
+      // Notify user
+      await createUserNotification(
+        user._id,
+        'roi_claim',
+        'Daily ROI Available! 💰',
+        `Your daily ROI of $${total.toFixed(2)} is ready to claim. Open the app and click "Claim ROI" to receive it!`,
+        { amount: total }
+      );
+
+      results.push({ userId: user.userId, name: `${user.firstName} ${user.lastName}`, amount: total, source: 'investment_roi', status: 'claimable' });
       processedCount++;
-      totalDistributed += total;
+      totalClaimable += total;
     }
 
-    console.log(`✅ Daily returns processed by admin: ${processedCount} users, $${totalDistributed} total`);
+    console.log(`✅ Daily ROI claims created: ${processedCount} users, $${totalClaimable} total claimable`);
 
     res.json({
       success: true,
-      message: `Daily returns processed for ${processedCount} users`,
+      message: `Daily ROI made claimable for ${processedCount} users. Users must log in and claim.`,
       processedUsers: processedCount,
-      totalDistributed: totalDistributed,
+      totalClaimable,
       details: results
     });
   } catch (error) {
@@ -4880,7 +4926,227 @@ app.post('/api/admin/daily-returns/process', authenticateToken, isAdmin, async (
   }
 });
 
-// NOTE: No automatic daily return processing - admin must trigger manually
+// ==================== USER ROI CLAIM SYSTEM ====================
+
+// Check ROI claim status - returns if user has a claimable ROI today
+app.get('/api/roi/claim-status', authenticateToken, async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find today's claimable entry
+    const claimable = await RoiClaim.findOne({ userId: req.user.id, date: today, status: 'claimable' });
+    
+    // Also get recent claim history (last 7 days)
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const history = await RoiClaim.find({ userId: req.user.id, date: { $gte: sevenDaysAgo } })
+      .sort({ date: -1 });
+
+    res.json({
+      hasClaimable: !!claimable,
+      claimable: claimable ? {
+        id: claimable._id,
+        amount: claimable.amount,
+        date: claimable.date,
+        source: claimable.source,
+        details: claimable.details
+      } : null,
+      history: history.map(h => ({
+        id: h._id,
+        date: h.date,
+        amount: h.amount,
+        status: h.status,
+        source: h.source,
+        claimedAt: h.claimedAt,
+        missedAt: h.missedAt,
+        details: h.details
+      }))
+    });
+  } catch (error) {
+    console.error('ROI claim status error:', error);
+    res.status(500).json({ message: 'Error checking ROI claim status', error: error.message });
+  }
+});
+
+// Claim daily ROI - user clicks "Claim" to receive their ROI
+app.post('/api/roi/claim', authenticateToken, async (req, res) => {
+  try {
+    const { claimId } = req.body;
+    
+    const claim = await RoiClaim.findOne({ _id: claimId, userId: req.user.id, status: 'claimable' });
+    if (!claim) {
+      return res.status(400).json({ success: false, message: 'No claimable ROI found or already claimed.' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const amount = claim.amount;
+
+    // Credit to My Wallet
+    const prevMyWallet = user.myWallet || 0;
+    user.myWallet = prevMyWallet + amount;
+    user.totalEarned = (user.totalEarned || 0) + amount;
+    user.todayEarning = amount;
+    user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
+
+    if (claim.source === 'admin_set') {
+      user.totalDailyReturnsReceived = (user.totalDailyReturnsReceived || 0) + amount;
+    }
+
+    await user.save();
+
+    // Update claim status
+    claim.status = 'claimed';
+    claim.claimedAt = new Date();
+    await claim.save();
+
+    // Update investment earningHistory status to 'credited' for investment-based ROI
+    if (claim.source === 'investment_roi') {
+      for (const detail of claim.details) {
+        if (detail.investmentId) {
+          const inv = await Investment.findById(detail.investmentId);
+          if (inv) {
+            inv.dailyEarned = detail.amount;
+            inv.totalEarned = (inv.totalEarned || 0) + detail.amount;
+            // Update the last earning entry status from pending to credited
+            const lastEntry = inv.earningHistory[inv.earningHistory.length - 1];
+            if (lastEntry && lastEntry.status === 'pending') {
+              lastEntry.status = 'credited';
+            }
+            await inv.save();
+          }
+        }
+      }
+    }
+
+    // Create transaction records
+    for (const detail of claim.details) {
+      const transaction = new Transaction({
+        userId: user._id,
+        type: claim.source === 'admin_set' ? 'daily_return' : 'earning',
+        amount: detail.amount,
+        description: `Daily ROI claimed - ${detail.planName}: $${detail.amount.toFixed(2)} credited to My Wallet`,
+        status: 'completed',
+        investmentId: detail.investmentId || undefined,
+        previousBalance: prevMyWallet,
+        newBalance: user.myWallet,
+        processedAt: new Date()
+      });
+      await transaction.save();
+    }
+
+    // Notify user
+    await createUserNotification(
+      user._id,
+      'roi_earned',
+      'ROI Claimed Successfully! ✅',
+      `You claimed $${amount.toFixed(2)} daily ROI. It has been credited to your My Wallet.`,
+      { amount }
+    );
+
+    console.log(`✅ User ${user.userId} claimed daily ROI of $${amount.toFixed(2)}`);
+
+    res.json({
+      success: true,
+      message: `$${amount.toFixed(2)} ROI claimed successfully!`,
+      amount,
+      newMyWallet: user.myWallet,
+      newBalance: user.balance
+    });
+  } catch (error) {
+    console.error('ROI claim error:', error);
+    res.status(500).json({ success: false, message: 'Error claiming ROI', error: error.message });
+  }
+});
+
+// Get ROI claim history for user
+app.get('/api/roi/history', authenticateToken, async (req, res) => {
+  try {
+    const { page = 1, limit = 30 } = req.query;
+    const claims = await RoiClaim.find({ userId: req.user.id })
+      .sort({ date: -1 })
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .limit(parseInt(limit));
+    
+    const total = await RoiClaim.countDocuments({ userId: req.user.id });
+    
+    const stats = await RoiClaim.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(req.user.id) } },
+      { $group: { 
+        _id: '$status', 
+        count: { $sum: 1 }, 
+        total: { $sum: '$amount' } 
+      }}
+    ]);
+
+    const claimedStats = stats.find(s => s._id === 'claimed') || { count: 0, total: 0 };
+    const missedStats = stats.find(s => s._id === 'missed') || { count: 0, total: 0 };
+    const claimableStats = stats.find(s => s._id === 'claimable') || { count: 0, total: 0 };
+
+    res.json({
+      data: claims.map(c => ({
+        id: c._id,
+        date: c.date,
+        amount: c.amount,
+        status: c.status,
+        source: c.source,
+        claimedAt: c.claimedAt,
+        missedAt: c.missedAt,
+        details: c.details
+      })),
+      pagination: { total, page: parseInt(page), limit: parseInt(limit) },
+      stats: {
+        totalClaimed: claimedStats.total,
+        claimedCount: claimedStats.count,
+        totalMissed: missedStats.total,
+        missedCount: missedStats.count,
+        pendingClaim: claimableStats.total,
+        pendingCount: claimableStats.count
+      }
+    });
+  } catch (error) {
+    console.error('ROI history error:', error);
+    res.status(500).json({ message: 'Error fetching ROI history', error: error.message });
+  }
+});
+
+// ==================== MIDNIGHT CRON: Mark unclaimed ROI as missed ====================
+// Runs at 11:59 PM every day - marks any unclaimed ROI as "missed"
+cron.schedule('59 23 * * *', async () => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find all claimable entries for today (or older) that weren't claimed
+    const unclaimed = await RoiClaim.find({ status: 'claimable', date: { $lte: today } });
+
+    let missedCount = 0;
+    for (const claim of unclaimed) {
+      claim.status = 'missed';
+      claim.missedAt = new Date();
+      await claim.save();
+
+      // Notify user about missed ROI
+      await createUserNotification(
+        claim.userId,
+        'roi_missed',
+        'Daily ROI Missed! ⚠️',
+        `You missed claiming your daily ROI of $${claim.amount.toFixed(2)}. Remember to log in and claim your ROI every day!`,
+        { amount: claim.amount }
+      );
+
+      missedCount++;
+    }
+
+    if (missedCount > 0) {
+      console.log(`⚠️ ${missedCount} unclaimed ROI entries marked as missed`);
+    }
+  } catch (error) {
+    console.error('❌ Midnight ROI expiry cron error:', error);
+  }
+});
 
 // ==================== ADMIN REPORTS API ====================
 
