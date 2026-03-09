@@ -61,7 +61,7 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:3040",
+  "proxy": "http://localhost:8080",
   "devDependencies": {
     "@capacitor/cli": "^7.4.4",
     "@capacitor/core": "^7.4.4",
