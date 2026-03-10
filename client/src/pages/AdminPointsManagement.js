@@ -265,7 +265,7 @@ const AdminPointsManagement = () => {
   const [processResult, setProcessResult] = useState(null);
 
   const handleProcessDailyReturns = async () => {
-    if (!window.confirm('Are you sure you want to process daily returns & ROI for all eligible users? This will credit their My Wallet.')) return;
+    if (!window.confirm('Are you sure you want to process daily returns & ROI for all eligible users? This will make ROI claimable for users.')) return;
     try {
       setProcessingDaily(true);
       setProcessResult(null);
@@ -277,7 +277,7 @@ const AdminPointsManagement = () => {
         setProcessResult(response);
         setSnackbar({ 
           open: true, 
-          message: `Daily returns processed: ${response.processedUsers} users, $${response.totalDistributed} total`, 
+          message: `Daily ROI made claimable: ${response.processedUsers} users, $${response.totalClaimable || response.totalDistributed || 0} total`, 
           severity: 'success' 
         });
         loadDailyReturnUsers();
@@ -736,7 +736,7 @@ const AdminPointsManagement = () => {
                 Process Daily Returns & ROI
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Click to distribute daily returns (admin-set amounts) and investment ROI earnings to all eligible users. Credits go to My Wallet.
+                Click to make daily returns & investment ROI claimable for all eligible users. Users must log in and click "Claim ROI" to receive earnings.
               </Typography>
             </Box>
             <Button
