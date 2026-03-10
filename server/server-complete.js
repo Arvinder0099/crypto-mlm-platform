@@ -178,12 +178,10 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/crypto-ml
       });
       console.log('✅ Admin account created');
     } else {
-      // Ensure admin has correct role and status
-      const bcryptLib = require('bcryptjs');
-      const hashedPw = await bcryptLib.hash('Arvinder2001@', 12);
+      // Ensure admin has correct role and status (do NOT overwrite password)
       await mongoose.connection.db.collection('users').updateOne(
         { email: adminEmail },
-        { $set: { role: 'admin', status: 'active', password: hashedPw } }
+        { $set: { role: 'admin', status: 'active' } }
       );
       console.log('✅ Admin account verified');
     }
