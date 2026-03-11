@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, Typography, Box, CircularProgress, Chip,
   Table, TableBody, TableCell, TableRow, TableContainer, Paper,
-  Alert, IconButton, Divider, Fade, Zoom,
+  Alert, IconButton, Divider, Fade, Zoom, Slide,
 } from '@mui/material';
 import {
   MonetizationOn, CheckCircle, Warning, Close, TrendingUp,
@@ -21,6 +21,8 @@ const DailyROIClaimPopup = () => {
   const [claimResult, setClaimResult] = useState(null);
   const [error, setError] = useState('');
   const [checked, setChecked] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const intervalRef = useRef(null);
 
   const checkClaimStatus = useCallback(async () => {
     try {
@@ -37,23 +39,31 @@ const DailyROIClaimPopup = () => {
 
       if (data.hasClaimable && data.claimable) {
         setClaimData(data.claimable);
-        // Only auto-open popup if not already dismissed in this session
-        const dismissedKey = `roi_dismissed_${new Date().toISOString().split('T')[0]}`;
-        if (!sessionStorage.getItem(dismissedKey)) {
+        // Auto-open popup if not already dismissed by user
+        if (!dismissed) {
           setOpen(true);
         }
+      } else {
+        setClaimData(null);
       }
       setChecked(true);
     } catch (err) {
       console.warn('Failed to check ROI claim status:', err);
       setChecked(true);
     }
-  }, []);
+  }, [dismissed]);
 
   useEffect(() => {
     // Check on mount with a short delay to let the app load
     const timer = setTimeout(checkClaimStatus, 1500);
-    return () => clearTimeout(timer);
+    
+    // Re-check every 5 minutes so user sees ROI as soon as admin processes it
+    intervalRef.current = setInterval(checkClaimStatus, 5 * 60 * 1000);
+    
+    return () => {
+      clearTimeout(timer);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [checkClaimStatus]);
 
   const handleClaim = async () => {
@@ -89,9 +99,7 @@ const DailyROIClaimPopup = () => {
 
   const handleClose = () => {
     setOpen(false);
-    // Remember that user dismissed popup today
-    const dismissedKey = `roi_dismissed_${new Date().toISOString().split('T')[0]}`;
-    sessionStorage.setItem(dismissedKey, 'true');
+    setDismissed(true);
     // Reset success state for next time
     setTimeout(() => {
       setClaimSuccess(false);
@@ -100,7 +108,7 @@ const DailyROIClaimPopup = () => {
     }, 300);
   };
 
-  // Don't render anything if not checked yet or nothing to show
+  // Don't render anything if not checked yet
   if (!checked) return null;
 
   // Show the notification bell indicator if there's a claimable ROI
@@ -108,11 +116,60 @@ const DailyROIClaimPopup = () => {
 
   return (
     <>
+      {/* Top Banner - always visible when ROI is claimable */}
+      {hasClaimable && !open && (
+        <Slide direction="down" in mountOnEnter unmountOnExit>
+          <Box
+            onClick={() => { setOpen(true); setDismissed(false); }}
+            sx={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 1400,
+              background: 'linear-gradient(135deg, #f5a623 0%, #e8960f 100%)',
+              color: '#fff',
+              py: 1.2,
+              px: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 1.5,
+              cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(245, 166, 35, 0.5)',
+              '&:hover': { background: 'linear-gradient(135deg, #e8960f 0%, #d48500 100%)' },
+            }}
+          >
+            <MonetizationOn sx={{ fontSize: 24, animation: 'spin 2s linear infinite', '@keyframes spin': { '0%': { transform: 'rotateY(0deg)' }, '100%': { transform: 'rotateY(360deg)' } } }} />
+            <Typography sx={{ fontWeight: 800, fontSize: '0.95rem' }}>
+              Daily ROI Available: ${claimData.amount.toFixed(2)} USDT
+            </Typography>
+            <Button
+              size="small"
+              variant="contained"
+              sx={{
+                ml: 1,
+                background: '#fff',
+                color: '#e8960f',
+                fontWeight: 800,
+                fontSize: '0.8rem',
+                px: 2,
+                py: 0.5,
+                borderRadius: 2,
+                '&:hover': { background: '#f0f0f0' },
+              }}
+            >
+              CLAIM NOW
+            </Button>
+          </Box>
+        </Slide>
+      )}
+
       {/* Floating Claim ROI Button - visible when there's unclaimed ROI */}
       {hasClaimable && !open && (
         <Zoom in>
           <Box
-            onClick={() => setOpen(true)}
+            onClick={() => { setOpen(true); setDismissed(false); }}
             sx={{
               position: 'fixed',
               bottom: { xs: 80, sm: 30 },
@@ -160,11 +217,13 @@ const DailyROIClaimPopup = () => {
         onClose={handleClose}
         maxWidth="sm"
         fullWidth
+        disableEscapeKeyDown
         TransitionComponent={Fade}
         PaperProps={{
           sx: {
             borderRadius: 3,
             overflow: 'hidden',
+            mt: hasClaimable ? 5 : 0,
           }
         }}
       >
@@ -343,24 +402,22 @@ const DailyROIClaimPopup = () => {
           )}
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1, flexDirection: 'column' }}>
           {!claimSuccess && claimData && (
             <>
-              <Button onClick={handleClose} color="inherit" sx={{ mr: 'auto' }}>
-                Later
-              </Button>
               <Button
                 variant="contained"
                 onClick={handleClaim}
                 disabled={claiming}
+                fullWidth
                 startIcon={claiming ? <CircularProgress size={20} color="inherit" /> : <MonetizationOn />}
                 sx={{
                   background: 'linear-gradient(135deg, #f5a623 0%, #e8960f 100%)',
                   color: '#fff',
                   fontWeight: 800,
-                  fontSize: '1rem',
+                  fontSize: '1.1rem',
                   px: 4,
-                  py: 1.5,
+                  py: 2,
                   borderRadius: 2,
                   '&:hover': {
                     background: 'linear-gradient(135deg, #e8960f 0%, #d48500 100%)',
@@ -372,6 +429,9 @@ const DailyROIClaimPopup = () => {
                 }}
               >
                 {claiming ? 'Claiming...' : `Claim $${claimData.amount.toFixed(2)} ROI`}
+              </Button>
+              <Button onClick={handleClose} color="inherit" size="small" sx={{ opacity: 0.6, fontSize: '0.75rem' }}>
+                Remind me later
               </Button>
             </>
           )}
