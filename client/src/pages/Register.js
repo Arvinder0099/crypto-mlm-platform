@@ -69,8 +69,10 @@ const pulse = keyframes`
   50% { transform: scale(1.05); }
 `;
 
-// Country codes - comprehensive worldwide list
+// Country codes - comprehensive worldwide list (UAE first as primary market)
 const COUNTRY_CODES = [
+  { code: 'AE', name: 'UAE', dial: '+971' },
+  { code: 'IN', name: 'India', dial: '+91' },
   { code: 'AF', name: 'Afghanistan', dial: '+93' },
   { code: 'AL', name: 'Albania', dial: '+355' },
   { code: 'DZ', name: 'Algeria', dial: '+213' },
@@ -141,7 +143,6 @@ const COUNTRY_CODES = [
   { code: 'HK', name: 'Hong Kong', dial: '+852' },
   { code: 'HU', name: 'Hungary', dial: '+36' },
   { code: 'IS', name: 'Iceland', dial: '+354' },
-  { code: 'IN', name: 'India', dial: '+91' },
   { code: 'ID', name: 'Indonesia', dial: '+62' },
   { code: 'IR', name: 'Iran', dial: '+98' },
   { code: 'IQ', name: 'Iraq', dial: '+964' },
@@ -235,7 +236,6 @@ const COUNTRY_CODES = [
   { code: 'TM', name: 'Turkmenistan', dial: '+993' },
   { code: 'UG', name: 'Uganda', dial: '+256' },
   { code: 'UA', name: 'Ukraine', dial: '+380' },
-  { code: 'AE', name: 'UAE', dial: '+971' },
   { code: 'GB', name: 'United Kingdom', dial: '+44' },
   { code: 'US', name: 'United States', dial: '+1' },
   { code: 'UY', name: 'Uruguay', dial: '+598' },
@@ -283,8 +283,8 @@ function Register() {
     lastName: '',
     email: '',
     phone: '',
-    countryCode: '+91',
-    country: 'IN',
+    countryCode: '+971',
+    country: 'AE',
     password: '',
     confirmPassword: '',
     referralCode: referralFromUrl,

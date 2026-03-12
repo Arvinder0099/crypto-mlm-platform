@@ -19,7 +19,7 @@ require('dotenv').config();
 
 // Import Services
 const { emailService } = require('./services/email.service');
-const { OTPService, TwilioService, MSG91Service, ConsoleSMSService, SMSServiceFactory } = require('./services/otp.service');
+const { OTPService, TwilioVerifyService, TwilioService, MSG91Service, ConsoleSMSService, SMSServiceFactory, normalizePhone } = require('./services/otp.service');
 const { KYCService, createMulterConfig, KYCStatus, KYCDocumentTypes } = require('./services/kyc.service');
 const { rateLimiters, sanitizeRequestBody, securityHeaders, validateRequest, validators, blockPathTraversal, bruteForceProtection } = require('./middleware/security.middleware');
 
@@ -641,19 +641,10 @@ const createUserNotification = async (userId, type, title, message, data = {}) =
 
 // ==================== INITIALIZE SERVICES ====================
 
-// Initialize OTP Service
-let smsProvider;
-switch (process.env.SMS_PROVIDER) {
-  case 'twilio':
-    smsProvider = new TwilioService();
-    break;
-  case 'msg91':
-    smsProvider = new MSG91Service();
-    break;
-  default:
-    smsProvider = new ConsoleSMSService();
-}
-const otpService = new OTPService(smsProvider);
+// Initialize OTP Service (uses automatic provider fallback chain)
+const otpService = new OTPService();
+const smsProvider = SMSServiceFactory.getService();
+console.log('📱 SMS Provider initialized');
 
 // Initialize KYC Service
 const kycService = new KYCService({ User });
@@ -983,20 +974,21 @@ app.post('/api/auth/verify-email-otp', async (req, res) => {
   }
 });
 
-// Send Phone OTP (Pre-Registration) - Bulletproof version
+// Send Phone OTP (Pre-Registration) - Supports UAE and international numbers
 app.post('/api/auth/send-phone-otp', async (req, res) => {
-  // Generate OTP first so we always have it
   const otp = String(Math.floor(100000 + Math.random() * 900000));
   
   try {
     const phone = (req.body && req.body.phone) || '';
-    const countryCode = (req.body && req.body.countryCode) || '+91';
-    const fullPhone = `${countryCode}${phone}`.replace(/\s+/g, '');
-    console.log('📱 Send phone OTP:', fullPhone, 'Code:', otp);
+    const countryCode = (req.body && req.body.countryCode) || '+971';
     
     if (!phone) {
       return res.status(400).json({ success: false, message: 'Phone number is required' });
     }
+    
+    // Normalize to E.164 format (handles leading zeros, spaces, etc.)
+    const fullPhone = normalizePhone(phone, countryCode);
+    console.log('📱 Send phone OTP:', fullPhone, 'Code:', otp, 'CountryCode:', countryCode);
     
     // Store OTP
     preRegPhoneOtps.set(fullPhone, {
@@ -1005,30 +997,32 @@ app.post('/api/auth/send-phone-otp', async (req, res) => {
     });
     setTimeout(() => preRegPhoneOtps.delete(fullPhone), 10 * 60 * 1000);
     
-    // Send SMS - report errors to user so they know if it failed
+    // Send SMS via provider chain (Twilio Verify → Twilio SMS → MSG91 → Console)
     let smsSent = false;
     let smsError = null;
     try {
       const sms = SMSServiceFactory.getService();
-      console.log('📱 SMS service type:', sms.constructor.name);
       const smsResult = await sms.sendOTP(fullPhone, otp, 'Hexanova');
-      console.log('✅ SMS send result:', JSON.stringify(smsResult));
-      smsSent = !smsResult.devMode; // devMode means it was only logged, not actually sent
+      console.log('✅ SMS result:', JSON.stringify(smsResult));
+      smsSent = !smsResult.devMode;
     } catch(e) {
       console.error('❌ SMS send failed:', e.message);
       smsError = e.message;
     }
     
     if (smsSent) {
-      return res.json({ success: true, message: 'Verification code sent to your phone via SMS' });
+      return res.json({ success: true, message: 'Verification code sent to your phone via SMS', smsDelivered: true });
     } else {
-      // OTP is stored - user can still verify if they get the code another way
-      console.log(`⚠️ SMS not delivered to ${fullPhone}. Error: ${smsError || 'SMS service in dev mode'}`);
-      return res.json({ success: true, message: 'Verification code generated. If you did not receive an SMS, please check your phone number and country code.', smsDelivered: false });
+      console.log(`⚠️ SMS not delivered to ${fullPhone}. Error: ${smsError || 'No SMS provider configured'}`);
+      return res.json({ 
+        success: true, 
+        message: 'Verification code generated. SMS delivery may be delayed. Please wait 1-2 minutes.', 
+        smsDelivered: false 
+      });
     }
   } catch (error) {
     console.error('Send phone OTP error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to send verification code. Please try again.' });
+    return res.status(500).json({ success: false, message: error.message || 'Failed to send verification code.' });
   }
 });
 
@@ -1036,13 +1030,13 @@ app.post('/api/auth/send-phone-otp', async (req, res) => {
 app.post('/api/auth/verify-phone-otp', async (req, res) => {
   try {
     const { phone, countryCode, otp } = req.body;
-    console.log('📱 Verify pre-registration phone OTP:', { phone, otp: otp ? '******' : 'missing' });
+    console.log('📱 Verify pre-registration phone OTP:', { phone, countryCode, otp: otp ? '******' : 'missing' });
     
     if (!phone || !otp) {
       return res.status(400).json({ success: false, message: 'Phone and OTP are required' });
     }
     
-    const fullPhone = `${countryCode || '+91'}${phone}`.replace(/\s+/g, '');
+    const fullPhone = normalizePhone(phone, countryCode || '+971');
     const stored = preRegPhoneOtps.get(fullPhone);
     
     if (!stored) {
@@ -1162,11 +1156,11 @@ app.post('/api/auth/forgot-password/send-otp', rateLimiters.auth, async (req, re
     
     // Send OTP via SMS
     try {
-      const smsService = SMSServiceFactory.getService();
-      await smsService.sendOTP(phone, otp);
+      const sms = SMSServiceFactory.getService();
+      const smsResult = await sms.sendOTP(phone, otp, 'Hexanova');
+      console.log('✅ Forgot password SMS result:', JSON.stringify(smsResult));
     } catch (smsError) {
-      console.error('SMS sending failed:', smsError);
-      // Continue anyway for demo purposes
+      console.error('SMS sending failed:', smsError.message);
     }
     
     res.json({ 
@@ -1528,29 +1522,27 @@ app.post('/api/auth/reset-password', async (req, res) => {
 // Send OTP to phone (supports all country codes) - User Panel
 app.post('/api/otp/send-phone', rateLimiters.otp, async (req, res) => {
   try {
-    const { phone, countryCode = '+91', purpose = 'verification' } = req.body;
+    const { phone, countryCode = '+971', purpose = 'verification' } = req.body;
     if (!phone) {
       return res.status(400).json({ success: false, message: 'Phone number is required' });
     }
     
-    // Build full international phone number
-    const cleanPhone = phone.replace(/^0+/, '').replace(/[^0-9]/g, '');
-    const fullPhone = `${countryCode}${cleanPhone}`;
+    // Normalize to E.164 format
+    const fullPhone = normalizePhone(phone, countryCode);
     
     console.log(`📱 [User Panel] Sending OTP to: ${fullPhone}`);
     
-    // Generate and store OTP using otpService (stores with key sms:${fullPhone})
+    // Generate and store OTP
     const otp = otpService.createOTP(fullPhone, 'sms');
     console.log(`📱 [User Panel] OTP for ${fullPhone}: ${otp}`);
     
-    // Actually send SMS via Twilio/provider
+    // Send SMS via provider chain
     let smsSent = false;
     let smsError = null;
     try {
       const sms = SMSServiceFactory.getService();
-      console.log('📱 SMS service type:', sms.constructor.name);
       const smsResult = await sms.sendOTP(fullPhone, otp, 'Hexanova');
-      console.log('✅ SMS send result:', JSON.stringify(smsResult));
+      console.log('✅ SMS result:', JSON.stringify(smsResult));
       smsSent = !smsResult.devMode;
     } catch(e) {
       console.error('❌ SMS send failed:', e.message);
@@ -1558,10 +1550,10 @@ app.post('/api/otp/send-phone', rateLimiters.otp, async (req, res) => {
     }
     
     if (smsSent) {
-      res.json({ success: true, message: 'Verification code sent to your phone via SMS' });
+      res.json({ success: true, message: 'Verification code sent to your phone via SMS', smsDelivered: true });
     } else {
-      console.log(`⚠️ SMS not delivered to ${fullPhone}. Error: ${smsError || 'SMS service in dev mode'}`);
-      res.json({ success: true, message: 'Verification code generated. If you did not receive an SMS, please check your phone number and country code.', smsDelivered: false });
+      console.log(`⚠️ SMS not delivered to ${fullPhone}. Error: ${smsError || 'No SMS provider configured'}`);
+      res.json({ success: true, message: 'Verification code generated. SMS delivery may be delayed.', smsDelivered: false });
     }
   } catch (error) {
     console.error('OTP send error:', error);

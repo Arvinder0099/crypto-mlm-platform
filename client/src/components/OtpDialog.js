@@ -4,9 +4,10 @@ import { Phone, Email, Lock, Send, CheckCircle, Close } from '@mui/icons-materia
 
 // Comprehensive list of country codes
 const countryCodes = [
+  { code: '+971', country: 'UAE', flag: '🇦🇪' },
+  { code: '+91', country: 'India', flag: '🇮🇳' },
   { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
   { code: '+44', country: 'UK', flag: '🇬🇧' },
-  { code: '+91', country: 'India', flag: '🇮🇳' },
   { code: '+86', country: 'China', flag: '🇨🇳' },
   { code: '+81', country: 'Japan', flag: '🇯🇵' },
   { code: '+49', country: 'Germany', flag: '🇩🇪' },
@@ -21,7 +22,6 @@ const countryCodes = [
   { code: '+62', country: 'Indonesia', flag: '🇮🇩' },
   { code: '+90', country: 'Turkey', flag: '🇹🇷' },
   { code: '+966', country: 'Saudi Arabia', flag: '🇸🇦' },
-  { code: '+971', country: 'UAE', flag: '🇦🇪' },
   { code: '+27', country: 'South Africa', flag: '🇿🇦' },
   { code: '+234', country: 'Nigeria', flag: '🇳🇬' },
   { code: '+254', country: 'Kenya', flag: '🇰🇪' },
@@ -78,7 +78,7 @@ const countryCodes = [
 
 const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Password', email = null }) => {
   const [phone, setPhone] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState(countryCodes.find(c => c.code === '+91'));
+  const [selectedCountry, setSelectedCountry] = useState(countryCodes.find(c => c.code === '+971'));
   const [otp, setOtp] = useState('');
   const [otpMethod, setOtpMethod] = useState('email'); // default to email (more reliable)
   const [userEmail, setUserEmail] = useState(email || '');
