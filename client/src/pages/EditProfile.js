@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, TextField, Button, Grid, Snackbar, Alert, Paper, CircularProgress } from '@mui/material';
-import { fetchJSON } from '../utils/api';
+import { fetchWithAuth } from '../utils/api';
 
 const EditProfile = () => {
   const [form, setForm] = useState({
@@ -19,7 +19,7 @@ const EditProfile = () => {
 
   const fetchProfile = async () => {
     try {
-      const data = await fetchJSON('/api/user/profile');
+      const data = await fetchWithAuth('/api/user/profile');
       if (data && data.user) {
         setForm({
           firstName: data.user.firstName || '',
@@ -44,13 +44,8 @@ const EditProfile = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/user/profile', {
+      const data = await fetchWithAuth('/api/user/profile', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           firstName: form.firstName,
           lastName: form.lastName,
@@ -58,16 +53,10 @@ const EditProfile = () => {
         })
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setSnack({ open: true, message: 'Profile updated successfully', severity: 'success' });
-        // Update local user data if needed
-        const currentUser = JSON.parse(localStorage.getItem('userData') || '{}');
-        localStorage.setItem('userData', JSON.stringify({ ...currentUser, ...data.user }));
-      } else {
-        throw new Error(data.message || 'Failed to update profile');
-      }
+      setSnack({ open: true, message: 'Profile updated successfully', severity: 'success' });
+      // Update local user data if needed
+      const currentUser = JSON.parse(localStorage.getItem('userData') || '{}');
+      localStorage.setItem('userData', JSON.stringify({ ...currentUser, ...data.user }));
     } catch (error) {
       console.error('Update error:', error);
       setSnack({ open: true, message: error.message || 'Error updating profile', severity: 'error' });

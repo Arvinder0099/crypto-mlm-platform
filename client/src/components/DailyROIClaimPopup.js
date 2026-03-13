@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, Typography, Box, CircularProgress, Chip,
@@ -21,8 +21,10 @@ const DailyROIClaimPopup = () => {
   const [claimResult, setClaimResult] = useState(null);
   const [error, setError] = useState('');
   const [checked, setChecked] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const intervalRef = useRef(null);
+
+  // Track daily dismissal via localStorage so popup auto-shows once per day per login
+  const getTodayKey = () => `roi_popup_dismissed_${new Date().toISOString().slice(0, 10)}`;
 
   const checkClaimStatus = useCallback(async () => {
     try {
@@ -39,8 +41,9 @@ const DailyROIClaimPopup = () => {
 
       if (data.hasClaimable && data.claimable) {
         setClaimData(data.claimable);
-        // Auto-open popup if not already dismissed by user
-        if (!dismissed) {
+        // Auto-open popup if not already dismissed today
+        const todayKey = `roi_popup_dismissed_${new Date().toISOString().slice(0, 10)}`;
+        if (localStorage.getItem(todayKey) !== 'true') {
           setOpen(true);
         }
       } else {
@@ -51,7 +54,7 @@ const DailyROIClaimPopup = () => {
       console.warn('Failed to check ROI claim status:', err);
       setChecked(true);
     }
-  }, [dismissed]);
+  }, []);
 
   useEffect(() => {
     // Check on mount with a short delay to let the app load
@@ -99,7 +102,7 @@ const DailyROIClaimPopup = () => {
 
   const handleClose = () => {
     setOpen(false);
-    setDismissed(true);
+    localStorage.setItem(getTodayKey(), 'true');
     // Reset success state for next time
     setTimeout(() => {
       setClaimSuccess(false);
@@ -120,7 +123,7 @@ const DailyROIClaimPopup = () => {
       {hasClaimable && !open && (
         <Slide direction="down" in mountOnEnter unmountOnExit>
           <Box
-            onClick={() => { setOpen(true); setDismissed(false); }}
+            onClick={() => { setOpen(true); }}
             sx={{
               position: 'fixed',
               top: 0,
@@ -169,7 +172,7 @@ const DailyROIClaimPopup = () => {
       {hasClaimable && !open && (
         <Zoom in>
           <Box
-            onClick={() => { setOpen(true); setDismissed(false); }}
+            onClick={() => { setOpen(true); }}
             sx={{
               position: 'fixed',
               bottom: { xs: 80, sm: 30 },
@@ -278,11 +281,11 @@ const DailyROIClaimPopup = () => {
                 +${claimResult.amount.toFixed(2)} USDT
               </Typography>
               <Typography variant="body1" color="text.secondary" gutterBottom>
-                Successfully credited to your My Wallet
+                Successfully credited to your Utility Wallet
               </Typography>
               <Alert severity="success" sx={{ mt: 2, textAlign: 'left' }}>
                 <Typography variant="body2">
-                  <strong>My Wallet Balance:</strong> ${claimResult.newMyWallet?.toFixed(2) || '0.00'} USDT
+                  <strong>Utility Wallet Balance:</strong> ${claimResult.newUtilityWallet?.toFixed(2) || '0.00'} USDT
                 </Typography>
               </Alert>
             </Box>

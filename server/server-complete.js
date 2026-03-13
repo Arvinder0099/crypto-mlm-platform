@@ -853,7 +853,7 @@ app.post('/api/auth/register', rateLimiters.auth, async (req, res) => {
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
       JWT_SECRET,
-      { expiresIn: '24h', algorithm: 'HS256' }
+      { expiresIn: '7d', algorithm: 'HS256' }
     );
     
     // Send welcome email
@@ -1142,7 +1142,7 @@ app.post('/api/auth/login', rateLimiters.auth, bruteForceProtection, async (req,
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
       JWT_SECRET,
-      { expiresIn: '24h', algorithm: 'HS256' }
+      { expiresIn: '7d', algorithm: 'HS256' }
     );
     
     res.json({
@@ -5055,9 +5055,9 @@ app.post('/api/roi/claim', authenticateToken, async (req, res) => {
 
     const amount = claim.amount;
 
-    // Credit to My Wallet
-    const prevMyWallet = user.myWallet || 0;
-    user.myWallet = prevMyWallet + amount;
+    // Credit to Utility Wallet
+    const prevUtilityWallet = user.utilityWallet || 0;
+    user.utilityWallet = prevUtilityWallet + amount;
     user.totalEarned = (user.totalEarned || 0) + amount;
     user.todayEarning = amount;
     user.balance = (user.myWallet || 0) + (user.fundWallet || 0) + (user.utilityWallet || 0);
@@ -5098,11 +5098,11 @@ app.post('/api/roi/claim', authenticateToken, async (req, res) => {
         userId: user._id,
         type: claim.source === 'admin_set' ? 'daily_return' : 'earning',
         amount: detail.amount,
-        description: `Daily ROI claimed - ${detail.planName}: $${detail.amount.toFixed(2)} credited to My Wallet`,
+        description: `Daily ROI claimed - ${detail.planName}: $${detail.amount.toFixed(2)} credited to Utility Wallet`,
         status: 'completed',
         investmentId: detail.investmentId || undefined,
-        previousBalance: prevMyWallet,
-        newBalance: user.myWallet,
+        previousBalance: prevUtilityWallet,
+        newBalance: user.utilityWallet,
         processedAt: new Date()
       });
       await transaction.save();
@@ -5113,7 +5113,7 @@ app.post('/api/roi/claim', authenticateToken, async (req, res) => {
       user._id,
       'roi_earned',
       'ROI Claimed Successfully! ✅',
-      `You claimed $${amount.toFixed(2)} daily ROI. It has been credited to your My Wallet.`,
+      `You claimed $${amount.toFixed(2)} daily ROI. It has been credited to your Utility Wallet.`,
       { amount }
     );
 
@@ -5123,7 +5123,7 @@ app.post('/api/roi/claim', authenticateToken, async (req, res) => {
       success: true,
       message: `$${amount.toFixed(2)} ROI claimed successfully!`,
       amount,
-      newMyWallet: user.myWallet,
+      newUtilityWallet: user.utilityWallet,
       newBalance: user.balance
     });
   } catch (error) {
