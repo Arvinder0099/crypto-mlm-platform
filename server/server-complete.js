@@ -2396,8 +2396,8 @@ app.post('/api/investments', authenticateToken, async (req, res) => {
     
     // Credit Referral Bonus & Welcome Bonus on First Investment
     if (isFirstInvestment) {
-      // 1. Welcome Bonus (5%) to User's Utility Wallet
-      const welcomeBonus = plan.investment * 0.05;
+      // 1. Welcome Bonus (3%) to User's Utility Wallet
+      const welcomeBonus = plan.investment * 0.03;
       user.utilityWallet = (user.utilityWallet || 0) + welcomeBonus;
       user.totalEarned = (user.totalEarned || 0) + welcomeBonus;
       await user.save();
@@ -2406,7 +2406,7 @@ app.post('/api/investments', authenticateToken, async (req, res) => {
         userId: user._id,
         type: 'bonus', // New type for welcome bonus
         amount: welcomeBonus,
-        description: `Welcome Bonus (5%) for activating ${plan.name}`,
+        description: `Welcome Bonus (3%) for activating ${plan.name}`,
         status: 'completed',
         previousBalance: (user.utilityWallet || 0) - welcomeBonus,
         newBalance: user.utilityWallet,
@@ -7210,9 +7210,9 @@ app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
       }
     }
     
-    // 5% Welcome bonus to user's utility wallet on first investment
+    // 3% Welcome bonus to user's utility wallet on first investment
     if (isFirstInvestment) {
-      const welcomeBonus = plan.investment * 0.05;
+      const welcomeBonus = plan.investment * 0.03;
       user.utilityWallet = (user.utilityWallet || 0) + welcomeBonus;
       user.totalEarned = (user.totalEarned || 0) + welcomeBonus;
       await user.save();
@@ -7221,7 +7221,7 @@ app.post('/api/plans/purchase', authenticateToken, async (req, res) => {
         userId: user._id,
         type: 'bonus',
         amount: welcomeBonus,
-        description: `Welcome Bonus (5%) for activating ${plan.name}`,
+        description: `Welcome Bonus (3%) for activating ${plan.name}`,
         status: 'completed',
         balanceAfter: user.utilityWallet
       });
