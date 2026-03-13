@@ -166,14 +166,18 @@ const OtpDialog = ({ open, onClose, onVerified, title = 'Verify One Time Passwor
         },
         body: JSON.stringify({ 
           phone: phone.replace(/^0+/, ''),
-          countryCode: selectedCountry.code
+          countryCode: selectedCountry.code,
+          email: userEmail || email || ''
         })
       });
       
       const data = await resp.json();
       
       if (data?.success) {
-        setStatus({ sending: false, verifying: false, sent: true, message: `OTP sent to ${fullPhone}`, severity: 'success' });
+        const msg = data.emailFallback 
+          ? `📧 SMS limited in your region. OTP sent to your email instead!` 
+          : `OTP sent to ${fullPhone}`;
+        setStatus({ sending: false, verifying: false, sent: true, message: msg, severity: 'success' });
         setTimer(60);
         scrollToOtpInput();
       } else {

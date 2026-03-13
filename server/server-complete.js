@@ -975,12 +975,14 @@ app.post('/api/auth/verify-email-otp', async (req, res) => {
 });
 
 // Send Phone OTP (Pre-Registration) - Supports UAE and international numbers
+// Also sends OTP via email as fallback when SMS delivery fails
 app.post('/api/auth/send-phone-otp', async (req, res) => {
   const otp = String(Math.floor(100000 + Math.random() * 900000));
   
   try {
     const phone = (req.body && req.body.phone) || '';
     const countryCode = (req.body && req.body.countryCode) || '+971';
+    const email = (req.body && req.body.email) || ''; // optional email for fallback
     
     if (!phone) {
       return res.status(400).json({ success: false, message: 'Phone number is required' });
@@ -988,16 +990,16 @@ app.post('/api/auth/send-phone-otp', async (req, res) => {
     
     // Normalize to E.164 format (handles leading zeros, spaces, etc.)
     const fullPhone = normalizePhone(phone, countryCode);
-    console.log('📱 Send phone OTP:', fullPhone, 'Code:', otp, 'CountryCode:', countryCode);
+    console.log('📱 Send phone OTP:', fullPhone, 'Code:', otp, 'CountryCode:', countryCode, 'FallbackEmail:', email || 'none');
     
-    // Store OTP
+    // Store OTP (keyed by phone)
     preRegPhoneOtps.set(fullPhone, {
       otp,
       expires: new Date(Date.now() + 10 * 60 * 1000),
     });
     setTimeout(() => preRegPhoneOtps.delete(fullPhone), 10 * 60 * 1000);
     
-    // Send SMS via provider chain (Twilio Verify → Twilio SMS → MSG91 → Console)
+    // Try sending SMS via provider chain (Twilio Verify → Twilio SMS → MSG91 → Console)
     let smsSent = false;
     let smsError = null;
     try {
@@ -1010,8 +1012,28 @@ app.post('/api/auth/send-phone-otp', async (req, res) => {
       smsError = e.message;
     }
     
+    // If SMS failed and email is available, send OTP via email as fallback
+    let emailSent = false;
+    if (!smsSent && email) {
+      try {
+        console.log(`📧 SMS failed, sending OTP to fallback email: ${email}`);
+        await emailService.sendOTP(email, { otp, expiresIn: '10', purpose: 'phone-verification' });
+        emailSent = true;
+        console.log(`✅ Fallback email OTP sent to ${email}`);
+      } catch(e) {
+        console.error('❌ Fallback email also failed:', e.message);
+      }
+    }
+    
     if (smsSent) {
       return res.json({ success: true, message: 'Verification code sent to your phone via SMS', smsDelivered: true });
+    } else if (emailSent) {
+      return res.json({ 
+        success: true, 
+        message: 'SMS delivery to your region is limited. Verification code sent to your email instead. Please check your inbox/spam.', 
+        smsDelivered: false,
+        emailFallback: true
+      });
     } else {
       console.log(`⚠️ SMS not delivered to ${fullPhone}. Error: ${smsError || 'No SMS provider configured'}`);
       return res.json({ 
@@ -1155,18 +1177,40 @@ app.post('/api/auth/forgot-password/send-otp', rateLimiters.auth, async (req, re
     await user.save();
     
     // Send OTP via SMS
+    let smsSent = false;
     try {
       const sms = SMSServiceFactory.getService();
       const smsResult = await sms.sendOTP(phone, otp, 'Hexanova');
       console.log('✅ Forgot password SMS result:', JSON.stringify(smsResult));
+      smsSent = !smsResult.devMode;
     } catch (smsError) {
       console.error('SMS sending failed:', smsError.message);
     }
     
-    res.json({ 
-      success: true, 
-      message: 'OTP sent to your phone number'
-    });
+    // If SMS failed, send via email as fallback (user already exists in DB)
+    let emailSent = false;
+    if (!smsSent && user.email) {
+      try {
+        console.log(`📧 Forgot-password: SMS failed, sending OTP to user email: ${user.email}`);
+        await emailService.sendOTP(user.email, { otp, expiresIn: '10', purpose: 'forgot-password' });
+        emailSent = true;
+        console.log(`✅ Forgot-password: Fallback email OTP sent to ${user.email}`);
+      } catch(e) {
+        console.error('❌ Forgot-password: Fallback email also failed:', e.message);
+      }
+    }
+    
+    if (smsSent) {
+      res.json({ success: true, message: 'OTP sent to your phone number' });
+    } else if (emailSent) {
+      res.json({ 
+        success: true, 
+        message: 'SMS delivery to your region is limited. OTP sent to your registered email instead. Please check your inbox/spam.',
+        emailFallback: true
+      });
+    } else {
+      res.json({ success: true, message: 'OTP sent. If SMS is delayed, please wait 1-2 minutes.' });
+    }
   } catch (error) {
     res.status(500).json({ message: 'Failed to send OTP', error: error.message });
   }
@@ -1522,7 +1566,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
 // Send OTP to phone (supports all country codes) - User Panel
 app.post('/api/otp/send-phone', rateLimiters.otp, async (req, res) => {
   try {
-    const { phone, countryCode = '+971', purpose = 'verification' } = req.body;
+    const { phone, countryCode = '+971', purpose = 'verification', email = '' } = req.body;
     if (!phone) {
       return res.status(400).json({ success: false, message: 'Phone number is required' });
     }
@@ -1530,7 +1574,7 @@ app.post('/api/otp/send-phone', rateLimiters.otp, async (req, res) => {
     // Normalize to E.164 format
     const fullPhone = normalizePhone(phone, countryCode);
     
-    console.log(`📱 [User Panel] Sending OTP to: ${fullPhone}`);
+    console.log(`📱 [User Panel] Sending OTP to: ${fullPhone}, FallbackEmail: ${email || 'none'}`);
     
     // Generate and store OTP
     const otp = otpService.createOTP(fullPhone, 'sms');
@@ -1549,10 +1593,47 @@ app.post('/api/otp/send-phone', rateLimiters.otp, async (req, res) => {
       smsError = e.message;
     }
     
+    // If SMS failed and email provided, send OTP via email fallback
+    let emailSent = false;
+    if (!smsSent && email) {
+      try {
+        console.log(`📧 [User Panel] SMS failed, sending OTP to fallback email: ${email}`);
+        await emailService.sendOTP(email, { otp, expiresIn: '10', purpose: 'phone-verification' });
+        emailSent = true;
+        console.log(`✅ [User Panel] Fallback email OTP sent to ${email}`);
+      } catch(e) {
+        console.error('❌ [User Panel] Fallback email also failed:', e.message);
+      }
+    }
+    
+    // Also try to get email from logged-in user if no email provided
+    if (!smsSent && !emailSent && req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const user = await User.findById(decoded.id);
+        if (user && user.email) {
+          console.log(`📧 [User Panel] Using user's email: ${user.email} for OTP fallback`);
+          await emailService.sendOTP(user.email, { otp, expiresIn: '10', purpose: 'phone-verification' });
+          emailSent = true;
+          console.log(`✅ [User Panel] Fallback email OTP sent to ${user.email}`);
+        }
+      } catch(e) {
+        console.error('❌ [User Panel] User email fallback failed:', e.message);
+      }
+    }
+    
     if (smsSent) {
       res.json({ success: true, message: 'Verification code sent to your phone via SMS', smsDelivered: true });
+    } else if (emailSent) {
+      res.json({ 
+        success: true, 
+        message: 'SMS delivery to your region is limited. Verification code sent to your email instead. Please check your inbox/spam.', 
+        smsDelivered: false,
+        emailFallback: true
+      });
     } else {
-      console.log(`⚠️ SMS not delivered to ${fullPhone}. Error: ${smsError || 'No SMS provider configured'}`);
+      console.log(`⚠️ [User Panel] SMS not delivered to ${fullPhone}. Error: ${smsError || 'No SMS provider configured'}`);
       res.json({ success: true, message: 'Verification code generated. SMS delivery may be delayed.', smsDelivered: false });
     }
   } catch (error) {

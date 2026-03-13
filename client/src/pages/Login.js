@@ -405,6 +405,8 @@ const Login = () => {
       if (data.demoOtp) {
         setForgotData(prev => ({ ...prev, otp: data.demoOtp }));
         setForgotMessage({ text: 'OTP auto-filled for demo!', type: 'success' });
+      } else if (data.emailFallback) {
+        setForgotMessage({ text: 'SMS limited in your region. OTP sent to your registered email instead!', type: 'success' });
       } else {
         setForgotMessage({ text: 'OTP sent to your phone number', type: 'success' });
       }

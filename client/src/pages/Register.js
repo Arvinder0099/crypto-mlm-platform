@@ -434,13 +434,17 @@ function Register() {
       const res = await fetch('/api/auth/send-phone-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: formData.phone, countryCode: formData.countryCode }),
+        body: JSON.stringify({ phone: formData.phone, countryCode: formData.countryCode, email: formData.email || '' }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
         setPhoneOtpSent(true);
         setPhoneTimer(60);
-        setSuccess('✅ Verification code sent to your phone! Check your SMS.');
+        if (data.emailFallback) {
+          setSuccess('📧 SMS delivery is limited in your region. Verification code sent to your email instead! Check your inbox/spam.');
+        } else {
+          setSuccess('✅ Verification code sent to your phone! Check your SMS.');
+        }
         setTimeout(() => setSuccess(''), 8000);
       } else {
         throw new Error(data.message || 'Server error');

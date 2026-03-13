@@ -66,7 +66,9 @@ const ChangePassword = () => {
         phone: forgotData.phone
       });
       
-      setSnack({ open: true, message: 'OTP sent to your phone number', severity: 'success' });
+      setSnack({ open: true, message: response.data?.emailFallback 
+        ? 'SMS limited in your region. OTP sent to your registered email instead!' 
+        : 'OTP sent to your phone number', severity: 'success' });
       setForgotStep(2);
       
       // OTP sent successfully
