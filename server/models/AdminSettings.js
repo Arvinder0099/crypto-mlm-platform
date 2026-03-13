@@ -19,7 +19,7 @@ const adminSettingsSchema = new mongoose.Schema(
     
     // Withdrawal Settings (Production)
     minWithdrawal: { type: Number, default: 100 }, // Minimum 100 USDT
-    maxWithdrawal: { type: Number, default: 100000 }, // Maximum 100,000 USDT
+    maxWithdrawal: { type: Number, default: 5000 }, // Maximum 5,000 USDT
     withdrawalFeePercent: { type: Number, default: 3 }, // 3% withdrawal fee
     withdrawalApprovalRequired: { type: Boolean, default: true }, // Manual approval required
     

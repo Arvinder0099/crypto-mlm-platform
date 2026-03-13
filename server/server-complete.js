@@ -438,7 +438,7 @@ const adminSettingsSchema = new mongoose.Schema({
     level5: { type: Number, default: 0.5 },
   },
   minWithdrawal: { type: Number, default: 50 },
-  maxWithdrawal: { type: Number, default: 50000 },
+  maxWithdrawal: { type: Number, default: 5000 },
   withdrawalFeePercent: { type: Number, default: 0 },
   withdrawalApprovalRequired: { type: Boolean, default: true },
   platformFeePercent: { type: Number, default: 0 },
@@ -6724,7 +6724,7 @@ app.post('/api/withdrawals/request', authenticateToken, async (req, res) => {
     // Get admin settings for min/max withdrawal
     const settings = await AdminSettings.findOne({});
     const minWithdrawal = settings?.minWithdrawal || 50;
-    const maxWithdrawal = settings?.maxWithdrawal || 50000;
+    const maxWithdrawal = settings?.maxWithdrawal || 5000;
     const withdrawalFeePercent = settings?.withdrawalFeePercent || 0;
     
     if (withdrawAmount < minWithdrawal) {

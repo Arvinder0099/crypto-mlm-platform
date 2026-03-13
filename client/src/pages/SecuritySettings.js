@@ -34,8 +34,11 @@ import {
   Lock,
   Visibility,
   VisibilityOff,
+  NotificationsActive,
 } from '@mui/icons-material';
 import { useSecurity } from '../components/SecurityProvider';
+import notificationService from '../services/notificationService';
+import notificationPoller from '../services/notificationPoller';
 
 const SecuritySettings = () => {
   const { user, twoFactorEnabled, enableTwoFactor, disableTwoFactor, validatePasswordStrength, auditLogs } = useSecurity();
@@ -50,6 +53,18 @@ const SecuritySettings = () => {
   const [qrCode, setQrCode] = useState('');
   const [backupCodes, setBackupCodes] = useState([]);
   const [alert, setAlert] = useState({ show: false, type: 'info', message: '' });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationStatus, setNotificationStatus] = useState('prompt'); // 'granted', 'denied', 'prompt'
+
+  // Check notification permission on mount
+  React.useEffect(() => {
+    const checkNotifStatus = async () => {
+      const status = await notificationService.checkPermission();
+      setNotificationStatus(status);
+      setNotificationsEnabled(status === 'granted');
+    };
+    checkNotifStatus();
+  }, []);
 
   const passwordStrength = validatePasswordStrength(newPassword);
 
@@ -75,6 +90,35 @@ const SecuritySettings = () => {
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
+  };
+
+  const handleToggleNotifications = async () => {
+    if (notificationsEnabled) {
+      // Disable: stop poller and inform user
+      notificationPoller.stop();
+      setNotificationsEnabled(false);
+      localStorage.setItem('notificationsDisabledByUser', 'true');
+      showAlert('info', 'Notifications disabled. You can re-enable them anytime.');
+    } else {
+      // Enable: request permission and start poller
+      localStorage.removeItem('notificationsDisabledByUser');
+      localStorage.removeItem('notificationPromptDismissed');
+      const granted = await notificationService.requestPermission();
+      if (granted) {
+        setNotificationsEnabled(true);
+        setNotificationStatus('granted');
+        notificationPoller.start();
+        await notificationService.sendNotification(
+          '🔔 Notifications Enabled!',
+          'You will now receive important updates from Hexanova.',
+          { type: 'setup' }
+        );
+        showAlert('success', 'Notifications enabled successfully!');
+      } else {
+        setNotificationStatus('denied');
+        showAlert('warning', 'Permission denied. Please enable notifications in your device settings.');
+      }
+    }
   };
 
   const handleEnable2FA = async () => {
@@ -181,6 +225,39 @@ const SecuritySettings = () => {
           </Card>
         </Grid>
 
+        {/* Push Notification Settings */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" mb={2}>
+                <NotificationsActive sx={{ mr: 2, color: '#d4af37' }} />
+                <Typography variant="h6">Push Notifications</Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                Receive real-time alerts for earnings, deposits, withdrawals, and referrals.
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={notificationsEnabled}
+                    onChange={handleToggleNotifications}
+                    sx={{
+                      '& .MuiSwitch-switchBase.Mui-checked': { color: '#d4af37' },
+                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: '#d4af37' },
+                    }}
+                  />
+                }
+                label={notificationsEnabled ? "Enabled" : "Disabled"}
+              />
+              {notificationStatus === 'denied' && (
+                <Alert severity="warning" sx={{ mt: 1 }}>
+                  Notifications are blocked. Please enable them in your device/browser settings.
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
         {/* Security Overview */}
         <Grid item xs={12} md={6}>
           <Card>
@@ -223,6 +300,20 @@ const SecuritySettings = () => {
                     secondary="Verified and secure"
                   />
                   <Chip label="Verified" color="success" size="small" />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <NotificationsActive fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Push Notifications"
+                    secondary={notificationsEnabled ? "Receiving alerts" : "Not active"}
+                  />
+                  <Chip
+                    label={notificationsEnabled ? "On" : "Off"}
+                    color={notificationsEnabled ? "success" : "error"}
+                    size="small"
+                  />
                 </ListItem>
               </List>
             </CardContent>

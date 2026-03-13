@@ -27,7 +27,13 @@ class NotificationPoller {
    */
   start() {
     if (this.isRunning) return;
-    
+
+    // Don't start if user explicitly disabled notifications
+    const disabledByUser = localStorage.getItem('notificationsDisabledByUser');
+    if (disabledByUser) {
+      console.log('🔔 Notifications disabled by user - poller not starting');
+      return;
+    }
     // Load previously shown notification IDs from storage
     this._loadShownIds();
     

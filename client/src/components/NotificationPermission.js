@@ -33,8 +33,12 @@ const NotificationPermission = () => {
     // Only show if notifications are supported
     if (!notificationService.isSupported()) return;
 
-    // Check if user already dismissed this prompt
-    const dismissed = localStorage.getItem('notificationPromptDismissed');
+    // Check if user explicitly disabled notifications in settings
+    const disabledByUser = localStorage.getItem('notificationsDisabledByUser');
+    if (disabledByUser) return;
+
+    // Check if user already dismissed this prompt in this session
+    const dismissed = sessionStorage.getItem('notificationPromptDismissed');
     if (dismissed) return;
 
     // Check current permission
@@ -58,12 +62,13 @@ const NotificationPermission = () => {
       );
     }
     setOpen(false);
-    localStorage.setItem('notificationPromptDismissed', 'true');
+    // Use sessionStorage so the prompt can re-appear on next login if permission is still 'prompt'
+    sessionStorage.setItem('notificationPromptDismissed', 'true');
   };
 
   const handleDismiss = () => {
     setOpen(false);
-    localStorage.setItem('notificationPromptDismissed', 'true');
+    sessionStorage.setItem('notificationPromptDismissed', 'true');
   };
 
   return (

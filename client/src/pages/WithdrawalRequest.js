@@ -17,7 +17,7 @@ const WithdrawalRequest = () => {
   const [fundWallet, setFundWallet] = useState(0);
   const [utilityWallet, setUtilityWallet] = useState(0);
   const [savedAddresses, setSavedAddresses] = useState([]);
-  const [settings, setSettings] = useState({ minWithdrawal: 50, maxWithdrawal: 50000, withdrawalFeePercent: 0 });
+  const [settings, setSettings] = useState({ minWithdrawal: 50, maxWithdrawal: 5000, withdrawalFeePercent: 0 });
   const [form, setForm] = useState({ amount: '', walletAddress: '', selectedAddress: '', otp: '' });
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
   // Inline OTP states
