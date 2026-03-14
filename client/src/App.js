@@ -289,11 +289,11 @@ const theme = createTheme({
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          background: 'linear-gradient(180deg, #34d399 0%, #10b981 50%, #059669 100%)',
+          backgroundImage: 'linear-gradient(180deg, #34d399 0%, #10b981 50%, #059669 100%) !important',
+          backgroundColor: '#10b981',
           boxShadow: '4px 0 20px rgba(16, 185, 129, 0.3)',
           borderRight: 'none',
           borderRadius: 0,
-          backgroundImage: 'none',
         },
       },
     },

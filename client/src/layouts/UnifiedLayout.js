@@ -235,8 +235,6 @@ const UnifiedLayout = ({ children }) => {
           maxHeight: '-webkit-fill-available',
           overflowX: 'hidden',
           overflowY: 'hidden',
-          // Reset paper overrides that break drawer
-          backgroundImage: 'none',
           borderRadius: 0,
         },
       }}

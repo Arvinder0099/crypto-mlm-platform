@@ -732,20 +732,11 @@ const Login = () => {
                     fullWidth
                     name="password"
                     label="Password"
-                    type={showPassword ? 'text' : 'password'}
+                    type="password"
                     id="password"
                     autoComplete="current-password"
                     value={formData.password}
                     onChange={handleChange}
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 2,

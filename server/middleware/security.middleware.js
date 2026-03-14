@@ -244,7 +244,7 @@ function bruteForceProtection(req, res, next) {
   const record = bruteForceStore.get(key);
   
   if (record) {
-    // Account locked
+    // Only check if there's an active lock
     if (record.lockedUntil && record.lockedUntil > Date.now()) {
       const waitMinutes = Math.ceil((record.lockedUntil - Date.now()) / 60000);
       trackSuspiciousIP(req.ip, 'brute_force_locked');
@@ -253,22 +253,11 @@ function bruteForceProtection(req, res, next) {
         lockedUntil: record.lockedUntil 
       });
     }
-    // Progressive lockout: 5 failures = 5 min, 10 = 30 min, 15 = 2 hours
-    if (record.failures >= 15) {
-      record.lockedUntil = Date.now() + (2 * 60 * 60 * 1000);
+    // If lock expired, clear it so user can try again
+    if (record.lockedUntil && record.lockedUntil <= Date.now()) {
+      record.lockedUntil = null;
+      record.failures = 0;
       bruteForceStore.set(key, record);
-      trackSuspiciousIP(req.ip, 'brute_force_severe');
-      return res.status(423).json({ message: 'Account locked for 2 hours due to repeated failed attempts.' });
-    }
-    if (record.failures >= 10) {
-      record.lockedUntil = Date.now() + (30 * 60 * 1000);
-      bruteForceStore.set(key, record);
-      return res.status(423).json({ message: 'Account locked for 30 minutes due to repeated failed attempts.' });
-    }
-    if (record.failures >= 5) {
-      record.lockedUntil = Date.now() + (5 * 60 * 1000);
-      bruteForceStore.set(key, record);
-      return res.status(423).json({ message: 'Account locked for 5 minutes due to repeated failed attempts.' });
     }
   }
   
@@ -278,6 +267,15 @@ function bruteForceProtection(req, res, next) {
     const r = bruteForceStore.get(key) || { failures: 0, firstFailure: Date.now() };
     r.failures++;
     r.lastFailure = Date.now();
+    // Progressive lockout applied AFTER failure: 10 = 5 min, 15 = 30 min, 20 = 2 hours
+    if (r.failures >= 20) {
+      r.lockedUntil = Date.now() + (2 * 60 * 60 * 1000);
+      trackSuspiciousIP(req.ip, 'brute_force_severe');
+    } else if (r.failures >= 15) {
+      r.lockedUntil = Date.now() + (30 * 60 * 1000);
+    } else if (r.failures >= 10) {
+      r.lockedUntil = Date.now() + (5 * 60 * 1000);
+    }
     bruteForceStore.set(key, r);
   };
   req.resetBruteForce = () => {
