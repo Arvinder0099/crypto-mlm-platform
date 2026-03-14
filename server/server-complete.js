@@ -4238,6 +4238,7 @@ app.get('/api/admin/members', authenticateToken, isAdmin, async (req, res) => {
     res.json({ 
       members: members.map(m => ({
         id: m._id,
+        userId: m.userId,
         odId: m.odId,
         userName: `${m.firstName} ${m.lastName}`,
         sponsorId: m.referredBy?.userId || 'N/A',

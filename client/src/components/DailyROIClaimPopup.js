@@ -22,9 +22,7 @@ const DailyROIClaimPopup = () => {
   const [error, setError] = useState('');
   const [checked, setChecked] = useState(false);
   const intervalRef = useRef(null);
-
-  // Track daily dismissal via localStorage so popup auto-shows once per day per login
-  const getTodayKey = () => `roi_popup_dismissed_${new Date().toISOString().slice(0, 10)}`;
+  const hasShownOnLogin = useRef(false);
 
   const checkClaimStatus = useCallback(async () => {
     try {
@@ -41,14 +39,16 @@ const DailyROIClaimPopup = () => {
 
       if (data.hasClaimable && data.claimable) {
         setClaimData(data.claimable);
-        // Auto-open popup if not already dismissed today
-        const todayKey = `roi_popup_dismissed_${new Date().toISOString().slice(0, 10)}`;
-        if (localStorage.getItem(todayKey) !== 'true') {
-          setOpen(true);
-        }
       } else {
         setClaimData(null);
       }
+
+      // Always show popup on first load (login) - regardless of claimable status
+      if (!hasShownOnLogin.current) {
+        hasShownOnLogin.current = true;
+        setOpen(true);
+      }
+
       setChecked(true);
     } catch (err) {
       console.warn('Failed to check ROI claim status:', err);
@@ -102,7 +102,6 @@ const DailyROIClaimPopup = () => {
 
   const handleClose = () => {
     setOpen(false);
-    localStorage.setItem(getTodayKey(), 'true');
     // Reset success state for next time
     setTimeout(() => {
       setClaimSuccess(false);
@@ -235,7 +234,9 @@ const DailyROIClaimPopup = () => {
           sx={{
             background: claimSuccess
               ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-              : 'linear-gradient(135deg, #f5a623 0%, #e8960f 100%)',
+              : hasClaimable
+              ? 'linear-gradient(135deg, #f5a623 0%, #e8960f 100%)'
+              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             px: 3,
             py: 2.5,
             display: 'flex',
@@ -251,12 +252,14 @@ const DailyROIClaimPopup = () => {
             )}
             <Box>
               <Typography variant="h6" sx={{ color: '#fff', fontWeight: 800 }}>
-                {claimSuccess ? 'ROI Claimed Successfully!' : 'Daily ROI Available'}
+                {claimSuccess ? 'ROI Claimed Successfully!' : hasClaimable ? 'Daily ROI Available' : 'Daily ROI Status'}
               </Typography>
               <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
                 {claimSuccess
                   ? 'Your earnings have been credited'
-                  : 'Claim your daily return on investment'}
+                  : hasClaimable
+                  ? 'Claim your daily return on investment'
+                  : 'Your ROI status for today'}
               </Typography>
             </Box>
           </Box>
