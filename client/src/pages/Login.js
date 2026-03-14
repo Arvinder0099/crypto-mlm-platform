@@ -266,7 +266,7 @@ const Login = () => {
   // Forgot Password State
   const [forgotDialog, setForgotDialog] = useState(false);
   const [forgotStep, setForgotStep] = useState(1);
-  const [forgotData, setForgotData] = useState({ phone: '', otp: '', newPassword: '', confirmPassword: '', resetToken: '' });
+  const [forgotData, setForgotData] = useState({ email: '', otp: '', newPassword: '', confirmPassword: '', resetToken: '' });
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotMessage, setForgotMessage] = useState({ text: '', type: '' });
   
@@ -391,8 +391,8 @@ const Login = () => {
   };
 
   const handleSendOTP = async () => {
-    if (!forgotData.phone) {
-      setForgotMessage({ text: 'Please enter your phone number', type: 'error' });
+    if (!forgotData.email) {
+      setForgotMessage({ text: 'Please enter your email address', type: 'error' });
       return;
     }
     setForgotLoading(true);
@@ -400,19 +400,12 @@ const Login = () => {
       const data = await fetchJSON('/api/auth/forgot-password/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: forgotData.phone })
+        body: JSON.stringify({ email: forgotData.email })
       });
-      if (data.demoOtp) {
-        setForgotData(prev => ({ ...prev, otp: data.demoOtp }));
-        setForgotMessage({ text: 'OTP auto-filled for demo!', type: 'success' });
-      } else if (data.emailFallback) {
-        setForgotMessage({ text: 'SMS limited in your region. OTP sent to your registered email instead!', type: 'success' });
-      } else {
-        setForgotMessage({ text: 'OTP sent to your phone number', type: 'success' });
-      }
+      setForgotMessage({ text: data.message || 'OTP sent to your email address', type: 'success' });
       setForgotStep(2);
     } catch (err) {
-      setForgotMessage({ text: 'Failed to send OTP', type: 'error' });
+      setForgotMessage({ text: err.message || 'Failed to send OTP', type: 'error' });
     } finally {
       setForgotLoading(false);
     }
@@ -428,7 +421,7 @@ const Login = () => {
       const data = await fetchJSON('/api/auth/forgot-password/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: forgotData.phone, otp: forgotData.otp })
+        body: JSON.stringify({ email: forgotData.email, otp: forgotData.otp })
       });
       setForgotData({ ...forgotData, resetToken: data.resetToken });
       setForgotMessage({ text: 'OTP verified successfully', type: 'success' });
@@ -464,7 +457,7 @@ const Login = () => {
       setTimeout(() => {
         setForgotDialog(false);
         setForgotStep(1);
-        setForgotData({ phone: '', otp: '', newPassword: '', confirmPassword: '', resetToken: '' });
+        setForgotData({ email: '', otp: '', newPassword: '', confirmPassword: '', resetToken: '' });
         setForgotMessage({ text: '', type: '' });
       }, 2000);
     } catch (err) {
@@ -476,7 +469,7 @@ const Login = () => {
 
   const openForgotDialog = () => {
     setForgotStep(1);
-    setForgotData({ phone: '', otp: '', newPassword: '', confirmPassword: '', resetToken: '' });
+    setForgotData({ email: '', otp: '', newPassword: '', confirmPassword: '', resetToken: '' });
     setForgotMessage({ text: '', type: '' });
     setForgotDialog(true);
   };
@@ -949,22 +942,23 @@ const Login = () => {
             {forgotStep === 1 && (
               <>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Enter your registered phone number with country code.
+                  Enter your registered email address.
                 </Typography>
                 <TextField
                   fullWidth
-                  label="Phone Number"
-                  name="phone"
-                  value={forgotData.phone}
+                  label="Email Address"
+                  name="email"
+                  type="email"
+                  value={forgotData.email}
                   onChange={handleForgotChange}
-                  placeholder="+1234567890"
+                  placeholder="your@email.com"
                 />
               </>
             )}
             {forgotStep === 2 && (
               <>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Enter the 6-digit OTP sent to your phone.
+                  Enter the 6-digit OTP sent to your email.
                 </Typography>
                 <TextField
                   fullWidth

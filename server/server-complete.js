@@ -1161,11 +1161,11 @@ app.post('/api/auth/login', rateLimiters.auth, bruteForceProtection, async (req,
 // Step 1: Send OTP to phone for forgot password
 app.post('/api/auth/forgot-password/send-otp', rateLimiters.auth, async (req, res) => {
   try {
-    const { phone } = req.body;
-    if (!phone) return res.status(400).json({ message: 'Phone number is required' });
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
     
-    const user = await User.findOne({ phone });
-    if (!user) return res.status(404).json({ message: 'No account found with this phone number' });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'No account found with this email address' });
     
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -1176,40 +1176,14 @@ app.post('/api/auth/forgot-password/send-otp', rateLimiters.auth, async (req, re
     user.resetPasswordOtpExpiry = otpExpiry;
     await user.save();
     
-    // Send OTP via SMS
-    let smsSent = false;
+    // Send OTP via email
     try {
-      const sms = SMSServiceFactory.getService();
-      const smsResult = await sms.sendOTP(phone, otp, 'Hexanova');
-      console.log('✅ Forgot password SMS result:', JSON.stringify(smsResult));
-      smsSent = !smsResult.devMode;
-    } catch (smsError) {
-      console.error('SMS sending failed:', smsError.message);
-    }
-    
-    // If SMS failed, send via email as fallback (user already exists in DB)
-    let emailSent = false;
-    if (!smsSent && user.email) {
-      try {
-        console.log(`📧 Forgot-password: SMS failed, sending OTP to user email: ${user.email}`);
-        await emailService.sendOTP(user.email, { otp, expiresIn: '10', purpose: 'forgot-password' });
-        emailSent = true;
-        console.log(`✅ Forgot-password: Fallback email OTP sent to ${user.email}`);
-      } catch(e) {
-        console.error('❌ Forgot-password: Fallback email also failed:', e.message);
-      }
-    }
-    
-    if (smsSent) {
-      res.json({ success: true, message: 'OTP sent to your phone number' });
-    } else if (emailSent) {
-      res.json({ 
-        success: true, 
-        message: 'SMS delivery to your region is limited. OTP sent to your registered email instead. Please check your inbox/spam.',
-        emailFallback: true
-      });
-    } else {
-      res.json({ success: true, message: 'OTP sent. If SMS is delayed, please wait 1-2 minutes.' });
+      await emailService.sendOTP(email, { otp, expiresIn: '10', purpose: 'forgot-password' });
+      console.log(`✅ Forgot-password: Email OTP sent to ${email}`);
+      res.json({ success: true, message: 'OTP sent to your email address. Please check your inbox/spam.' });
+    } catch(e) {
+      console.error('❌ Forgot-password: Email sending failed:', e.message);
+      res.status(500).json({ message: 'Failed to send OTP email. Please try again.' });
     }
   } catch (error) {
     res.status(500).json({ message: 'Failed to send OTP', error: error.message });
@@ -1219,10 +1193,10 @@ app.post('/api/auth/forgot-password/send-otp', rateLimiters.auth, async (req, re
 // Step 2: Verify OTP for forgot password
 app.post('/api/auth/forgot-password/verify-otp', rateLimiters.auth, async (req, res) => {
   try {
-    const { phone, otp } = req.body;
-    if (!phone || !otp) return res.status(400).json({ message: 'Phone and OTP are required' });
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ message: 'Email and OTP are required' });
     
-    const user = await User.findOne({ phone });
+    const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: 'User not found' });
     
     if (!user.resetPasswordOtp || user.resetPasswordOtp !== otp) {
@@ -1234,7 +1208,7 @@ app.post('/api/auth/forgot-password/verify-otp', rateLimiters.auth, async (req, 
     }
     
     // Generate a reset token
-    const resetToken = jwt.sign({ userId: user._id, phone, purpose: 'phone-reset' }, JWT_SECRET, { expiresIn: '15m', algorithm: 'HS256' });
+    const resetToken = jwt.sign({ userId: user._id, email, purpose: 'email-reset' }, JWT_SECRET, { expiresIn: '15m', algorithm: 'HS256' });
     
     res.json({ 
       success: true, 
