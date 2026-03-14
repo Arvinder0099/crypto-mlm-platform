@@ -18,7 +18,7 @@ const WithdrawalRequest = () => {
   const [utilityWallet, setUtilityWallet] = useState(0);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [settings, setSettings] = useState({ minWithdrawal: 50, maxWithdrawal: 5000, withdrawalFeePercent: 0 });
-  const [form, setForm] = useState({ amount: '', walletAddress: '', selectedAddress: '', otp: '' });
+  const [form, setForm] = useState({ amount: '', walletAddress: '', selectedAddress: '', otp: '', network: '' });
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'success' });
   // Inline OTP states
   const [userEmail, setUserEmail] = useState('');
@@ -162,7 +162,11 @@ const WithdrawalRequest = () => {
       return;
     }
     if (!form.walletAddress) {
-      setSnack({ open: true, message: 'Please enter or select a wallet address', severity: 'error' });
+      setSnack({ open: true, message: 'Please enter your wallet address', severity: 'error' });
+      return;
+    }
+    if (!form.network) {
+      setSnack({ open: true, message: 'Please select a network (TRC20 or BEP20)', severity: 'error' });
       return;
     }
     if (!form.otp) {
@@ -180,7 +184,8 @@ const WithdrawalRequest = () => {
         },
         body: JSON.stringify({
           amount: form.amount,
-          walletAddress: form.walletAddress
+          walletAddress: form.walletAddress,
+          network: form.network
         })
       });
 
@@ -194,7 +199,7 @@ const WithdrawalRequest = () => {
         });
         // Send notification
         notificationService.notifyWithdrawal(parseFloat(form.amount) || 0, 'submitted').catch(() => {});
-        setForm({ amount: '', walletAddress: form.walletAddress, selectedAddress: form.selectedAddress, otp: '' });
+        setForm({ amount: '', walletAddress: form.walletAddress, selectedAddress: form.selectedAddress, otp: '', network: form.network });
         setUserBalance(data.newBalance);
       } else {
         setSnack({ open: true, message: data.message || 'Failed to submit request', severity: 'error' });
@@ -268,41 +273,34 @@ const WithdrawalRequest = () => {
               />
             </Grid>
 
-            {/* Saved Addresses */}
+            {/* Network Selection */}
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Select Wallet Address</InputLabel>
+              <FormControl fullWidth required>
+                <InputLabel>Select Network</InputLabel>
                 <Select
-                  name="selectedAddress"
-                  value={form.selectedAddress}
+                  name="network"
+                  value={form.network}
                   onChange={handleChange}
-                  label="Select Wallet Address"
+                  label="Select Network"
                 >
-                  {savedAddresses.map((addr, idx) => (
-                    <MenuItem key={idx} value={addr.address}>
-                      {addr.type?.toUpperCase()} - {addr.address.slice(0, 10)}...{addr.address.slice(-8)}
-                      {addr.isPrimary && <Chip size="small" label="Primary" sx={{ ml: 1 }} />}
-                    </MenuItem>
-                  ))}
-                  <MenuItem value="custom">Enter Custom Address</MenuItem>
+                  <MenuItem value="usdt_trc20">USDT (TRC20)</MenuItem>
+                  <MenuItem value="bnb_bep20">BNB (BEP20)</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
 
-            {/* Custom Address Input */}
-            {form.selectedAddress === 'custom' && (
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Wallet Address"
-                  name="walletAddress"
-                  value={form.walletAddress}
-                  onChange={handleChange}
-                  required
-                  placeholder="Enter your USDT/BNB wallet address"
-                />
-              </Grid>
-            )}
+            {/* Wallet Address Input */}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Wallet Address"
+                name="walletAddress"
+                value={form.walletAddress}
+                onChange={handleChange}
+                required
+                placeholder={form.network === 'bnb_bep20' ? 'Enter your BEP20 wallet address (0x...)' : 'Enter your TRC20 wallet address (T...)'}
+              />
+            </Grid>
 
             {/* Charges Display */}
             {form.amount && parseFloat(form.amount) > 0 && (

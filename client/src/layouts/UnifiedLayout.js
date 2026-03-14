@@ -236,6 +236,9 @@ const UnifiedLayout = ({ children }) => {
           overflowX: 'hidden',
           overflowY: 'hidden',
           borderRadius: 0,
+          background: 'linear-gradient(180deg, #34d399 0%, #10b981 50%, #059669 100%) !important',
+          backgroundColor: '#10b981 !important',
+          backgroundImage: 'linear-gradient(180deg, #34d399 0%, #10b981 50%, #059669 100%) !important',
         },
       }}
     >

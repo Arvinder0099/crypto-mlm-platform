@@ -38,7 +38,7 @@ const API_BASE = process.env.REACT_APP_API_URL || '';
 // Default admin deposit addresses (fallback)
 const DEFAULT_ADDRESSES = {
   usdt_trc20: {
-    address: 'TFVh7tRnCP3TnAxVSf6KvxN7qJ78SYYp7p',
+    address: 'TWe24ghFoFCZtuXx48EfkQETYQ9xnXRjMC',
     network: 'TRC20',
     name: 'USDT (TRC20)',
     color: '#26A17B',
@@ -46,7 +46,7 @@ const DEFAULT_ADDRESSES = {
     enabled: true,
   },
   bnb_bep20: {
-    address: '0xcEEecCF61B06867332B3672830A3A2cDeb6b47f7',
+    address: '0x0b96fCd89c237159D56c086bFf10df20d0e8cEDA',
     network: 'BEP20',
     name: 'BNB (BEP20)',
     color: '#F3BA2F',

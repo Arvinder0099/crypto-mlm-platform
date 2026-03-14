@@ -128,7 +128,7 @@ app.get('/api/app/info', (req, res) => {
   const stats = fs.statSync(apkPath);
   res.json({
     available: true,
-    version: '1.5',
+    version: '1.6',
     size: (stats.size / (1024 * 1024)).toFixed(2) + ' MB',
     lastUpdated: stats.mtime.toISOString().split('T')[0],
   });
@@ -374,6 +374,9 @@ const withdrawalSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   amount: { type: Number, required: true },
   walletAddress: { type: String, required: true },
+  network: { type: String, enum: ['usdt_trc20', 'bnb_bep20'], default: 'usdt_trc20' },
+  charges: { type: Number, default: 0 },
+  netAmount: { type: Number },
   status: { type: String, enum: ['pending', 'approved', 'rejected', 'completed', 'failed'], default: 'pending' },
   approvedBy: mongoose.Schema.Types.ObjectId,
   rejectionReason: String,
@@ -449,12 +452,12 @@ const adminSettingsSchema = new mongoose.Schema({
   // Admin deposit wallet addresses for each network
   depositWallets: {
     usdt_trc20: { 
-      address: { type: String, default: 'TFVh7tRnCP3TnAxVSf6KvxN7qJ78SYYp7p' },
+      address: { type: String, default: 'TWe24ghFoFCZtuXx48EfkQETYQ9xnXRjMC' },
       enabled: { type: Boolean, default: true },
       name: { type: String, default: 'USDT (TRC20)' }
     },
     bnb_bep20: { 
-      address: { type: String, default: '0xcEEecCF61B06867332B3672830A3A2cDeb6b47f7' },
+      address: { type: String, default: '0x0b96fCd89c237159D56c086bFf10df20d0e8cEDA' },
       enabled: { type: Boolean, default: true },
       name: { type: String, default: 'BNB (BEP20)' }
     }
@@ -2591,7 +2594,7 @@ app.post('/api/wallet/deposit', authenticateToken, isAdmin, async (req, res) => 
 
 app.post('/api/withdrawals', authenticateToken, async (req, res) => {
   try {
-    const { amount, walletAddress, requestReason } = req.body;
+    const { amount, walletAddress, requestReason, network } = req.body;
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
     // Check withdrawable balance (My Wallet is the withdrawable wallet)
@@ -2628,7 +2631,7 @@ app.post('/api/withdrawals', authenticateToken, async (req, res) => {
       amount,
       requestId: withdrawal._id,
       walletAddress: walletAddress || user.walletAddress,
-      network: 'TRC20'
+      network: network === 'bnb_bep20' ? 'BEP20' : 'TRC20'
     }).catch(console.error);
 
     // Create user notification for withdrawal submitted
@@ -3004,7 +3007,7 @@ app.post('/api/withdrawals/:id/approve', authenticateToken, isAdmin, async (req,
       amount: withdrawal.amount,
       walletAddress: withdrawal.walletAddress,
       txHash: transactionHash,
-      network: 'TRC20'
+      network: withdrawal.network === 'bnb_bep20' ? 'BEP20' : 'TRC20'
     }).catch(console.error);
 
     // Create user notification for approved withdrawal
@@ -3696,7 +3699,7 @@ app.get('/api/deposit-wallets', async (req, res) => {
     
     const wallets = {
       usdt_trc20: {
-        address: settings.depositWallets?.usdt_trc20?.address || 'TFVh7tRnCP3TnAxVSf6KvxN7qJ78SYYp7p',
+        address: settings.depositWallets?.usdt_trc20?.address || 'TWe24ghFoFCZtuXx48EfkQETYQ9xnXRjMC',
         enabled: settings.depositWallets?.usdt_trc20?.enabled !== false,
         name: settings.depositWallets?.usdt_trc20?.name || 'USDT (TRC20)',
         network: 'TRC20',
@@ -3704,7 +3707,7 @@ app.get('/api/deposit-wallets', async (req, res) => {
         icon: '₮'
       },
       bnb_bep20: {
-        address: settings.depositWallets?.bnb_bep20?.address || '0xcEEecCF61B06867332B3672830A3A2cDeb6b47f7',
+        address: settings.depositWallets?.bnb_bep20?.address || '0x0b96fCd89c237159D56c086bFf10df20d0e8cEDA',
         enabled: settings.depositWallets?.bnb_bep20?.enabled !== false,
         name: settings.depositWallets?.bnb_bep20?.name || 'BNB (BEP20)',
         network: 'BEP20',
@@ -3730,12 +3733,12 @@ app.get('/api/admin/wallets', authenticateToken, isAdmin, async (req, res) => {
     
     const wallets = {
       usdt_trc20: {
-        address: settings.depositWallets?.usdt_trc20?.address || 'TFVh7tRnCP3TnAxVSf6KvxN7qJ78SYYp7p',
+        address: settings.depositWallets?.usdt_trc20?.address || 'TWe24ghFoFCZtuXx48EfkQETYQ9xnXRjMC',
         enabled: settings.depositWallets?.usdt_trc20?.enabled !== false,
         name: settings.depositWallets?.usdt_trc20?.name || 'USDT (TRC20)'
       },
       bnb_bep20: {
-        address: settings.depositWallets?.bnb_bep20?.address || '0xcEEecCF61B06867332B3672830A3A2cDeb6b47f7',
+        address: settings.depositWallets?.bnb_bep20?.address || '0x0b96fCd89c237159D56c086bFf10df20d0e8cEDA',
         enabled: settings.depositWallets?.bnb_bep20?.enabled !== false,
         name: settings.depositWallets?.bnb_bep20?.name || 'BNB (BEP20)'
       }
@@ -6684,7 +6687,7 @@ app.delete('/api/user/withdrawal-addresses/:addressId', authenticateToken, async
 // Real Withdrawal Request with Balance Check
 app.post('/api/withdrawals/request', authenticateToken, async (req, res) => {
   try {
-    const { amount, walletAddress } = req.body;
+    const { amount, walletAddress, network } = req.body;
     const withdrawAmount = parseFloat(amount);
     
     if (!withdrawAmount || withdrawAmount <= 0) {
@@ -6725,6 +6728,7 @@ app.post('/api/withdrawals/request', authenticateToken, async (req, res) => {
       charges,
       netAmount,
       walletAddress,
+      network: network || 'usdt_trc20',
       status: 'pending'
     });
     await withdrawal.save();
