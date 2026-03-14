@@ -128,7 +128,7 @@ app.get('/api/app/info', (req, res) => {
   const stats = fs.statSync(apkPath);
   res.json({
     available: true,
-    version: '1.0',
+    version: '1.4',
     size: (stats.size / (1024 * 1024)).toFixed(2) + ' MB',
     lastUpdated: stats.mtime.toISOString().split('T')[0],
   });
